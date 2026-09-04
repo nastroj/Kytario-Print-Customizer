@@ -45,7 +45,7 @@ export function ProgressBar({
     return (
       <div 
         id="processing-toast"
-        className="fixed top-4 right-4 z-40 print:hidden flex items-center gap-3 bg-zinc-900/95 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-zinc-700/80 backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-top-2 text-xs"
+        className="fixed top-4 right-4 z-40 print:hidden flex items-center gap-3 bg-zinc-900/95 text-white px-4 py-2.5 rounded-lg shadow-2xl border border-zinc-700/80 backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-top-2 text-xs"
       >
         <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
         <div className="flex flex-col">

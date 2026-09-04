@@ -14,7 +14,9 @@ import {
   Loader2, 
   Minus, 
   Plus,
-  RefreshCw
+  RefreshCw,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,6 +32,8 @@ interface SidebarProps {
   isLoadingJson?: boolean;
   isCollapsed?: boolean;
   onToggleCollapse?: (collapsed: boolean) => void;
+  isDarkMode?: boolean;
+  onToggleDarkMode?: () => void;
 }
 
 interface TypographyItemProps {
@@ -107,6 +111,8 @@ function TypographyItemRow({
     }
   };
 
+  const handleведении = () => {};
+
   const handleIncrement = () => {
     const current = isNaN(parseInt(localStr, 10)) ? fontSize : parseInt(localStr, 10);
     const next = Math.min(max, current + step);
@@ -122,11 +128,11 @@ function TypographyItemRow({
   };
 
   return (
-    <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 rounded-xl border border-black/5">
+    <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
       <div className="flex items-center gap-2 min-w-0 flex-1">
         {/* Color picker dot */}
         <div 
-          className="relative w-5 h-5 rounded-full border border-black/10 shrink-0 hover:scale-110 transition-transform overflow-hidden cursor-pointer"
+          className="relative w-5 h-5 rounded-full border border-black/10 dark:border-zinc-600 shrink-0 hover:scale-110 transition-transform overflow-hidden cursor-pointer"
           style={{ backgroundColor: color }}
         >
           <input
@@ -138,18 +144,18 @@ function TypographyItemRow({
             title={`Click to change ${label.toLowerCase()} color`}
           />
         </div>
-        <label htmlFor={`${id}-font`} className="text-xs font-semibold text-zinc-800 truncate cursor-pointer select-none">
+        <label htmlFor={`${id}-font`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate cursor-pointer select-none">
           {label}
         </label>
       </div>
 
       {/* Stepper with - / input / + */}
-      <div className="flex items-center border border-transparent bg-zinc-100 hover:bg-zinc-200 focus:bg-white rounded-xl overflow-hidden shrink-0 shadow-2xs focus-within:ring-1 focus-within:ring-zinc-800">
+      <div className="flex items-center border border-transparent bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 focus:bg-white dark:focus:bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-2xs focus-within:ring-1 focus-within:ring-zinc-800 dark:focus-within:ring-zinc-400">
         <button
           type="button"
           onClick={handleDecrement}
           disabled={fontSize <= min}
-          className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+          className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-600 dark:hover:text-zinc-100 active:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
           title={`Decrease ${label} size`}
           aria-label={`Decrease ${label} size`}
         >
@@ -169,15 +175,15 @@ function TypographyItemRow({
             onChange={handleInputChange}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="w-8 text-center py-0.5 text-xs font-bold text-zinc-900 bg-transparent focus:outline-none"
+            className="w-8 text-center py-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 bg-transparent focus:outline-none"
           />
-          <span className="text-[10px] text-zinc-400 -ml-1 pr-1 pointer-events-none select-none">px</span>
+          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 -ml-1 pr-1 pointer-events-none select-none">px</span>
         </div>
         <button
           type="button"
           onClick={handleIncrement}
           disabled={fontSize >= max}
-          className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+          className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-600 dark:hover:text-zinc-100 active:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
           title={`Increase ${label} size`}
           aria-label={`Increase ${label} size`}
         >
@@ -200,7 +206,9 @@ export function Sidebar({
   isUpdatingLayout = false,
   isLoadingJson = false,
   isCollapsed: controlledCollapsed,
-  onToggleCollapse
+  onToggleCollapse,
+  isDarkMode = false,
+  onToggleDarkMode
 }: SidebarProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
@@ -264,32 +272,43 @@ export function Sidebar({
     return (
       <div className="flex flex-col h-full gap-4">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-black/5 shrink-0">
+        <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-zinc-800 shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-zinc-900 flex items-center gap-1.5">
-                <Settings2 className="w-4 h-4 text-zinc-800" />
+              <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                <Settings2 className="w-4 h-4 text-zinc-800 dark:text-zinc-200" />
                 Settings
               </h2>
             </div>
-            <p className="text-xs text-zinc-500">Page layout, fonts & colors</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Page layout, fonts & colors</p>
           </div>
           {isDrawer ? (
             <button 
               onClick={onMobileClose} 
-              className="p-1.5 bg-zinc-100 hover:bg-zinc-200 rounded-xl text-zinc-600 transition-colors cursor-pointer"
+              className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
               title="Close Settings"
             >
               <X className="w-4 h-4" />
             </button>
           ) : (
-            <button 
-              onClick={() => setCollapsed(true)} 
-              className="p-1.5 bg-zinc-100 hover:bg-zinc-200 rounded-xl text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer" 
-              title="Collapse Sidebar"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              {onToggleDarkMode && (
+                <button 
+                  onClick={onToggleDarkMode} 
+                  className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer" 
+                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                  {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+                </button>
+              )}
+              <button 
+                onClick={() => setCollapsed(true)} 
+                className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer" 
+                title="Collapse Sidebar"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
           )}
         </div>
 
@@ -298,19 +317,19 @@ export function Sidebar({
           
           {/* SECTION 1: Page & Layout */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-              <LayoutTemplate className="w-3.5 h-3.5 text-zinc-600" />
+            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <LayoutTemplate className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
               Page & Layout
             </h3>
 
             {/* Page Format Dropdown */}
             <div>
-              <label htmlFor={`pageFormat-${idSuffix}`} className="block text-xs font-semibold text-zinc-700 mb-1">
+              <label htmlFor={`pageFormat-${idSuffix}`} className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                 Paper Format
               </label>
               <select
                 id={`pageFormat-${idSuffix}`}
-                className="w-full rounded-xl border border-transparent bg-zinc-100 hover:bg-zinc-200 focus:bg-white px-3 py-2 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
+                className="w-full rounded-lg border border-transparent dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 focus:bg-white dark:focus:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-400"
                 value={draftSettings.pageFormat}
                 onChange={(e) => handleSettingChange('pageFormat', e.target.value)}
               >
@@ -322,12 +341,12 @@ export function Sidebar({
 
             {/* Orientation Dropdown */}
             <div>
-              <label htmlFor={`orientation-${idSuffix}`} className="block text-xs font-semibold text-zinc-700 mb-1">
+              <label htmlFor={`orientation-${idSuffix}`} className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                 Orientation
               </label>
               <select
                 id={`orientation-${idSuffix}`}
-                className="w-full rounded-xl border border-transparent bg-zinc-100 hover:bg-zinc-200 focus:bg-white px-3 py-2 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
+                className="w-full rounded-lg border border-transparent dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 focus:bg-white dark:focus:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-400"
                 value={draftSettings.orientation}
                 onChange={(e) => handleSettingChange('orientation', e.target.value)}
               >
@@ -338,12 +357,12 @@ export function Sidebar({
 
             {/* Table of Contents Order Dropdown */}
             <div>
-              <label htmlFor={`indexSortOrder-${idSuffix}`} className="block text-xs font-semibold text-zinc-700 mb-1">
+              <label htmlFor={`indexSortOrder-${idSuffix}`} className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                 Table of Contents Order
               </label>
               <select
                 id={`indexSortOrder-${idSuffix}`}
-                className="w-full rounded-xl border border-transparent bg-zinc-100 hover:bg-zinc-200 focus:bg-white px-3 py-2 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
+                className="w-full rounded-lg border border-transparent dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 focus:bg-white dark:focus:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-400"
                 value={draftSettings.indexSortOrder}
                 onChange={(e) => handleSettingChange('indexSortOrder', e.target.value)}
               >
@@ -354,28 +373,28 @@ export function Sidebar({
 
             {/* Checkboxes */}
             <div className="pt-1 space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
+              <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
                 <input
                   type="checkbox"
                   id={`showChords-${idSuffix}`}
                   checked={draftSettings.showChords}
                   onChange={(e) => handleSettingChange('showChords', e.target.checked)}
-                  className="rounded border-black/10 text-zinc-900 focus:ring-zinc-900 w-4 h-4 cursor-pointer"
+                  className="rounded border-black/10 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-400 w-4 h-4 cursor-pointer"
                 />
-                <span className="text-xs font-medium text-zinc-700">
+                <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                   Display Chords
                 </span>
               </label>
 
-              <label className="flex items-center gap-2 cursor-pointer select-none" title="Auto-scales song lyrics and chords to fit comfortably on the page">
+              <label className="flex items-center gap-2 cursor-pointer select-none w-fit" title="Auto-scales song lyrics and chords to fit comfortably on the page">
                 <input
                   type="checkbox"
                   id={`smartFit-${idSuffix}`}
                   checked={draftSettings.smartFit}
                   onChange={(e) => handleSettingChange('smartFit', e.target.checked)}
-                  className="rounded border-black/10 text-zinc-900 focus:ring-zinc-900 w-4 h-4 cursor-pointer"
+                  className="rounded border-black/10 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-400 w-4 h-4 cursor-pointer"
                 />
-                <span className="text-xs font-medium text-zinc-700">
+                <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                   Auto-scale lyrics & chords to page
                 </span>
               </label>
@@ -383,12 +402,40 @@ export function Sidebar({
           </div>
 
           {/* SECTION 2: Typography & Colors Combined */}
-          <div className="space-y-3 pt-3 border-t border-black/5">
+          <div className="space-y-3 pt-3 border-t border-black/5 dark:border-zinc-800">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-                <Type className="w-3.5 h-3.5 text-zinc-600" />
+              <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Type className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                 Fonts & Colors
               </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  const defaults = isDarkMode ? {
+                    titleColor: '#f4f4f5',
+                    artistColor: '#a1a1aa',
+                    lyricsColor: '#e4e4e7',
+                    chordsColor: '#60a5fa',
+                    markerColor: '#ffffff',
+                    tocColor: '#f4f4f5',
+                  } : {
+                    titleColor: '#1c1917',
+                    artistColor: '#57534e',
+                    lyricsColor: '#292524',
+                    chordsColor: '#2563eb',
+                    markerColor: '#000000',
+                    tocColor: '#1c1917',
+                  };
+                  setDraftSettings(prev => ({
+                    ...prev,
+                    ...defaults
+                  }));
+                }}
+                className="px-2 py-0.5 text-[11px] font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                title="Reset colors to default"
+              >
+                Defaults
+              </button>
             </div>
 
             <div className="space-y-2">
@@ -449,10 +496,10 @@ export function Sidebar({
               />
               
               {/* Marker Color Row */}
-              <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 rounded-xl border border-black/5">
+              <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <div 
-                    className="relative w-5 h-5 rounded-full border border-black/10 shrink-0 hover:scale-110 transition-transform overflow-hidden cursor-pointer"
+                    className="relative w-5 h-5 rounded-full border border-black/10 dark:border-zinc-600 shrink-0 hover:scale-110 transition-transform overflow-hidden cursor-pointer"
                     style={{ backgroundColor: draftSettings.markerColor }}
                   >
                     <input
@@ -464,11 +511,11 @@ export function Sidebar({
                       title="Click to change section marker color"
                     />
                   </div>
-                  <label htmlFor={`marker-color-${idSuffix}`} className="text-xs font-semibold text-zinc-800 cursor-pointer select-none truncate">
+                  <label htmlFor={`marker-color-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none truncate">
                     Markers [Chorus/Verse]
                   </label>
                 </div>
-                <span className="text-[11px] text-zinc-400 font-medium">Color only</span>
+                <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">Color only</span>
               </div>
             </div>
           </div>
@@ -476,14 +523,14 @@ export function Sidebar({
         </div>
         
         {/* Sticky Action Footer */}
-        <div className="pt-3 border-t border-black/5 space-y-2 shrink-0">
+        <div className="pt-3 border-t border-black/5 dark:border-zinc-800 space-y-2 shrink-0">
           {hasChanges && (
             <div className="flex gap-2 animate-in fade-in">
               <button
                 type="button"
                 onClick={handleDiscardChanges}
                 disabled={isUpdatingLayout}
-                className="w-1/3 bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:opacity-50 text-white border-transparent rounded-xl py-2.5 text-xs font-semibold transition-all flex justify-center items-center shadow-sm cursor-pointer"
+                className="w-1/3 bg-[#b40b24] hover:bg-[#9b091f] active:bg-[#82071a] disabled:opacity-50 text-white rounded-lg py-2.5 text-xs font-semibold transition-colors flex justify-center items-center shadow-sm cursor-pointer"
                 title="Discard pending changes"
               >
                 Discard
@@ -493,7 +540,7 @@ export function Sidebar({
                 id={`footer-update-settings-btn-${idSuffix}`}
                 onClick={() => handleUpdateClick(isDrawer)}
                 disabled={isUpdatingLayout}
-                className="w-2/3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-50 text-white rounded-xl py-2.5 text-xs font-semibold transition-all flex justify-center items-center gap-2 shadow-md cursor-pointer disabled:cursor-wait"
+                className="w-2/3 bg-[#3c8706] hover:bg-[#337305] active:bg-[#2a5e04] disabled:opacity-50 text-white rounded-lg py-2.5 text-xs font-semibold transition-all flex justify-center items-center gap-2 shadow-md cursor-pointer disabled:cursor-wait"
               >
                 <RefreshCw className={`w-4 h-4 ${isUpdatingLayout ? 'animate-spin' : ''}`} />
                 <span>{isUpdatingLayout ? 'Updating...' : 'Update Preview'}</span>
@@ -512,13 +559,13 @@ export function Sidebar({
               }
             }}
             disabled={isDownloadingPdf}
-            className="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl py-2.5 text-xs font-semibold transition-colors flex justify-center items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+            className="w-full bg-[#4FC3F7] hover:bg-[#29B6F6] active:bg-[#03A9F4] text-zinc-950 rounded-lg py-2.5 text-xs font-semibold transition-colors flex justify-center items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
             title="Download formatted songbook as PDF"
           >
             {isDownloadingPdf ? (
-              <Loader2 className="w-4 h-4 animate-spin text-white" />
+              <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
             ) : (
-              <FileDown className="w-4 h-4 text-white" />
+              <FileDown className="w-4 h-4 text-zinc-950" />
             )}
             <span>Download as PDF</span>
           </button>
@@ -529,10 +576,10 @@ export function Sidebar({
               if (isDrawer && onMobileClose) onMobileClose();
               window.print();
             }}
-            className="w-full bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-white rounded-xl py-2 text-xs font-semibold transition-colors flex justify-center items-center gap-2 border border-transparent shadow-sm cursor-pointer"
+            className="w-full bg-[#f6cf02] hover:bg-[#e5be02] active:bg-[#d4ad02] text-zinc-950 rounded-lg py-2 text-xs font-semibold transition-colors flex justify-center items-center gap-2 border border-transparent shadow-sm cursor-pointer"
             title="Open browser print dialog"
           >
-            <Printer className="w-3.5 h-3.5" />
+            <Printer className="w-3.5 h-3.5 text-zinc-950" />
             <span>Direct Print</span>
           </button>
 
@@ -543,10 +590,10 @@ export function Sidebar({
                 if (isDrawer && onMobileClose) onMobileClose();
                 onResetSongbook();
               }}
-              className="w-full bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-white rounded-xl py-2 text-xs font-semibold transition-colors flex justify-center items-center gap-2 border border-transparent shadow-sm cursor-pointer"
+              className="w-full bg-[#afafaf] hover:bg-[#9e9e9e] active:bg-[#8e8e8e] text-zinc-900 rounded-lg py-2 text-xs font-semibold transition-colors flex justify-center items-center gap-2 border border-transparent shadow-sm cursor-pointer"
               title="Change Songbook"
             >
-              <FolderOpen className="w-3.5 h-3.5" />
+              <FolderOpen className="w-3.5 h-3.5 text-zinc-900" />
               <span>Change Songbook</span>
             </button>
           )}
@@ -557,64 +604,120 @@ export function Sidebar({
 
   return (
     <>
-      {/* Mobile Drawer Backdrop and Modal */}
-      {isMobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-zinc-950/60 backdrop-blur-xs transition-opacity"
-            onClick={onMobileClose}
-          />
-          {/* Drawer */}
-          <div className="relative w-84 max-w-[88vw] bg-white/95 backdrop-blur-2xl h-full shadow-2xl p-4 z-10 flex flex-col">
-            {renderContent(true)}
-          </div>
+      {/* Mobile Drawer Backdrop and Modal with smooth CSS transition */}
+      <div 
+        className={`fixed inset-0 z-50 md:hidden flex transition-all duration-300 ease-in-out ${
+          isMobileOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
+        }`}
+        aria-hidden={!isMobileOpen}
+      >
+        {/* Backdrop */}
+        <div 
+          className={`fixed inset-0 bg-zinc-950/60 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${
+            isMobileOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={onMobileClose}
+        />
+        {/* Drawer */}
+        <div 
+          className={`relative w-84 max-w-[88vw] bg-white/95 dark:bg-zinc-900/95 text-zinc-900 dark:text-zinc-100 backdrop-blur-2xl h-full shadow-2xl p-4 z-10 flex flex-col transform transition-transform duration-300 ease-out ${
+            isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          {renderContent(true)}
         </div>
-      )}
+      </div>
 
-      {/* Desktop Sidebar */}
-      {isCollapsed ? (
-        <div className="hidden md:flex w-16 bg-white/95 backdrop-blur-2xl border-r border-black/5 h-screen shrink-0 print:hidden shadow-sm flex-col items-center py-6 gap-6">
+      {/* Desktop Sidebar with smooth CSS transition */}
+      <aside 
+        className={`hidden md:flex flex-col h-screen shrink-0 print:hidden shadow-sm border-r border-black/5 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 text-zinc-900 dark:text-zinc-100 backdrop-blur-2xl transition-[width] duration-300 ease-in-out overflow-hidden relative ${
+          isCollapsed ? 'w-16' : 'w-80'
+        }`}
+      >
+        {/* Collapsed view content (64px width) */}
+        <div 
+          className={`absolute inset-0 flex flex-col items-center py-6 px-2.5 gap-4 transition-opacity duration-200 ${
+            isCollapsed ? 'opacity-100 pointer-events-auto z-10' : 'opacity-0 pointer-events-none z-0'
+          }`}
+        >
           <button 
             id="desktop-expand-sidebar-btn"
             onClick={() => setCollapsed(false)} 
-            className="p-2 bg-zinc-100 hover:bg-zinc-200 rounded-xl text-zinc-600 transition-colors cursor-pointer" 
-            title="Expand Sidebar"
+            className="p-2 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 rounded-lg text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer" 
+            title="Open Settings Panel"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
+
+          <button
+            onClick={() => setCollapsed(false)}
+            className="p-2 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+            title="Settings"
+          >
+            <Settings2 className="w-4 h-4" />
+          </button>
+
+          {onToggleDarkMode && (
+            <button
+              onClick={onToggleDarkMode}
+              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+            </button>
+          )}
+
           <div className="flex-1" />
-          <button
-            onClick={() => {
-              if (onDownloadPdf) {
-                onDownloadPdf();
-              } else {
-                window.print();
-              }
-            }}
-            disabled={isDownloadingPdf}
-            className="p-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl transition-colors shadow-sm cursor-pointer disabled:opacity-50"
-            title="Download as PDF"
-          >
-            {isDownloadingPdf ? (
-              <Loader2 className="w-4 h-4 animate-spin text-white" />
-            ) : (
-              <FileDown className="w-4 h-4 text-white" />
+
+          {/* Action buttons in collapsed state */}
+          <div className="flex flex-col items-center gap-2.5 pb-2">
+            <button
+              onClick={() => {
+                if (onDownloadPdf) {
+                  onDownloadPdf();
+                } else {
+                  window.print();
+                }
+              }}
+              disabled={isDownloadingPdf}
+              className="p-2.5 bg-[#4FC3F7] hover:bg-[#29B6F6] active:bg-[#03A9F4] text-zinc-950 rounded-lg transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+              title="Download as PDF"
+            >
+              {isDownloadingPdf ? (
+                <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
+              ) : (
+                <FileDown className="w-4 h-4 text-zinc-950" />
+              )}
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="p-2.5 bg-[#f6cf02] hover:bg-[#e5be02] active:bg-[#d4ad02] text-zinc-950 rounded-lg transition-colors shadow-sm cursor-pointer"
+              title="Direct Print"
+            >
+              <Printer className="w-4 h-4 text-zinc-950" />
+            </button>
+            {onResetSongbook && (
+              <button
+                type="button"
+                onClick={onResetSongbook}
+                className="p-2.5 bg-[#afafaf] hover:bg-[#9e9e9e] active:bg-[#8e8e8e] text-zinc-900 rounded-lg transition-colors shadow-sm cursor-pointer"
+                title="Change Songbook (Open)"
+              >
+                <FolderOpen className="w-4 h-4 text-zinc-900" />
+              </button>
             )}
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="p-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-500 active:bg-violet-700 transition-colors border-transparent shadow-sm cursor-pointer"
-            title="Direct Print"
-          >
-            <Printer className="w-4 h-4" />
-          </button>
+          </div>
         </div>
-      ) : (
-        <div className="hidden md:flex w-80 bg-white/95 backdrop-blur-2xl border-r border-black/5 h-screen p-5 shrink-0 print:hidden shadow-sm flex-col transition-all">
+
+        {/* Expanded view content (320px width) */}
+        <div 
+          className={`w-80 h-full p-5 flex flex-col transition-opacity duration-200 ${
+            isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'
+          }`}
+        >
           {renderContent(false)}
         </div>
-      )}
+      </aside>
     </>
   );
 }

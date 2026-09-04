@@ -3,6 +3,7 @@ import { SongbookData, Song } from './types';
 export interface ChordChunk {
   chord: string | null;
   text: string;
+  isSectionRef?: boolean;
 }
 
 export interface ParsedLine {
@@ -580,13 +581,27 @@ export function parseChordLine(line: string): ChordChunk[] {
   
   let currentChord: string | null = null;
   
+  const sectionRefRegex = /^(?:REF|R|CHORUS|BRIDGE|VERSE|PRE-CHORUS|INTRO|OUTRO|SOLO|CODA)[a-z]*\s*\d*[\.\:]?$/i;
+
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     if ((part.startsWith('[') && part.endsWith(']')) || (part.startsWith('{') && part.endsWith('}'))) {
+      const inner = part.slice(1, -1);
+      
+      // If it's a section reference, treat it as inline text rather than an overhead chord
+      if (part.startsWith('[') && sectionRefRegex.test(inner)) {
+        if (currentChord !== null) {
+          chunks.push({ chord: currentChord, text: '' });
+          currentChord = null;
+        }
+        chunks.push({ chord: null, text: part, isSectionRef: true });
+        continue;
+      }
+
       if (currentChord !== null) {
         chunks.push({ chord: currentChord, text: '' });
       }
-      currentChord = part.slice(1, -1);
+      currentChord = inner;
     } else {
       if (currentChord !== null || part.length > 0) {
         // Extract leading spaces to ensure text following a spaced chord starts *after* the chord's visual width
@@ -821,3 +836,30 @@ export function parseSongContent(content: string): SongSection[] {
 
   return result;
 }
+
+/**
+ * Adjusts or inverts color for legibility in dark mode preview while preserving original print colors.
+ */
+export function getDisplayColor(colorHex: string, isDarkMode: boolean): string {
+  if (!isDarkMode) return colorHex;
+  if (!colorHex) return '#f4f4f5';
+  try {
+    let hex = colorHex.replace('#', '').trim();
+    if (hex.length === 3) {
+      hex = hex.split('').map(c => c + c).join('');
+    }
+    if (hex.length === 6) {
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      if (luminance < 0.5) {
+        return `rgb(${255 - r}, ${255 - g}, ${255 - b})`;
+      }
+    }
+  } catch (e) {
+    // fallback
+  }
+  return colorHex;
+}
+

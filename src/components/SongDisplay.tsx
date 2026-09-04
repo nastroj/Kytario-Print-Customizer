@@ -71,8 +71,8 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings }: 
       }
     }
     if (maxLen <= 2) return '1.85em';
-    if (maxLen <= 4) return '2.4em';
-    return `${Math.max(2.4, maxLen * 0.6 + 0.4)}em`;
+    if (maxLen <= 4) return '2.2em';
+    return `${Math.max(2.2, maxLen * 0.6 + 0.4)}em`;
   }, [sections, hasAnyMarkers]);
 
   const dynamicStyles = {
@@ -99,12 +99,12 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings }: 
 
       <div className="text-center mb-5 sm:mb-6 px-8 shrink-0 song-title-block">
         <h2 
-          className="font-bold leading-tight" 
+          className="font-bold leading-tight song-title-text" 
           style={{ color: 'var(--title-color)', fontSize: 'var(--title-size)' }}
         >
           {title} 
           {artist && (
-            <span className="font-bold" style={{ color: 'var(--artist-color)', fontSize: 'var(--artist-size)' }}> - {artist}</span>
+            <span className="font-bold song-artist-text" style={{ color: 'var(--artist-color)', fontSize: 'var(--artist-size)' }}> - {artist}</span>
           )}
         </h2>
       </div>
@@ -137,8 +137,8 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings }: 
                     minHeight: 'calc(var(--song-scale, 1) * (var(--lyrics-size) + 4px))'
                   }}
                 >
-                  <div className="flex items-baseline justify-end pr-1.5">
-                    <div className="leading-none song-marker font-bold select-none">
+                  <div className="flex items-baseline justify-end pr-1">
+                    <div className="leading-none song-marker select-none">
                       {sec.marker}
                     </div>
                   </div>
@@ -166,9 +166,9 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings }: 
                       )
                     }}
                   >
-                    <div className="flex items-baseline justify-end pr-1.5">
+                    <div className="flex items-baseline justify-end pr-1">
                       {isFirstNonEmpty && sec.marker && (
-                        <div className="leading-none song-marker font-bold select-none">
+                        <div className="leading-none song-marker select-none">
                           {sec.marker}
                         </div>
                       )}
@@ -178,11 +178,13 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings }: 
                       {chunks.map((chunk, j) => (
                         <div key={j} className="inline-flex flex-col">
                           {(hasChords && settings.showChords) && (
-                            <div className="font-bold italic leading-none pr-1.5 song-chord pb-0.5 select-text">
+                            <div className="font-bold italic leading-none pr-1.5 song-chord pb-0.5 select-text" style={{ color: 'var(--chords-color)', fontSize: 'var(--chords-size)' }}>
                               {chunk.chord || ' '}
                             </div>
                           )}
-                          <div className="leading-none song-lyric select-text">
+                          <div 
+                            className={`select-text ${chunk.isSectionRef ? 'song-marker' : 'leading-none song-lyric'}`}
+                          >
                             {chunk.text ? chunk.text : (chunk.chord && settings.showChords ? '\u00A0' : '')}
                           </div>
                         </div>

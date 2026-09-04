@@ -3,6 +3,7 @@ import { useReactToPrint } from 'react-to-print';
 import { SongbookData, PrintSettings, Song } from '../types';
 import { SongDisplay } from './SongDisplay';
 import { SongbookSkeleton } from './SongbookSkeleton';
+import { getDisplayColor } from '../utils';
 import { 
   Minus, 
   Plus, 
@@ -24,6 +25,7 @@ interface SongbookPreviewProps {
   onOpenSettings?: () => void;
   onRegisterPrintTrigger?: (trigger: () => void) => void;
   onDownloadStatusChange?: (isDownloading: boolean) => void;
+  isDarkMode?: boolean;
 }
 
 type ZoomMode = 'fit-width' | 'fit-page' | 'custom';
@@ -70,7 +72,8 @@ const SongPagesList = memo(function SongPagesList({
   effectiveScale,
   isScaled,
   onScrollToSong,
-}: SongPagesListProps) {
+  isDarkMode = false,
+}: SongPagesListProps & { isDarkMode?: boolean }) {
   const numColWidth = useMemo(() => {
     if (songs.length >= 100) return '2.8em';
     if (songs.length >= 10) return '2.1em';
@@ -95,7 +98,7 @@ const SongPagesList = memo(function SongPagesList({
         >
           <div 
             id={tocPage.isFirstPage ? "toc-page" : `toc-page-${tocPage.pageIndex}`}
-            className="bg-white shadow-md print:shadow-none px-[5mm] py-[6mm] print-index-container flex flex-col overflow-hidden origin-top-left"
+            className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-md print:shadow-none px-[5mm] py-[6mm] print-index-container flex flex-col overflow-hidden origin-top-left border border-black/5 dark:border-zinc-800"
             style={{ 
               width: cssWidth, 
               height: cssHeight,
@@ -111,32 +114,32 @@ const SongPagesList = memo(function SongPagesList({
             {tocPage.isFirstPage ? (
               <div className="mb-6 sm:mb-8 text-center">
                 <h1 
-                  className="font-bold uppercase tracking-tight"
+                  className="font-bold uppercase tracking-tight toc-title-header"
                   style={{ 
-                    color: settings.titleColor, 
+                    color: getDisplayColor(settings.titleColor, isDarkMode), 
                     fontSize: `${settings.titleFontSize * 1.2}px` 
                   }}
                 >
                   {title}
                 </h1>
                 {tocPages.length > 1 && (
-                  <p className="text-xs text-zinc-400 mt-1 uppercase tracking-wider font-medium">
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 uppercase tracking-wider font-medium">
                     Obsah • Strana 1 z {tocPages.length}
                   </p>
                 )}
               </div>
             ) : (
-              <div className="mb-4 text-center border-b border-black/5/80 pb-2">
+              <div className="mb-4 text-center border-b border-black/5 dark:border-zinc-800 pb-2">
                 <h2 
-                  className="font-bold uppercase tracking-tight"
+                  className="font-bold uppercase tracking-tight toc-title-header"
                   style={{ 
-                    color: settings.titleColor, 
+                    color: getDisplayColor(settings.titleColor, isDarkMode), 
                     fontSize: `${settings.titleFontSize * 0.85}px` 
                   }}
                 >
-                  {title} <span className="text-zinc-400 font-normal text-xs normal-case">(pokračování)</span>
+                  {title} <span className="text-zinc-400 dark:text-zinc-500 font-normal text-xs normal-case">(pokračování)</span>
                 </h2>
-                <p className="text-xs text-zinc-400 mt-0.5 uppercase tracking-wider font-medium">
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 uppercase tracking-wider font-medium">
                   Obsah • Strana {tocPage.pageIndex} z {tocPages.length}
                 </p>
               </div>
@@ -144,11 +147,11 @@ const SongPagesList = memo(function SongPagesList({
             
             {/* Columns of Song Titles */}
             <div 
-              className="flex-1"
+              className="flex-1 toc-columns-body"
               style={{ 
                 columnCount: tocPage.columns, 
                 columnGap: '2.5rem',
-                color: settings.tocColor || settings.lyricsColor,
+                color: getDisplayColor(settings.tocColor || settings.lyricsColor, isDarkMode),
                 fontSize: `${settings.tocFontSize || (settings.lyricsFontSize * 0.95)}px`,
                 lineHeight: '1.4'
               }}
@@ -175,22 +178,22 @@ const SongPagesList = memo(function SongPagesList({
                       }}
                     >
                       <span 
-                        className="shrink-0 text-right tabular-nums font-semibold pr-2 select-none"
+                        className="shrink-0 text-right tabular-nums font-semibold pr-2 select-none toc-song-number"
                         style={{ 
                           width: numColWidth,
-                          color: settings.titleColor || 'inherit',
+                          color: getDisplayColor(settings.titleColor, isDarkMode),
                           opacity: 0.8
                         }}
                       >
                         {item.originalIndex + 1}.
                       </span>
                       <span className="truncate flex-1 min-w-0">
-                        <span className="font-medium group-hover:underline">{item.title}</span>
+                        <span className="font-medium group-hover:underline toc-song-title">{item.title}</span>
                         {item.artist && (
                           <span 
-                            className="font-normal ml-1.5"
+                            className="font-normal ml-1.5 toc-song-artist"
                             style={{ 
-                              color: settings.artistColor || 'inherit',
+                              color: getDisplayColor(settings.artistColor, isDarkMode),
                               opacity: 0.75,
                               fontSize: '0.92em'
                             }}
@@ -224,7 +227,7 @@ const SongPagesList = memo(function SongPagesList({
         >
           <div 
             id={`song-${i}`}
-            className="bg-white shadow-md print:shadow-none px-[5mm] py-[6mm] print-page-container flex flex-col overflow-hidden origin-top-left"
+            className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-md print:shadow-none px-[5mm] py-[6mm] print-page-container flex flex-col overflow-hidden origin-top-left border border-black/5 dark:border-zinc-800"
             style={{ 
               width: cssWidth, 
               height: cssHeight,
@@ -235,7 +238,7 @@ const SongPagesList = memo(function SongPagesList({
               left: 0,
             }}
           >
-            <SongDisplay song={song} index={i} settings={settings} />
+            <SongDisplay song={song} index={i} settings={settings} isDarkMode={isDarkMode} />
           </div>
         </div>
       ))}
@@ -264,24 +267,50 @@ const SongPagesList = memo(function SongPagesList({
             }}
           >
             <div className="flex flex-col items-center max-w-md text-center">
-              <div className="w-24 h-24 bg-zinc-200/60 rounded-full flex items-center justify-center mb-6 text-zinc-400 ring-8 ring-zinc-100">
-                <Music className="w-12 h-12" />
+              <div className="w-full max-w-[180px] mb-8 text-zinc-300 dark:text-zinc-600 mx-auto animate-in fade-in zoom-in-95 duration-700">
+                <svg viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto drop-shadow-sm">
+                  {/* Abstract Background Elements */}
+                  <circle cx="100" cy="80" r="60" fill="currentColor" className="opacity-10" />
+                  <circle cx="130" cy="60" r="30" fill="currentColor" className="opacity-10" />
+                  
+                  {/* Book Base */}
+                  <path d="M100 130C100 130 80 135 50 120C40 115 35 110 35 100V50C35 45 40 40 50 45C80 60 100 70 100 70" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M100 130C100 130 120 135 150 120C160 115 165 110 165 100V50C165 45 160 40 150 45C120 60 100 70 100 70" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M100 70V130" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
+                  
+                  {/* Left Page Lines */}
+                  <path d="M55 70C70 77 85 82 90 84" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-40" />
+                  <path d="M55 85C70 92 85 97 90 99" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-40" />
+                  <path d="M55 100C70 107 85 112 90 114" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-40" />
+                  
+                  {/* Right Page Lines */}
+                  <path d="M145 70C130 77 115 82 110 84" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-40" />
+                  <path d="M145 85C130 92 115 97 110 99" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-40" />
+                  
+                  {/* Floating Music Notes */}
+                  <path d="M125 40V20C125 18 127 16 129 16.5L145 20.5C147 21 148 23 148 25V42" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="120" cy="40" r="5" fill="currentColor" />
+                  <circle cx="143" cy="43" r="5" fill="currentColor" />
+                  
+                  <path d="M65 30V15C65 13 67 11 69 11.5L80 14" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="opacity-60" />
+                  <circle cx="60" cy="30" r="5" fill="currentColor" className="opacity-60" />
+                </svg>
               </div>
-              <h3 className="text-2xl font-bold text-zinc-700 mb-3">No Songs Loaded</h3>
+              <h3 className="text-2xl font-bold text-zinc-700 dark:text-zinc-300 mb-3">No Songs Loaded</h3>
               <p className="text-zinc-500 mb-10 text-lg max-w-sm">
                 Your songbook is currently empty. Open the sidebar to upload a file or add songs to generate your printable book.
               </p>
               
               <div className="grid grid-cols-2 gap-6 w-full px-4">
-                <div className="bg-white border border-black/5/80 rounded-xl p-5 flex flex-col items-center text-center shadow-sm">
-                  <FileText className="w-8 h-8 text-amber-500 mb-3" />
-                  <span className="font-semibold text-zinc-700 mb-1">Auto-formatted</span>
-                  <span className="text-sm text-zinc-500">Chords and lyrics automatically aligned</span>
+                <div className="bg-white dark:bg-zinc-800/80 border border-black/5 dark:border-white/5 rounded-lg p-5 flex flex-col items-center text-center shadow-sm">
+                  <FileText className="w-8 h-8 text-amber-500 dark:text-amber-400 mb-3" />
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-200 mb-1">Auto-formatted</span>
+                  <span className="text-sm text-zinc-500 dark:text-zinc-400">Chords and lyrics automatically aligned</span>
                 </div>
-                <div className="bg-white border border-black/5/80 rounded-xl p-5 flex flex-col items-center text-center shadow-sm">
-                  <BookOpen className="w-8 h-8 text-blue-500 mb-3" />
-                  <span className="font-semibold text-zinc-700 mb-1">Print Ready</span>
-                  <span className="text-sm text-zinc-500">Smart columns and index generation</span>
+                <div className="bg-white dark:bg-zinc-800/80 border border-black/5 dark:border-white/5 rounded-lg p-5 flex flex-col items-center text-center shadow-sm">
+                  <BookOpen className="w-8 h-8 text-blue-500 dark:text-blue-400 mb-3" />
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-200 mb-1">Print Ready</span>
+                  <span className="text-sm text-zinc-500 dark:text-zinc-400">Smart columns and index generation</span>
                 </div>
               </div>
             </div>
@@ -374,7 +403,8 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   isUpdatingLayout = false, 
   onOpenSettings,
   onRegisterPrintTrigger,
-  onDownloadStatusChange
+  onDownloadStatusChange,
+  isDarkMode = false
 }) => {
   const songs = useMemo(() => data.songs || data.items || data.songbookSongs?.map((i: any) => i.song) || [], [data]);
   const title = data.title || data.name || 'Untitled Songbook';
@@ -387,12 +417,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     height: typeof window !== 'undefined' ? window.innerHeight : 900 
   });
 
-  const [zoomMode, setZoomMode] = useState<ZoomMode>(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      return 'fit-width';
-    }
-    return 'custom';
-  });
+  const [zoomMode, setZoomMode] = useState<ZoomMode>('fit-width');
   const [customZoom, setCustomZoom] = useState<number>(1.0);
   const [isBottomZoomMenuOpen, setIsBottomZoomMenuOpen] = useState(false);
   const [isSongNavOpen, setIsSongNavOpen] = useState(false);
@@ -602,13 +627,13 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     setIsSongNavOpen(false);
     const element = document.getElementById(id);
     if (element && containerRef.current) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      element.scrollIntoView({ behavior: 'auto', block: 'start' });
     }
   }, []);
 
   const scrollToTop = () => {
     if (containerRef.current) {
-      containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      containerRef.current.scrollTo({ top: 0, behavior: 'auto' });
     }
   };
 
@@ -699,10 +724,12 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       margin: 0mm;
     }
     @media print {
-      * {
+      *, *::before, *::after {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
+        transition: none !important;
+        animation: none !important;
       }
       html, body {
         margin: 0 !important;
@@ -804,7 +831,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       {/* SCROLLABLE PREVIEW CANVAS */}
       <div 
         ref={containerRef}
-        className="relative flex-1 overflow-y-auto overflow-x-auto bg-zinc-50 p-3 sm:p-8 print:p-0 print:bg-white print-scroll-container scroll-smooth"
+        className="relative flex-1 overflow-y-auto overflow-x-auto bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-8 print:p-0 print:bg-white print-scroll-container"
       >
         {isPrinting && (
           <div 
@@ -820,7 +847,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         <div 
           ref={printableRef}
           id="songbook-printable-area"
-          className={`songbook-print-root transition-opacity duration-150 min-w-fit flex flex-col items-center ${isUpdatingLayout ? 'opacity-80' : 'opacity-100'}`}
+          className={`songbook-print-root animate-in fade-in duration-200 min-w-fit flex flex-col items-center ${isUpdatingLayout ? 'opacity-80' : 'opacity-100'}`}
         >
           <SongPagesList 
             songs={songs}
@@ -834,6 +861,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             effectiveScale={effectiveScale}
             isScaled={isScaled}
             onScrollToSong={handleScrollTo}
+            isDarkMode={isDarkMode}
           />
         </div>
 
@@ -867,7 +895,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
               setIsBottomZoomMenuOpen(!isBottomZoomMenuOpen);
               setIsSongNavOpen(false);
             }}
-            className="px-2.5 py-1 hover:bg-black/5 active:bg-black/10 text-zinc-600 hover:text-zinc-900 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors min-w-[66px] justify-center cursor-pointer"
+            className="px-2.5 py-1 hover:bg-black/5 active:bg-black/10 text-zinc-600 hover:text-zinc-900 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors min-w-[66px] justify-center cursor-pointer"
             title="Choose Zoom Level"
           >
             <span>{displayPercentage}%</span>
@@ -876,14 +904,14 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
           {/* Zoom Presets Dropdown */}
           {isBottomZoomMenuOpen && (
-            <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 w-48 bg-white/95 backdrop-blur-xl border border-black/10 rounded-xl shadow-2xl p-1.5 space-y-0.5 z-40 text-xs animate-in fade-in slide-in-from-bottom-2 duration-100">
+            <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 w-48 bg-white/95 backdrop-blur-xl border border-black/10 rounded-lg shadow-2xl p-1.5 space-y-0.5 z-40 text-xs animate-in fade-in slide-in-from-bottom-2 duration-100">
               <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-800 mb-1">
                 Display Modes
               </div>
 
               <button
                 onClick={() => setPresetZoom('fit-width')}
-                className={`w-full px-2.5 py-1.5 rounded-xl text-left flex items-center justify-between hover:bg-black/5 hover:text-zinc-900 transition-colors cursor-pointer ${
+                className={`w-full px-2.5 py-1.5 rounded-lg text-left flex items-center justify-between hover:bg-black/5 hover:text-zinc-900 transition-colors cursor-pointer ${
                   zoomMode === 'fit-width' ? 'bg-black/5 text-zinc-900 font-bold' : 'text-zinc-600'
                 }`}
               >
@@ -893,7 +921,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
               <button
                 onClick={() => setPresetZoom('fit-page')}
-                className={`w-full px-2.5 py-1.5 rounded-xl text-left flex items-center justify-between hover:bg-black/5 hover:text-zinc-900 transition-colors cursor-pointer ${
+                className={`w-full px-2.5 py-1.5 rounded-lg text-left flex items-center justify-between hover:bg-black/5 hover:text-zinc-900 transition-colors cursor-pointer ${
                   zoomMode === 'fit-page' ? 'bg-black/5 text-zinc-900 font-bold' : 'text-zinc-600'
                 }`}
               >
@@ -903,7 +931,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
               <button
                 onClick={() => setPresetZoom('custom', 1.0)}
-                className={`w-full px-2.5 py-1.5 rounded-xl text-left flex items-center justify-between hover:bg-black/5 hover:text-zinc-900 transition-colors cursor-pointer ${
+                className={`w-full px-2.5 py-1.5 rounded-lg text-left flex items-center justify-between hover:bg-black/5 hover:text-zinc-900 transition-colors cursor-pointer ${
                   zoomMode === 'custom' && Math.abs(customZoom - 1.0) < 0.01 ? 'bg-black/5 text-zinc-900 font-bold' : 'text-zinc-600'
                 }`}
               >
@@ -923,7 +951,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
                   <button
                     key={level}
                     onClick={() => setPresetZoom('custom', level)}
-                    className={`w-full px-2.5 py-1 rounded-xl text-left flex items-center justify-between hover:bg-black/5 hover:text-zinc-900 transition-colors cursor-pointer ${
+                    className={`w-full px-2.5 py-1 rounded-lg text-left flex items-center justify-between hover:bg-black/5 hover:text-zinc-900 transition-colors cursor-pointer ${
                       isSelected ? 'bg-black/5 text-zinc-900 font-bold' : 'text-zinc-600'
                     }`}
                   >
@@ -998,7 +1026,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             {isSongNavOpen && (
               <div 
                 id="song-nav-modal"
-                className="absolute bottom-full mb-2.5 right-0 sm:left-1/2 sm:-translate-x-1/2 w-64 max-h-72 overflow-y-auto bg-white/95 backdrop-blur-xl border border-black/10 rounded-xl shadow-2xl p-2 space-y-1 z-40 text-xs"
+                className="absolute bottom-full mb-2.5 right-0 sm:left-1/2 sm:-translate-x-1/2 w-64 max-h-72 overflow-y-auto bg-white/95 backdrop-blur-xl border border-black/10 rounded-lg shadow-2xl p-2 space-y-1 z-40 text-xs"
               >
                 <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-800 mb-1 flex items-center justify-between">
                   <span>Jump to Song ({songs.length})</span>
@@ -1017,7 +1045,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
                       <button
                         key={idx}
                         onClick={() => handleScrollTo(`song-${idx}`)}
-                        className="w-full px-2 py-1.5 rounded-xl text-left text-zinc-600 hover:bg-black/5 hover:text-zinc-900 hover:text-white transition-colors truncate flex items-center gap-2 cursor-pointer"
+                        className="w-full px-2 py-1.5 rounded-lg text-left text-zinc-600 hover:bg-black/5 hover:text-zinc-900 hover:text-white transition-colors truncate flex items-center gap-2 cursor-pointer"
                       >
                         <span className="w-5 font-mono text-zinc-500 font-semibold shrink-0 text-right">{idx + 1}.</span>
                         <span className="truncate">{sTitle}</span>
@@ -1043,8 +1071,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         )}
       </div>
 
-      {/* Global styles for printing */}
+      {/* Global styles for preview transitions and printing */}
       <style>{`
+        /* Text element transitions have been removed to prevent scroll reflow animations */
         .song-section {
           font-size: calc(var(--song-scale, 1) * var(--lyrics-size));
         }
@@ -1053,7 +1082,8 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         }
         .song-marker {
           color: var(--marker-color);
-          font-size: 0.85em;
+          font-size: calc(var(--song-scale, 1) * var(--lyrics-size) * 0.833);
+          line-height: normal;
         }
         .song-chord {
           color: var(--chords-color);
@@ -1065,7 +1095,20 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           color: var(--lyrics-color);
         }
 
+        /* Page container scaling performance optimization */
+        .song-page-outer-wrapper {
+          will-change: width, height;
+        }
+        .print-page-container,
+        .print-index-container {
+          will-change: transform, width, height;
+        }
+
         @media print {
+          *, *::before, *::after {
+            transition: none !important;
+            animation: none !important;
+          }
           @page {
             size: ${settings.pageFormat === 'Letter' ? 'letter' : settings.pageFormat} ${settings.orientation};
             margin: 0;

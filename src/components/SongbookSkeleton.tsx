@@ -56,7 +56,7 @@ export const SongbookSkeleton: React.FC<SongbookSkeletonProps> = ({
         >
           {/* Header Skeleton */}
           <div className="mb-6 text-center animate-pulse flex flex-col items-center">
-            <div className="h-7 w-64 bg-zinc-300/80 rounded-xl mb-2.5" />
+            <div className="h-7 w-64 bg-zinc-300/80 rounded-lg mb-2.5" />
             <div className="h-3 w-36 bg-zinc-200/80 rounded-full" />
           </div>
 
@@ -114,8 +114,8 @@ export const SongbookSkeleton: React.FC<SongbookSkeletonProps> = ({
             <div className="mb-4 pb-3 border-b border-black/5/80 flex items-start justify-between animate-pulse">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-zinc-300/90 rounded-xl font-bold text-xs" />
-                  <div className="h-6 w-48 bg-zinc-300/90 rounded-xl" />
+                  <div className="w-6 h-6 bg-zinc-300/90 rounded-lg font-bold text-xs" />
+                  <div className="h-6 w-48 bg-zinc-300/90 rounded-lg" />
                 </div>
                 <div className="h-3.5 w-32 bg-zinc-200/80 rounded" />
               </div>

@@ -1,7 +1,21 @@
 {
-  "name": "react-example",
+  "name": "kytario-print-customizer",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "A web application to process and customize Kytario songbook JSON data for printing.",
+  "license": "MIT",
+  "keywords": [
+    "songbook",
+    "kytario",
+    "print",
+    "customizer",
+    "react",
+    "tailwindcss"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nastroj/Kytario-Print-Customizer.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",

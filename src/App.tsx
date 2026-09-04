@@ -3,7 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { SongbookPreview } from './components/SongbookPreview';
 import { ProgressBar } from './components/ProgressBar';
 import { SongbookData, PrintSettings } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2 } from 'lucide-react';
+import { FileJson, Upload, Clipboard, CheckCircle2, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon } from 'lucide-react';
 import { safeParseSongbookJson } from './utils';
 
 const defaultSettings: PrintSettings = {
@@ -16,6 +16,26 @@ const defaultSettings: PrintSettings = {
   chordsColor: '#2563eb', // blue-600
   markerColor: '#000000', // black
   tocColor: '#1c1917', // zinc-900
+  titleFontSize: 16,
+  artistFontSize: 16,
+  lyricsFontSize: 14,
+  chordsFontSize: 14,
+  tocFontSize: 12,
+  showChords: true,
+  smartFit: true,
+  indexSortOrder: 'alphabetical',
+};
+
+const defaultDarkSettings: PrintSettings = {
+  pageFormat: 'A4',
+  orientation: 'landscape',
+  columns: 2,
+  titleColor: '#f4f4f5', // zinc-100
+  artistColor: '#a1a1aa', // zinc-400
+  lyricsColor: '#e4e4e7', // zinc-200
+  chordsColor: '#60a5fa', // blue-400
+  markerColor: '#ffffff', // white
+  tocColor: '#f4f4f5', // zinc-100
   titleFontSize: 16,
   artistFontSize: 16,
   lyricsFontSize: 14,
@@ -71,6 +91,40 @@ export default function App() {
   const [isUpdatingLayout, setIsUpdatingLayout] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
+  
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('kytario-dark-mode');
+    if (saved !== null) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('kytario-dark-mode', JSON.stringify(isDarkMode));
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+  const handleToggleDarkMode = () => {
+    const nextMode = !isDarkMode;
+    setIsDarkMode(nextMode);
+    const defaults = nextMode ? defaultDarkSettings : defaultSettings;
+    setSettings(prev => ({
+      ...prev,
+      titleColor: defaults.titleColor,
+      artistColor: defaults.artistColor,
+      lyricsColor: defaults.lyricsColor,
+      chordsColor: defaults.chordsColor,
+      tocColor: defaults.tocColor,
+      markerColor: defaults.markerColor,
+    }));
+  };
+
   const printTriggerRef = useRef<(() => void) | null>(null);
   const updateTimersRef = useRef<{ applyTimer?: ReturnType<typeof setTimeout>; finishTimer?: ReturnType<typeof setTimeout> }>({});
 
@@ -258,7 +312,7 @@ export default function App() {
 
         <div className="max-w-xl w-full bg-white rounded-2xl shadow-lg border border-black/5 p-5 sm:p-8 space-y-5 sm:space-y-6">
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-zinc-900 text-white rounded-xl flex items-center justify-center mx-auto shadow-sm">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-zinc-900 text-white rounded-lg flex items-center justify-center mx-auto shadow-sm">
               <FileJson className="w-6 h-6 sm:w-7 sm:h-7" />
             </div>
             <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Kytario Print Customizer</h1>
@@ -296,7 +350,7 @@ export default function App() {
           </div>
 
           {errorMessage && (
-            <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-700 text-xs sm:text-sm">
+            <div className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-red-700 text-xs sm:text-sm">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
               <div className="flex-1 leading-relaxed">{errorMessage}</div>
             </div>
@@ -307,7 +361,7 @@ export default function App() {
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-xl p-6 sm:p-8 text-center transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-colors ${
                 isDragging ? 'border-zinc-800 bg-zinc-50' : 'border-black/10 hover:border-zinc-400 bg-zinc-50/50'
               }`}
             >
@@ -317,7 +371,7 @@ export default function App() {
               </p>
               <p className="text-[11px] sm:text-xs text-zinc-400 mb-4">Supports standard and large songbook exports</p>
               
-              <label className={`inline-flex items-center gap-2 text-white text-xs sm:text-sm font-medium px-4 sm:px-5 py-2.5 rounded-xl transition-colors shadow-sm ${
+              <label className={`inline-flex items-center gap-2 text-white text-xs sm:text-sm font-medium px-4 sm:px-5 py-2.5 rounded-lg transition-colors shadow-sm ${
                 isLoadingJson
                   ? 'bg-zinc-800 pointer-events-none'
                   : 'bg-zinc-900 hover:bg-zinc-800 cursor-pointer'
@@ -345,13 +399,13 @@ export default function App() {
                 placeholder="Paste your Kytario songbook JSON payload here..."
                 rows={7}
                 disabled={isLoadingJson}
-                className="w-full rounded-xl border border-black/10 p-3 text-xs font-mono focus:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-800 resize-none bg-zinc-50 disabled:opacity-60"
+                className="w-full rounded-lg border border-black/10 p-3 text-xs font-mono focus:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-800 resize-none bg-zinc-50 disabled:opacity-60"
               />
               <button
                 id="load-pasted-json-btn"
                 onClick={handlePasteSubmit}
                 disabled={isLoadingJson}
-                className={`w-full text-white text-xs sm:text-sm font-medium py-2.5 sm:py-3 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm ${
+                className={`w-full text-white text-xs sm:text-sm font-medium py-2.5 sm:py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm ${
                   isLoadingJson
                     ? 'bg-zinc-800 pointer-events-none'
                     : 'bg-zinc-900 hover:bg-zinc-800 cursor-pointer'
@@ -375,7 +429,7 @@ export default function App() {
   const songbookTitle = songbookData.title || songbookData.name || 'Songbook';
 
   return (
-    <div className="flex h-screen bg-zinc-50 overflow-hidden font-sans relative">
+    <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans relative">
       {/* Full-screen Loading Spinner Overlay while parsing or loading a new songbook */}
       <ProgressBar
         active={isLoadingJson}
@@ -398,51 +452,60 @@ export default function App() {
         onToggleCollapse={setIsDesktopSidebarCollapsed}
         isUpdatingLayout={isUpdatingLayout}
         isLoadingJson={isLoadingJson}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={handleToggleDarkMode}
       />
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Mobile Header Bar */}
-        <header className="md:hidden bg-white/90 backdrop-blur-md border-b border-black/5 px-3.5 py-2.5 flex items-center justify-between shrink-0 print:hidden z-20 shadow-xs">
+        <header className="md:hidden bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-black/5 dark:border-zinc-800 px-3.5 py-2.5 flex items-center justify-between shrink-0 print:hidden z-20 shadow-xs">
           <button
             id="mobile-open-settings-btn"
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-100 hover:bg-zinc-50 text-zinc-800 rounded-xl text-xs font-semibold transition-colors border border-black/5"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg text-xs font-semibold transition-colors border border-black/5 dark:border-zinc-700"
           >
-            <SlidersHorizontal className="w-4 h-4 text-zinc-600" />
+            <SlidersHorizontal className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
             <span>Settings</span>
           </button>
 
-          <div className="text-center px-2 truncate max-w-[150px] sm:max-w-[240px]">
-            <p className="text-xs font-bold text-zinc-900 truncate">{songbookTitle}</p>
-            <p className="text-[10px] text-zinc-500 font-medium">{songCount} songs • {settings.pageFormat}</p>
+          <div className="text-center px-2 truncate max-w-[130px] sm:max-w-[200px]">
+            <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">{songbookTitle}</p>
+            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">{songCount} songs • {settings.pageFormat}</p>
           </div>
 
           <div className="flex items-center gap-1.5">
             <button
+              onClick={handleToggleDarkMode}
+              className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg transition-colors shadow-xs cursor-pointer"
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button
               onClick={handleDownloadPdf}
               disabled={isDownloadingPdf}
-              className="p-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-xs disabled:opacity-50"
+              className="p-2 bg-[#4FC3F7] hover:bg-[#29B6F6] active:bg-[#03A9F4] text-zinc-950 font-semibold rounded-lg transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
               title="Download as PDF"
             >
               {isDownloadingPdf ? (
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
               ) : (
-                <FileDown className="w-4 h-4 text-white" />
+                <FileDown className="w-4 h-4 text-zinc-950" />
               )}
             </button>
             <button
               onClick={() => window.print()}
-              className="p-2 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold rounded-xl transition-colors shadow-xs"
+              className="p-2 bg-[#f6cf02] hover:bg-[#e5be02] active:bg-[#d4ad02] text-zinc-950 font-semibold rounded-lg transition-colors shadow-xs cursor-pointer"
               title="Direct Print"
             >
-              <Printer className="w-4 h-4" />
+              <Printer className="w-4 h-4 text-zinc-950" />
             </button>
             <button
               onClick={() => setIsConfirmResetOpen(true)}
-              className="p-2 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold rounded-xl transition-colors shadow-xs"
+              className="p-2 bg-[#afafaf] hover:bg-[#9e9e9e] active:bg-[#8e8e8e] text-zinc-900 font-semibold rounded-lg transition-colors shadow-xs cursor-pointer"
               title="Change Songbook"
             >
-              <FolderOpen className="w-4 h-4" />
+              <FolderOpen className="w-4 h-4 text-zinc-900" />
             </button>
           </div>
         </header>
@@ -460,7 +523,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setIsConfirmResetOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -470,7 +533,7 @@ export default function App() {
                     setIsConfirmResetOpen(false);
                     resetSongbook();
                   }}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors cursor-pointer shadow-sm"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#b40b24] hover:bg-[#9b091f] active:bg-[#82071a] transition-colors cursor-pointer shadow-sm"
                 >
                   Yes, Change Songbook
                 </button>
@@ -497,6 +560,7 @@ export default function App() {
           isUpdatingLayout={isUpdatingLayout}
           onRegisterPrintTrigger={handleRegisterPrintTrigger}
           onDownloadStatusChange={setIsDownloadingPdf}
+          isDarkMode={isDarkMode}
           onOpenSettings={() => {
             setIsMobileSidebarOpen(true);
             setIsDesktopSidebarCollapsed(false);

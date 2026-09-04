@@ -32,7 +32,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
       return (
         <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-black/10 p-6 text-center space-y-4">
-            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-lg flex items-center justify-center mx-auto">
               <AlertCircle className="w-6 h-6" />
             </div>
             <h2 className="text-lg font-bold text-zinc-900">Something went wrong</h2>
@@ -46,7 +46,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                   localStorage.removeItem('kytario-print-settings-v2');
                   window.location.reload();
                 }}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-semibold py-2.5 px-4 rounded-lg text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>Reset Data & Reload App</span>
