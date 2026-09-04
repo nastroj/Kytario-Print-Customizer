@@ -1,0 +1,620 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { PrintSettings } from '../types';
+import { 
+  Settings2, 
+  Type, 
+  LayoutTemplate, 
+  Printer, 
+  FileDown,
+  UploadCloud, 
+  FolderOpen, 
+  ChevronLeft, 
+  ChevronRight, 
+  X, 
+  Loader2, 
+  Minus, 
+  Plus,
+  RefreshCw
+} from 'lucide-react';
+
+interface SidebarProps {
+  settings: PrintSettings;
+  onApplySettings: (settings: PrintSettings) => void;
+  onResetSongbook?: () => void;
+  onFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDownloadPdf?: () => void;
+  isDownloadingPdf?: boolean;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
+  isUpdatingLayout?: boolean;
+  isLoadingJson?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: (collapsed: boolean) => void;
+}
+
+interface TypographyItemProps {
+  id: string;
+  label: string;
+  fontSize: number;
+  color: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  defaultValue?: number;
+  onFontSizeChange: (val: number) => void;
+  onColorChange: (color: string) => void;
+}
+
+function TypographyItemRow({
+  id,
+  label,
+  fontSize,
+  color,
+  min = 6,
+  max = 48,
+  step = 1,
+  defaultValue = 12,
+  onFontSizeChange,
+  onColorChange,
+}: TypographyItemProps) {
+  const [localStr, setLocalStr] = useState(fontSize.toString());
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setLocalStr(fontSize.toString());
+    }
+  }, [fontSize, isFocused]);
+
+  const commitValue = (valStr: string) => {
+    const num = parseInt(valStr, 10);
+    if (isNaN(num)) {
+      setLocalStr(defaultValue.toString());
+      onFontSizeChange(defaultValue);
+      return;
+    }
+    const clamped = Math.max(min, Math.min(max, num));
+    setLocalStr(clamped.toString());
+    if (clamped !== fontSize) {
+      onFontSizeChange(clamped);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const text = e.target.value;
+    setLocalStr(text);
+    const parsed = parseInt(text, 10);
+    if (!isNaN(parsed) && parsed >= min && parsed <= max) {
+      onFontSizeChange(parsed);
+    }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    commitValue(localStr);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      commitValue(localStr);
+      e.currentTarget.blur();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      handleIncrement();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      handleDecrement();
+    }
+  };
+
+  const handleIncrement = () => {
+    const current = isNaN(parseInt(localStr, 10)) ? fontSize : parseInt(localStr, 10);
+    const next = Math.min(max, current + step);
+    setLocalStr(next.toString());
+    onFontSizeChange(next);
+  };
+
+  const handleDecrement = () => {
+    const current = isNaN(parseInt(localStr, 10)) ? fontSize : parseInt(localStr, 10);
+    const prev = Math.max(min, current - step);
+    setLocalStr(prev.toString());
+    onFontSizeChange(prev);
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 rounded-xl border border-black/5">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        {/* Color picker dot */}
+        <div 
+          className="relative w-5 h-5 rounded-full border border-black/10 shrink-0 hover:scale-110 transition-transform overflow-hidden cursor-pointer"
+          style={{ backgroundColor: color }}
+        >
+          <input
+            type="color"
+            id={`${id}-color`}
+            value={color}
+            onChange={(e) => onColorChange(e.target.value)}
+            className="absolute opacity-0 inset-0 w-full h-full cursor-pointer"
+            title={`Click to change ${label.toLowerCase()} color`}
+          />
+        </div>
+        <label htmlFor={`${id}-font`} className="text-xs font-semibold text-zinc-800 truncate cursor-pointer select-none">
+          {label}
+        </label>
+      </div>
+
+      {/* Stepper with - / input / + */}
+      <div className="flex items-center border border-transparent bg-zinc-100 hover:bg-zinc-200 focus:bg-white rounded-xl overflow-hidden shrink-0 shadow-2xs focus-within:ring-1 focus-within:ring-zinc-800">
+        <button
+          type="button"
+          onClick={handleDecrement}
+          disabled={fontSize <= min}
+          className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+          title={`Decrease ${label} size`}
+          aria-label={`Decrease ${label} size`}
+        >
+          <Minus className="w-3.5 h-3.5" />
+        </button>
+        <div className="relative flex items-center">
+          <input
+            id={`${id}-font`}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={localStr}
+            onFocus={(e) => {
+              setIsFocused(true);
+              e.target.select();
+            }}
+            onChange={handleInputChange}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            className="w-8 text-center py-0.5 text-xs font-bold text-zinc-900 bg-transparent focus:outline-none"
+          />
+          <span className="text-[10px] text-zinc-400 -ml-1 pr-1 pointer-events-none select-none">px</span>
+        </div>
+        <button
+          type="button"
+          onClick={handleIncrement}
+          disabled={fontSize >= max}
+          className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+          title={`Increase ${label} size`}
+          aria-label={`Increase ${label} size`}
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function Sidebar({ 
+  settings, 
+  onApplySettings, 
+  onResetSongbook, 
+  onFileUpload, 
+  onDownloadPdf,
+  isDownloadingPdf = false,
+  isMobileOpen = false,
+  onMobileClose,
+  isUpdatingLayout = false,
+  isLoadingJson = false,
+  isCollapsed: controlledCollapsed,
+  onToggleCollapse
+}: SidebarProps) {
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
+
+  const [draftSettings, setDraftSettings] = useState<PrintSettings>(settings);
+
+  useEffect(() => {
+    setDraftSettings(settings);
+  }, [settings]);
+
+  const hasChanges = useMemo(() => {
+    return (
+      draftSettings.pageFormat !== settings.pageFormat ||
+      draftSettings.orientation !== settings.orientation ||
+      draftSettings.indexSortOrder !== settings.indexSortOrder ||
+      draftSettings.showChords !== settings.showChords ||
+      draftSettings.smartFit !== settings.smartFit ||
+      draftSettings.titleFontSize !== settings.titleFontSize ||
+      draftSettings.artistFontSize !== settings.artistFontSize ||
+      draftSettings.lyricsFontSize !== settings.lyricsFontSize ||
+      draftSettings.chordsFontSize !== settings.chordsFontSize ||
+      draftSettings.titleColor !== settings.titleColor ||
+      draftSettings.artistColor !== settings.artistColor ||
+      draftSettings.lyricsColor !== settings.lyricsColor ||
+      draftSettings.chordsColor !== settings.chordsColor ||
+      draftSettings.markerColor !== settings.markerColor
+    );
+  }, [draftSettings, settings]);
+
+  const setCollapsed = (val: boolean) => {
+    if (onToggleCollapse) {
+      onToggleCollapse(val);
+    } else {
+      setInternalCollapsed(val);
+    }
+  };
+
+  const handleSettingChange = (key: keyof PrintSettings, value: any) => {
+    setDraftSettings((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleUpdateClick = (isDrawer = false) => {
+    onApplySettings(draftSettings);
+    if (isDrawer && onMobileClose) {
+      setTimeout(() => {
+        onMobileClose();
+      }, 150);
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    setDraftSettings(settings);
+  };
+
+  const renderContent = (isDrawer = false) => {
+    const idSuffix = isDrawer ? 'mobile' : 'desktop';
+
+    return (
+      <div className="flex flex-col h-full gap-4">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-black/5 shrink-0">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-zinc-900 flex items-center gap-1.5">
+                <Settings2 className="w-4 h-4 text-zinc-800" />
+                Settings
+              </h2>
+            </div>
+            <p className="text-xs text-zinc-500">Page layout, fonts & colors</p>
+          </div>
+          {isDrawer ? (
+            <button 
+              onClick={onMobileClose} 
+              className="p-1.5 bg-zinc-100 hover:bg-zinc-200 rounded-xl text-zinc-600 transition-colors cursor-pointer"
+              title="Close Settings"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          ) : (
+            <button 
+              onClick={() => setCollapsed(true)} 
+              className="p-1.5 bg-zinc-100 hover:bg-zinc-200 rounded-xl text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer" 
+              title="Collapse Sidebar"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Clean, Non-nested Settings Sections */}
+        <div className="space-y-5 flex-1 overflow-y-auto pr-1">
+          
+          {/* SECTION 1: Page & Layout */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+              <LayoutTemplate className="w-3.5 h-3.5 text-zinc-600" />
+              Page & Layout
+            </h3>
+
+            {/* Page Format Dropdown */}
+            <div>
+              <label htmlFor={`pageFormat-${idSuffix}`} className="block text-xs font-semibold text-zinc-700 mb-1">
+                Paper Format
+              </label>
+              <select
+                id={`pageFormat-${idSuffix}`}
+                className="w-full rounded-xl border border-transparent bg-zinc-100 hover:bg-zinc-200 focus:bg-white px-3 py-2 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
+                value={draftSettings.pageFormat}
+                onChange={(e) => handleSettingChange('pageFormat', e.target.value)}
+              >
+                <option value="A4">A4 (210 × 297 mm)</option>
+                <option value="A5">A5 (148 × 210 mm)</option>
+                <option value="Letter">US Letter (8.5 × 11 in)</option>
+              </select>
+            </div>
+
+            {/* Orientation Dropdown */}
+            <div>
+              <label htmlFor={`orientation-${idSuffix}`} className="block text-xs font-semibold text-zinc-700 mb-1">
+                Orientation
+              </label>
+              <select
+                id={`orientation-${idSuffix}`}
+                className="w-full rounded-xl border border-transparent bg-zinc-100 hover:bg-zinc-200 focus:bg-white px-3 py-2 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
+                value={draftSettings.orientation}
+                onChange={(e) => handleSettingChange('orientation', e.target.value)}
+              >
+                <option value="portrait">Portrait</option>
+                <option value="landscape">Landscape</option>
+              </select>
+            </div>
+
+            {/* Table of Contents Order Dropdown */}
+            <div>
+              <label htmlFor={`indexSortOrder-${idSuffix}`} className="block text-xs font-semibold text-zinc-700 mb-1">
+                Table of Contents Order
+              </label>
+              <select
+                id={`indexSortOrder-${idSuffix}`}
+                className="w-full rounded-xl border border-transparent bg-zinc-100 hover:bg-zinc-200 focus:bg-white px-3 py-2 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
+                value={draftSettings.indexSortOrder}
+                onChange={(e) => handleSettingChange('indexSortOrder', e.target.value)}
+              >
+                <option value="alphabetical">Alphabetical</option>
+                <option value="original">As in File</option>
+              </select>
+            </div>
+
+            {/* Checkboxes */}
+            <div className="pt-1 space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  id={`showChords-${idSuffix}`}
+                  checked={draftSettings.showChords}
+                  onChange={(e) => handleSettingChange('showChords', e.target.checked)}
+                  className="rounded border-black/10 text-zinc-900 focus:ring-zinc-900 w-4 h-4 cursor-pointer"
+                />
+                <span className="text-xs font-medium text-zinc-700">
+                  Display Chords
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer select-none" title="Auto-scales song lyrics and chords to fit comfortably on the page">
+                <input
+                  type="checkbox"
+                  id={`smartFit-${idSuffix}`}
+                  checked={draftSettings.smartFit}
+                  onChange={(e) => handleSettingChange('smartFit', e.target.checked)}
+                  className="rounded border-black/10 text-zinc-900 focus:ring-zinc-900 w-4 h-4 cursor-pointer"
+                />
+                <span className="text-xs font-medium text-zinc-700">
+                  Auto-scale lyrics & chords to page
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* SECTION 2: Typography & Colors Combined */}
+          <div className="space-y-3 pt-3 border-t border-black/5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Type className="w-3.5 h-3.5 text-zinc-600" />
+                Fonts & Colors
+              </h3>
+            </div>
+
+            <div className="space-y-2">
+              <TypographyItemRow
+                id={`title-${idSuffix}`}
+                label="Song Title"
+                fontSize={draftSettings.titleFontSize}
+                color={draftSettings.titleColor}
+                min={8}
+                max={48}
+                defaultValue={16}
+                onFontSizeChange={(val) => handleSettingChange('titleFontSize', val)}
+                onColorChange={(col) => handleSettingChange('titleColor', col)}
+              />
+              <TypographyItemRow
+                id={`artist-${idSuffix}`}
+                label="Artist Name"
+                fontSize={draftSettings.artistFontSize}
+                color={draftSettings.artistColor}
+                min={6}
+                max={36}
+                defaultValue={16}
+                onFontSizeChange={(val) => handleSettingChange('artistFontSize', val)}
+                onColorChange={(col) => handleSettingChange('artistColor', col)}
+              />
+              <TypographyItemRow
+                id={`lyrics-${idSuffix}`}
+                label="Lyrics"
+                fontSize={draftSettings.lyricsFontSize}
+                color={draftSettings.lyricsColor}
+                min={6}
+                max={36}
+                defaultValue={14}
+                onFontSizeChange={(val) => handleSettingChange('lyricsFontSize', val)}
+                onColorChange={(col) => handleSettingChange('lyricsColor', col)}
+              />
+              <TypographyItemRow
+                id={`chords-${idSuffix}`}
+                label="Chords"
+                fontSize={draftSettings.chordsFontSize}
+                color={draftSettings.chordsColor}
+                min={6}
+                max={36}
+                defaultValue={14}
+                onFontSizeChange={(val) => handleSettingChange('chordsFontSize', val)}
+                onColorChange={(col) => handleSettingChange('chordsColor', col)}
+              />
+              <TypographyItemRow
+                id={`toc-${idSuffix}`}
+                label="Table of Contents"
+                fontSize={draftSettings.tocFontSize}
+                color={draftSettings.tocColor}
+                min={6}
+                max={36}
+                defaultValue={12}
+                onFontSizeChange={(val) => handleSettingChange('tocFontSize', val)}
+                onColorChange={(col) => handleSettingChange('tocColor', col)}
+              />
+              
+              {/* Marker Color Row */}
+              <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 rounded-xl border border-black/5">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div 
+                    className="relative w-5 h-5 rounded-full border border-black/10 shrink-0 hover:scale-110 transition-transform overflow-hidden cursor-pointer"
+                    style={{ backgroundColor: draftSettings.markerColor }}
+                  >
+                    <input
+                      type="color"
+                      id={`marker-color-${idSuffix}`}
+                      value={draftSettings.markerColor}
+                      onChange={(e) => handleSettingChange('markerColor', e.target.value)}
+                      className="absolute opacity-0 inset-0 w-full h-full cursor-pointer"
+                      title="Click to change section marker color"
+                    />
+                  </div>
+                  <label htmlFor={`marker-color-${idSuffix}`} className="text-xs font-semibold text-zinc-800 cursor-pointer select-none truncate">
+                    Markers [Chorus/Verse]
+                  </label>
+                </div>
+                <span className="text-[11px] text-zinc-400 font-medium">Color only</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        
+        {/* Sticky Action Footer */}
+        <div className="pt-3 border-t border-black/5 space-y-2 shrink-0">
+          {hasChanges && (
+            <div className="flex gap-2 animate-in fade-in">
+              <button
+                type="button"
+                onClick={handleDiscardChanges}
+                disabled={isUpdatingLayout}
+                className="w-1/3 bg-red-600 hover:bg-red-500 active:bg-red-700 disabled:opacity-50 text-white border-transparent rounded-xl py-2.5 text-xs font-semibold transition-all flex justify-center items-center shadow-sm cursor-pointer"
+                title="Discard pending changes"
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                id={`footer-update-settings-btn-${idSuffix}`}
+                onClick={() => handleUpdateClick(isDrawer)}
+                disabled={isUpdatingLayout}
+                className="w-2/3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-50 text-white rounded-xl py-2.5 text-xs font-semibold transition-all flex justify-center items-center gap-2 shadow-md cursor-pointer disabled:cursor-wait"
+              >
+                <RefreshCw className={`w-4 h-4 ${isUpdatingLayout ? 'animate-spin' : ''}`} />
+                <span>{isUpdatingLayout ? 'Updating...' : 'Update Preview'}</span>
+              </button>
+            </div>
+          )}
+
+          <button
+            id={isDrawer ? "download-pdf-btn-mobile" : "download-pdf-btn"}
+            onClick={() => {
+              if (isDrawer && onMobileClose) onMobileClose();
+              if (onDownloadPdf) {
+                onDownloadPdf();
+              } else {
+                window.print();
+              }
+            }}
+            disabled={isDownloadingPdf}
+            className="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl py-2.5 text-xs font-semibold transition-colors flex justify-center items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+            title="Download formatted songbook as PDF"
+          >
+            {isDownloadingPdf ? (
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+            ) : (
+              <FileDown className="w-4 h-4 text-white" />
+            )}
+            <span>Download as PDF</span>
+          </button>
+
+          <button
+            id={isDrawer ? "print-songbook-btn-mobile" : "print-songbook-btn"}
+            onClick={() => {
+              if (isDrawer && onMobileClose) onMobileClose();
+              window.print();
+            }}
+            className="w-full bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-white rounded-xl py-2 text-xs font-semibold transition-colors flex justify-center items-center gap-2 border border-transparent shadow-sm cursor-pointer"
+            title="Open browser print dialog"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Direct Print</span>
+          </button>
+
+          {onResetSongbook && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isDrawer && onMobileClose) onMobileClose();
+                onResetSongbook();
+              }}
+              className="w-full bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-white rounded-xl py-2 text-xs font-semibold transition-colors flex justify-center items-center gap-2 border border-transparent shadow-sm cursor-pointer"
+              title="Change Songbook"
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+              <span>Change Songbook</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      {/* Mobile Drawer Backdrop and Modal */}
+      {isMobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-zinc-950/60 backdrop-blur-xs transition-opacity"
+            onClick={onMobileClose}
+          />
+          {/* Drawer */}
+          <div className="relative w-84 max-w-[88vw] bg-white/95 backdrop-blur-2xl h-full shadow-2xl p-4 z-10 flex flex-col">
+            {renderContent(true)}
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Sidebar */}
+      {isCollapsed ? (
+        <div className="hidden md:flex w-16 bg-white/95 backdrop-blur-2xl border-r border-black/5 h-screen shrink-0 print:hidden shadow-sm flex-col items-center py-6 gap-6">
+          <button 
+            id="desktop-expand-sidebar-btn"
+            onClick={() => setCollapsed(false)} 
+            className="p-2 bg-zinc-100 hover:bg-zinc-200 rounded-xl text-zinc-600 transition-colors cursor-pointer" 
+            title="Expand Sidebar"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+          <div className="flex-1" />
+          <button
+            onClick={() => {
+              if (onDownloadPdf) {
+                onDownloadPdf();
+              } else {
+                window.print();
+              }
+            }}
+            disabled={isDownloadingPdf}
+            className="p-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+            title="Download as PDF"
+          >
+            {isDownloadingPdf ? (
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+            ) : (
+              <FileDown className="w-4 h-4 text-white" />
+            )}
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="p-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-500 active:bg-violet-700 transition-colors border-transparent shadow-sm cursor-pointer"
+            title="Direct Print"
+          >
+            <Printer className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <div className="hidden md:flex w-80 bg-white/95 backdrop-blur-2xl border-r border-black/5 h-screen p-5 shrink-0 print:hidden shadow-sm flex-col transition-all">
+          {renderContent(false)}
+        </div>
+      )}
+    </>
+  );
+}

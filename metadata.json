@@ -1,0 +1,6 @@
+{
+  "name": "Kytario Print Customizer",
+  "description": "A web application to process and customize Kytario songbook JSON data for printing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

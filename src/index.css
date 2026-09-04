@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "inter Fallback", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+@keyframes indeterminate-bar {
+  0% {
+    left: -35%;
+    width: 35%;
+  }
+  50% {
+    left: 30%;
+    width: 50%;
+  }
+  100% {
+    left: 100%;
+    width: 35%;
+  }
+}
+
+.animate-indeterminate-bar {
+  animation: indeterminate-bar 1.4s ease-in-out infinite;
+}
