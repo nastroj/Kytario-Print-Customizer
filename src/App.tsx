@@ -5,6 +5,7 @@ import { ProgressBar } from './components/ProgressBar';
 import { SongbookData, PrintSettings } from './types';
 import { FileJson, Upload, Clipboard, CheckCircle2, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon } from 'lucide-react';
 import { safeParseSongbookJson } from './utils';
+import { APP_CONFIG } from './config';
 
 const defaultSettings: PrintSettings = {
   pageFormat: 'A4',
@@ -12,14 +13,14 @@ const defaultSettings: PrintSettings = {
   columns: 2,
   titleColor: '#1c1917', // zinc-900
   artistColor: '#57534e', // zinc-500
-  lyricsColor: '#292524', // zinc-800
+  lyricsColor: '#27272a', // zinc-800
   chordsColor: '#2563eb', // blue-600
-  markerColor: '#000000', // black
+  markerColor: '#27272a', // zinc-800
   tocColor: '#1c1917', // zinc-900
   titleFontSize: 16,
   artistFontSize: 16,
-  lyricsFontSize: 14,
-  chordsFontSize: 14,
+  lyricsFontSize: 12,
+  chordsFontSize: 12,
   tocFontSize: 12,
   showChords: true,
   smartFit: true,
@@ -32,14 +33,14 @@ const defaultDarkSettings: PrintSettings = {
   columns: 2,
   titleColor: '#f4f4f5', // zinc-100
   artistColor: '#a1a1aa', // zinc-400
-  lyricsColor: '#e4e4e7', // zinc-200
+  lyricsColor: '#f4f4f5', // zinc-100
   chordsColor: '#60a5fa', // blue-400
-  markerColor: '#ffffff', // white
+  markerColor: '#f4f4f5', // zinc-100
   tocColor: '#f4f4f5', // zinc-100
   titleFontSize: 16,
   artistFontSize: 16,
-  lyricsFontSize: 14,
-  chordsFontSize: 14,
+  lyricsFontSize: 12,
+  chordsFontSize: 12,
   tocFontSize: 12,
   showChords: true,
   smartFit: true,
@@ -75,23 +76,6 @@ export default function App() {
     subtitle: 'Processing songs and Table of Contents...',
   });
 
-  const [settings, setSettings] = useState<PrintSettings>(() => {
-    const saved = localStorage.getItem('kytario-print-settings-v2');
-    if (saved) {
-      try {
-        return { ...defaultSettings, ...JSON.parse(saved), columns: 2 };
-      } catch (e) {
-        // ignore
-      }
-    }
-    return defaultSettings;
-  });
-
-  // Instant settings updates with clear visual feedback
-  const [isUpdatingLayout, setIsUpdatingLayout] = useState(false);
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-  const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
-  
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('kytario-dark-mode');
     if (saved !== null) {
@@ -101,6 +85,58 @@ export default function App() {
     }
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
+
+  const [settings, setSettings] = useState<PrintSettings>(() => {
+    const saved = localStorage.getItem('kytario-print-settings-v2');
+    const baseDefaults = isDarkMode ? defaultDarkSettings : defaultSettings;
+    
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        
+        // If the user hasn't explicitly customized colors, or if we want to ensure 
+        // the correct theme colors are applied when switching modes externally,
+        // we should probably just use the baseDefaults for colors if they match 
+        // the *other* theme's defaults.
+        // For simplicity, we can just spread the parsed settings over the base defaults.
+        // However, if the parsed settings contain explicit color values that were just the 
+        // light-theme defaults, they will overwrite the dark-theme defaults.
+        // Let's check if the saved titleColor matches the wrong theme's default titleColor.
+        const isWrongThemeSaved = 
+          (isDarkMode && parsed.titleColor === defaultSettings.titleColor) ||
+          (!isDarkMode && parsed.titleColor === defaultDarkSettings.titleColor);
+          
+        if (isWrongThemeSaved) {
+          // Overwrite the saved colors with the correct theme's defaults
+          parsed.titleColor = baseDefaults.titleColor;
+          parsed.artistColor = baseDefaults.artistColor;
+          parsed.lyricsColor = baseDefaults.lyricsColor;
+          parsed.chordsColor = baseDefaults.chordsColor;
+          parsed.markerColor = baseDefaults.markerColor;
+          parsed.tocColor = baseDefaults.tocColor;
+        }
+
+        // Migrate legacy defaults (14px or 11px) to 45-line 12px default
+        if (
+          (parsed.lyricsFontSize === 14 || parsed.lyricsFontSize === 11) &&
+          (parsed.chordsFontSize === 14 || parsed.chordsFontSize === 11)
+        ) {
+          parsed.lyricsFontSize = 12;
+          parsed.chordsFontSize = 12;
+        }
+
+        return { ...baseDefaults, ...parsed, columns: 2 };
+      } catch (e) {
+        // ignore
+      }
+    }
+    return baseDefaults;
+  });
+
+  // Instant settings updates with clear visual feedback
+  const [isUpdatingLayout, setIsUpdatingLayout] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('kytario-dark-mode', JSON.stringify(isDarkMode));
@@ -315,7 +351,12 @@ export default function App() {
             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-zinc-900 text-white rounded-lg flex items-center justify-center mx-auto shadow-sm">
               <FileJson className="w-6 h-6 sm:w-7 sm:h-7" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Kytario Print Customizer</h1>
+            <div className="flex items-center justify-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Kytario Print Customizer</h1>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200">
+                v{APP_CONFIG.APP_VERSION}
+              </span>
+            </div>
             <p className="text-zinc-500 text-xs sm:text-sm max-w-sm mx-auto">
               Transform your Kytario songbook into print-ready PDF pages with automatic Table of Contents and clean formatting.
             </p>

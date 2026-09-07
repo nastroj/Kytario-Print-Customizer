@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PrintSettings } from '../types';
+import { APP_CONFIG } from '../config';
 import { 
   Settings2, 
   Type, 
@@ -414,17 +415,27 @@ export function Sidebar({
                   const defaults = isDarkMode ? {
                     titleColor: '#f4f4f5',
                     artistColor: '#a1a1aa',
-                    lyricsColor: '#e4e4e7',
+                    lyricsColor: '#f4f4f5',
                     chordsColor: '#60a5fa',
-                    markerColor: '#ffffff',
+                    markerColor: '#f4f4f5',
                     tocColor: '#f4f4f5',
+                    titleFontSize: 16,
+                    artistFontSize: 16,
+                    lyricsFontSize: 12,
+                    chordsFontSize: 12,
+                    tocFontSize: 12,
                   } : {
                     titleColor: '#1c1917',
                     artistColor: '#57534e',
-                    lyricsColor: '#292524',
+                    lyricsColor: '#27272a',
                     chordsColor: '#2563eb',
-                    markerColor: '#000000',
+                    markerColor: '#27272a',
                     tocColor: '#1c1917',
+                    titleFontSize: 16,
+                    artistFontSize: 16,
+                    lyricsFontSize: 12,
+                    chordsFontSize: 12,
+                    tocFontSize: 12,
                   };
                   setDraftSettings(prev => ({
                     ...prev,
@@ -468,7 +479,7 @@ export function Sidebar({
                 color={draftSettings.lyricsColor}
                 min={6}
                 max={36}
-                defaultValue={14}
+                defaultValue={12}
                 onFontSizeChange={(val) => handleSettingChange('lyricsFontSize', val)}
                 onColorChange={(col) => handleSettingChange('lyricsColor', col)}
               />
@@ -479,7 +490,7 @@ export function Sidebar({
                 color={draftSettings.chordsColor}
                 min={6}
                 max={36}
-                defaultValue={14}
+                defaultValue={12}
                 onFontSizeChange={(val) => handleSettingChange('chordsFontSize', val)}
                 onColorChange={(col) => handleSettingChange('chordsColor', col)}
               />
@@ -597,6 +608,12 @@ export function Sidebar({
               <span>Change Songbook</span>
             </button>
           )}
+
+          <div className="text-center pt-1">
+            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium tracking-wide">
+              Kytario Print Customizer v{APP_CONFIG.APP_VERSION}
+            </span>
+          </div>
         </div>
       </div>
     );

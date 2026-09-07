@@ -39,3 +39,40 @@ export interface PrintSettings {
   smartFit: boolean;
   indexSortOrder: 'original' | 'alphabetical';
 }
+
+export interface SectionDebugDetail {
+  marker: string;
+  lineCount: number;
+  estimatedHeight: number;
+}
+
+export interface SongFitDebugInfo {
+  songIndex: number;
+  title: string;
+  artist: string;
+  totalLines: number;          // Total non-empty content lines
+  rawLinesCount: number;       // All raw lines in source string
+  nonEmptyLinesCount: number;  // Non-empty raw lines in source string
+  sectionLinesCount: number;   // Sum of lines across parsed sections
+  sectionsCount: number;       // Number of sections
+  visualLinesAtScale: number;  // Visual lines after column wrap calculation
+  baseLyricsFontSize: number;  // e.g. 12
+  baseChordsFontSize: number;  // e.g. 12
+  baseTitleFontSize: number;   // e.g. 16
+  computedScale: number;       // e.g. 1.49
+  chosenLyricsFontSize: number;// e.g. 17.9
+  chosenChordsFontSize: number;// e.g. 17.9
+  minFontSizeConstraint: number; // e.g. 9.0 (enforced minimum readability constraint)
+  isMinConstraintActive: boolean; // whether scale was clamped by the minimum constraint
+  calculatedHeight: number;    // Estimated height in px
+  availColHeight: number;      // Available column height in px
+  heightUtilization: number;   // e.g. 90%
+  columns: number;
+  maxWrapLines: number;
+  pageFormat: string;
+  orientation: string;
+  smartFitEnabled: boolean;
+  sectionsDetail: SectionDebugDetail[];
+}
+
+export type { SongSection } from './utils';

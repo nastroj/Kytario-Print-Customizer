@@ -3,7 +3,9 @@ import { useReactToPrint } from 'react-to-print';
 import { SongbookData, PrintSettings, Song } from '../types';
 import { SongDisplay } from './SongDisplay';
 import { SongbookSkeleton } from './SongbookSkeleton';
-import { getDisplayColor } from '../utils';
+import { SongFitDebugHud } from './SongFitDebugHud';
+import { getDisplayColor, computeSongFitDebug } from '../utils';
+import { isDebugHudConfigured } from '../config';
 import { 
   Minus, 
   Plus, 
@@ -15,7 +17,8 @@ import {
   Loader2,
   Music,
   FileText,
-  ChevronDown
+  ChevronDown,
+  Bug
 } from 'lucide-react';
 
 interface SongbookPreviewProps {
@@ -58,6 +61,8 @@ interface SongPagesListProps {
   effectiveScale: number;
   isScaled: boolean;
   onScrollToSong: (id: string) => void;
+  isDarkMode?: boolean;
+  isDebugMode?: boolean;
 }
 
 const SongPagesList = memo(function SongPagesList({
@@ -73,7 +78,8 @@ const SongPagesList = memo(function SongPagesList({
   isScaled,
   onScrollToSong,
   isDarkMode = false,
-}: SongPagesListProps & { isDarkMode?: boolean }) {
+  isDebugMode = false,
+}: SongPagesListProps) {
   const numColWidth = useMemo(() => {
     if (songs.length >= 100) return '2.8em';
     if (songs.length >= 10) return '2.1em';
@@ -238,7 +244,7 @@ const SongPagesList = memo(function SongPagesList({
               left: 0,
             }}
           >
-            <SongDisplay song={song} index={i} settings={settings} isDarkMode={isDarkMode} />
+            <SongDisplay song={song} index={i} settings={settings} isDarkMode={isDarkMode} isDebugMode={isDebugMode} />
           </div>
         </div>
       ))}
@@ -338,10 +344,12 @@ const areSettingsEquivalent = (prev: PrintSettings, next: PrintSettings): boolea
     prev.lyricsColor === next.lyricsColor &&
     prev.chordsColor === next.chordsColor &&
     prev.markerColor === next.markerColor &&
+    prev.tocColor === next.tocColor &&
     Math.abs((prev.titleFontSize || 16) - (next.titleFontSize || 16)) < 0.05 &&
-    Math.abs((prev.artistFontSize || 12) - (next.artistFontSize || 12)) < 0.05 &&
+    Math.abs((prev.artistFontSize || 16) - (next.artistFontSize || 16)) < 0.05 &&
     Math.abs((prev.lyricsFontSize || 12) - (next.lyricsFontSize || 12)) < 0.05 &&
-    Math.abs((prev.chordsFontSize || 10) - (next.chordsFontSize || 10)) < 0.05
+    Math.abs((prev.chordsFontSize || 12) - (next.chordsFontSize || 12)) < 0.05 &&
+    Math.abs((prev.tocFontSize || 12) - (next.tocFontSize || 12)) < 0.05
   );
 };
 
@@ -422,6 +430,15 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   const [isBottomZoomMenuOpen, setIsBottomZoomMenuOpen] = useState(false);
   const [isSongNavOpen, setIsSongNavOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const isDebugFeatureEnabled = isDebugHudConfigured();
+  const [isDebugOpen, setIsDebugOpen] = useState<boolean>(() => {
+    if (!isDebugHudConfigured()) return false;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('kytario-debug-view') === 'true';
+    }
+    return false;
+  });
+  const [activeSongIndex, setActiveSongIndex] = useState<number>(0);
 
   // Throttled ResizeObserver using requestIdleCallback / requestAnimationFrame to defer heavy layout checks
   useLayoutEffect(() => {
@@ -480,6 +497,45 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         requestAnimationFrame(() => {
           if (el) {
             setShowScrollTop(el.scrollTop > 400);
+
+            // Determine currently active song in viewport
+            if (songs.length > 0) {
+              const containerRect = el.getBoundingClientRect();
+              const triggerY = containerRect.top + Math.min(250, containerRect.height * 0.3);
+
+              let bestIndex = -1;
+              for (let i = 0; i < songs.length; i++) {
+                const pageEl = document.getElementById(`song-${i}`);
+                if (pageEl) {
+                  const rect = pageEl.getBoundingClientRect();
+                  if (rect.top <= triggerY && rect.bottom >= triggerY) {
+                    bestIndex = i;
+                    break;
+                  }
+                }
+              }
+
+              if (bestIndex === -1) {
+                let minDiff = Infinity;
+                let closest = 0;
+                for (let i = 0; i < songs.length; i++) {
+                  const pageEl = document.getElementById(`song-${i}`);
+                  if (pageEl) {
+                    const rect = pageEl.getBoundingClientRect();
+                    const diff = Math.abs(rect.top - triggerY);
+                    if (diff < minDiff) {
+                      minDiff = diff;
+                      closest = i;
+                    }
+                  }
+                }
+                bestIndex = closest;
+              }
+
+              if (bestIndex >= 0 && bestIndex < songs.length) {
+                setActiveSongIndex(prev => (prev !== bestIndex ? bestIndex : prev));
+              }
+            }
           }
           ticking = false;
         });
@@ -596,6 +652,14 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
         e.preventDefault();
         setPresetZoom('custom', 1.0);
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+        if (!isDebugFeatureEnabled) return;
+        e.preventDefault();
+        setIsDebugOpen(prev => {
+          const next = !prev;
+          try { localStorage.setItem('kytario-debug-view', String(next)); } catch (err) {}
+          return next;
+        });
       }
     };
 
@@ -628,6 +692,12 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     const element = document.getElementById(id);
     if (element && containerRef.current) {
       element.scrollIntoView({ behavior: 'auto', block: 'start' });
+      if (id.startsWith('song-')) {
+        const idx = parseInt(id.replace('song-', ''), 10);
+        if (!isNaN(idx)) {
+          setActiveSongIndex(idx);
+        }
+      }
     }
   }, []);
 
@@ -781,6 +851,29 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       .print-hidden {
         display: none !important;
       }
+      .song-section {
+        font-size: calc(var(--song-scale, 1) * var(--lyrics-size)) !important;
+      }
+      .song-line {
+        font-size: calc(var(--song-scale, 1) * var(--lyrics-size)) !important;
+      }
+      .song-marker {
+        color: var(--marker-color) !important;
+        font-size: calc(var(--song-scale, 1) * var(--lyrics-size) * 0.833) !important;
+      }
+      .song-chord {
+        color: var(--chords-color) !important;
+        font-size: calc(var(--song-scale, 1) * var(--chords-size)) !important;
+        min-height: calc(var(--song-scale, 1) * var(--chords-size)) !important;
+        margin-bottom: 0.15em !important;
+      }
+      .song-repetition-line .song-chord {
+        margin-bottom: 0 !important;
+        min-height: auto !important;
+      }
+      .song-lyric {
+        color: var(--lyrics-color) !important;
+      }
     }
   `, [settings.pageFormat, settings.orientation, cssWidth, cssHeight]);
 
@@ -814,6 +907,47 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   }, [isPrinting, onDownloadStatusChange]);
 
   const totalPages = tocPages.length + songs.length;
+
+  const activeSong = songs[activeSongIndex] || songs[0] || null;
+
+  const activeDebugInfo = useMemo(() => {
+    if (!activeSong) return null;
+    return computeSongFitDebug(activeSong, activeSongIndex, settings);
+  }, [activeSong, activeSongIndex, settings]);
+
+  // Console log active song metrics for developer inspection
+  useEffect(() => {
+    if (!activeDebugInfo) return;
+    console.log(
+      `%c[Song Fit Debug]%c #${activeDebugInfo.songIndex + 1} "${activeDebugInfo.title}" | ` +
+      `Calculated Total Lines: ${activeDebugInfo.totalLines} (raw: ${activeDebugInfo.rawLinesCount}, section: ${activeDebugInfo.sectionLinesCount}, visual: ${activeDebugInfo.visualLinesAtScale}) | ` +
+      `Chosen Font Size: ${activeDebugInfo.chosenLyricsFontSize}px (Scale: ${activeDebugInfo.computedScale}x, Base: ${activeDebugInfo.baseLyricsFontSize}px) | ` +
+      `Height: ${activeDebugInfo.calculatedHeight}px / ${activeDebugInfo.availColHeight}px (${activeDebugInfo.heightUtilization}%)`,
+      'background: #1e293b; color: #38bdf8; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+      'color: inherit;'
+    );
+  }, [activeDebugInfo]);
+
+  // Global helper on window for easy DevTools interaction
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__KYTARIO_DEBUG__ = {
+        getActiveSong: () => activeDebugInfo,
+        getAllSongs: () => songs.map((s, i) => computeSongFitDebug(s, i, settings)),
+        toggleDebugView: () => {
+          if (!isDebugFeatureEnabled) {
+            console.warn('[Songbook Debug] Debug HUD is hidden because ENABLE_DEBUG_HUD is false in src/config.ts.');
+            return;
+          }
+          setIsDebugOpen(prev => {
+            const next = !prev;
+            try { localStorage.setItem('kytario-debug-view', String(next)); } catch (e) {}
+            return next;
+          });
+        },
+      };
+    }
+  }, [activeDebugInfo, songs, settings, isDebugFeatureEnabled]);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -862,6 +996,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             isScaled={isScaled}
             onScrollToSong={handleScrollTo}
             isDarkMode={isDarkMode}
+            isDebugMode={isDebugFeatureEnabled && isDebugOpen}
           />
         </div>
 
@@ -1058,6 +1193,30 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           </div>
         )}
 
+        {/* Toggle Hidden Song Fit Debug View - ONLY rendered if ENABLE_DEBUG_HUD is true in src/config.ts */}
+        {isDebugFeatureEnabled && (
+          <button
+            id="toggle-debug-view-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDebugOpen(prev => {
+                const next = !prev;
+                try { localStorage.setItem('kytario-debug-view', String(next)); } catch (err) {}
+                return next;
+              });
+            }}
+            className={`p-1.5 sm:p-2 rounded-full transition-colors cursor-pointer ${
+              isDebugOpen 
+                ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-500/30' 
+                : 'hover:bg-black/5 hover:text-zinc-900 text-zinc-400 hover:text-zinc-600'
+            }`}
+            title="Toggle Song Fit Debug View (Ctrl+Shift+D)"
+            aria-label="Toggle Debug View"
+          >
+            <Bug className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Scroll to Top */}
         {showScrollTop && (
           <button
@@ -1083,13 +1242,16 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         .song-marker {
           color: var(--marker-color);
           font-size: calc(var(--song-scale, 1) * var(--lyrics-size) * 0.833);
-          line-height: normal;
         }
         .song-chord {
           color: var(--chords-color);
           font-size: calc(var(--song-scale, 1) * var(--chords-size));
           min-height: calc(var(--song-scale, 1) * var(--chords-size));
           margin-bottom: 0.15em;
+        }
+        .song-repetition-line .song-chord {
+          margin-bottom: 0;
+          min-height: auto;
         }
         .song-lyric {
           color: var(--lyrics-color);
@@ -1137,6 +1299,33 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           }
         }
       `}</style>
+
+      {/* Floating Song Fit Debug HUD - ONLY rendered if ENABLE_DEBUG_HUD is true in src/config.ts */}
+      {isDebugFeatureEnabled && isDebugOpen && (
+        <SongFitDebugHud 
+          debugInfo={activeDebugInfo}
+          totalSongs={songs.length}
+          onPrevSong={() => {
+            if (activeSongIndex > 0) {
+              const nextIdx = activeSongIndex - 1;
+              setActiveSongIndex(nextIdx);
+              handleScrollTo(`song-${nextIdx}`);
+            }
+          }}
+          onNextSong={() => {
+            if (activeSongIndex < songs.length - 1) {
+              const nextIdx = activeSongIndex + 1;
+              setActiveSongIndex(nextIdx);
+              handleScrollTo(`song-${nextIdx}`);
+            }
+          }}
+          onClose={() => {
+            setIsDebugOpen(false);
+            try { localStorage.setItem('kytario-debug-view', 'false'); } catch (err) {}
+          }}
+          onScrollToActive={() => handleScrollTo(`song-${activeSongIndex}`)}
+        />
+      )}
     </div>
   );
 };
