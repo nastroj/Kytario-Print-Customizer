@@ -712,8 +712,7 @@ export function computeSmartFitScale(
     showChords?: boolean;
     smartFit?: boolean;
     pageMargin?: number;
-    maxScaleMultiplier?: number;
-    maxAutoFontSize?: number;
+    maxFontSizePx?: number;
   },
   hasTitle: boolean = true,
   hasArtist: boolean = false
@@ -832,16 +831,16 @@ export function computeSmartFitScale(
         maxWrapLines = Math.max(maxWrapLines, visualLines);
 
         if (isChordsOnly) {
-          // Repetition or chord-only line: minHeight: (chords-size + 4) + 2px margin
-          const chordLineH = Math.round((cSize + 4) * 1.05 + 2);
+          // Repetition or chord-only line: minHeight: (chords-size + 4) + 0px margin
+          const chordLineH = Math.round((cSize + 4) * 1.05);
           secH += chordLineH * visualLines;
         } else if (hasChords) {
-          // Both chords and lyrics: minHeight: (chords-size + lyrics-size + 4) + 2px margin
-          const chordLyricLineH = Math.round((cSize + lSize + 4) * 1.05 + 2);
+          // Both chords and lyrics: minHeight: (chords-size + lyrics-size + 4) + 5px margin
+          const chordLyricLineH = Math.round((cSize + lSize + 4) * 1.05 + 5);
           secH += chordLyricLineH * visualLines;
         } else {
-          // Lyrics only: minHeight: (lyrics-size + 4) + 2px margin
-          const lyricLineH = Math.round((lSize + 4) * 1.05 + 2);
+          // Lyrics only: minHeight: (lyrics-size + 4) + 5px margin
+          const lyricLineH = Math.round((lSize + 4) * 1.05 + 5);
           secH += lyricLineH * visualLines;
         }
       }
@@ -927,17 +926,17 @@ export function computeSmartFitScale(
     maxWrapLinesLimit = 2;
   }
 
-  // Apply user-configured max auto-scale multiplier
-  const userMultiplierCap = (typeof settings.maxScaleMultiplier === 'number' && settings.maxScaleMultiplier > 0)
-    ? settings.maxScaleMultiplier
-    : 2.0;
-  maxUpscale = Math.min(maxUpscale, userMultiplierCap);
-
-  // Apply user-configured max auto-scale font size cap (for lyrics font size)
-  if (typeof settings.maxAutoFontSize === 'number' && settings.maxAutoFontSize > 0) {
-    const fontCapMultiplier = settings.maxAutoFontSize / baseLyricsSize;
-    maxUpscale = Math.min(maxUpscale, fontCapMultiplier);
-  }
+  // Apply user-configured max font size in px
+  const maxFontSizePx = (typeof settings.maxFontSizePx === 'number' && settings.maxFontSizePx > 0)
+    ? settings.maxFontSizePx
+    : 32;
+    
+  // Convert px to pt (1pt = 1.333px, so px * 0.75 = pt)
+  const maxFontSizePt = maxFontSizePx * (72 / 96);
+  
+  // Constrain maxUpscale based on the font cap
+  const fontCapMultiplier = maxFontSizePt / baseLyricsSize;
+  maxUpscale = Math.min(maxUpscale, fontCapMultiplier);
 
   // If maxUpscale is constrained to <= 1.0, do not upscale short songs beyond 1.0
   if (maxUpscale <= 1.0) {

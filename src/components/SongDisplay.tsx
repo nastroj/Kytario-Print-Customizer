@@ -45,8 +45,7 @@ export function useSmartFit({
     settings.chordsFontSize,
     settings.showChords,
     settings.pageMargin,
-    settings.maxScaleMultiplier,
-    settings.maxAutoFontSize,
+    settings.maxFontSizePx,
     hasTitle,
     hasArtist,
   ]);
@@ -221,7 +220,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
             >
               {sec.marker && firstNonEmptyIndex === -1 && (
                 <div 
-                  className="relative mb-0.5 song-line grid items-end"
+                  className="relative song-line grid items-end mb-[5px]"
                   style={{
                     gridTemplateColumns: hasAnyMarkers ? `${markerColWidth} 1fr` : '1fr',
                     fontSize: 'calc(var(--song-scale, 1) * var(--lyrics-size))',
@@ -247,11 +246,12 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
                 const isFirstNonEmpty = i === firstNonEmptyIndex;
                 const { chunks, hasChords } = lineData;
                 const isRep = lineData.isRepetitionLine;
+                const isChordsOnly = isRep || (!chunks || !chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef));
 
                 return (
                   <div 
                     key={i} 
-                    className="relative mb-0.5 song-line grid items-end" 
+                    className={`relative song-line grid items-end ${isChordsOnly ? 'mb-0' : 'mb-[5px]'}`} 
                     style={{
                       gridTemplateColumns: hasAnyMarkers ? `${markerColWidth} 1fr` : '1fr',
                       fontSize: 'calc(var(--song-scale, 1) * var(--lyrics-size))',
@@ -313,7 +313,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
                           <div key={j} className="inline-flex flex-col">
                             {(hasChords && settings.showChords) && (
                               <div 
-                                className="font-bold italic leading-none pr-1.5 song-chord pb-0.5 select-text" 
+                                className="font-bold italic leading-none pr-1.5 song-chord select-text" 
                                 style={{ 
                                   color: 'var(--chords-color)', 
                                   fontSize: 'calc(var(--song-scale, 1) * var(--chords-size))',

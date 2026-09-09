@@ -120,6 +120,64 @@ const PageMarginGuides = memo(function PageMarginGuides({
   );
 });
 
+
+const VirtualPage = memo(function VirtualPage({ 
+  children, 
+  isPrinting,
+  isScaled,
+  scaledWidth,
+  scaledHeight,
+  defaultWidth,
+  defaultHeight
+}: { 
+  children: React.ReactNode, 
+  isPrinting: boolean,
+  isScaled: boolean,
+  scaledWidth: number,
+  scaledHeight: number,
+  defaultWidth: string,
+  defaultHeight: string
+}) {
+  const [isVisible, setIsVisible] = useState(isPrinting);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isPrinting) {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsVisible(entry.isIntersecting);
+    }, {
+      rootMargin: '100% 0px'
+    });
+
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+    return () => observer.disconnect();
+  }, [isPrinting]);
+
+  return (
+    <div 
+      ref={ref}
+      className="mx-auto mb-6 sm:mb-10 print:mb-0 print:mx-0 shrink-0 song-page-outer-wrapper"
+      style={{
+        width: isScaled ? `${scaledWidth}px` : 'fit-content',
+        height: isVisible ? (isScaled ? `${scaledHeight}px` : 'auto') : (isScaled ? `${scaledHeight}px` : defaultHeight),
+        minHeight: isScaled ? `${scaledHeight}px` : defaultHeight,
+        minWidth: isScaled ? `${scaledWidth}px` : defaultWidth,
+        position: 'relative',
+        contentVisibility: isPrinting ? 'visible' : 'auto',
+        containIntrinsicSize: isScaled ? `${scaledWidth}px ${scaledHeight}px` : `${defaultWidth} ${defaultHeight}`,
+      }}
+    >
+      {isVisible ? children : <div style={{ height: isScaled ? `${scaledHeight}px` : defaultHeight }} />}
+    </div>
+  );
+});
+
 // Dedicated Memoized Song Pages List
 interface SongPagesListProps {
   songs: Song[];
@@ -137,6 +195,7 @@ interface SongPagesListProps {
   isDebugMode?: boolean;
   isPrintPreviewMode?: boolean;
   showMarginGuides?: boolean;
+  isPrinting?: boolean;
 }
 
 const SongPagesList = memo(function SongPagesList({
@@ -155,6 +214,7 @@ const SongPagesList = memo(function SongPagesList({
   isDebugMode = false,
   isPrintPreviewMode = false,
   showMarginGuides = true,
+  isPrinting = false,
 }: SongPagesListProps) {
   const numColWidth = useMemo(() => {
     if (songs.length >= 100) return '2.8em';
@@ -174,17 +234,14 @@ const SongPagesList = memo(function SongPagesList({
     <>
       {/* INDEX / TABLE OF CONTENTS PAGES (PAGINATED) */}
       {tocPages.map((tocPage) => (
-        <div 
+        <VirtualPage
           key={`toc-page-${tocPage.pageIndex}`}
-          className="mx-auto mb-6 sm:mb-10 print:mb-0 print:mx-0 shrink-0 song-page-outer-wrapper"
-          style={{
-            width: isScaled ? `${scaledWidth}px` : 'fit-content',
-            height: isScaled ? `${scaledHeight}px` : 'auto',
-            minHeight: isScaled ? `${scaledHeight}px` : undefined,
-            position: 'relative',
-            contentVisibility: 'auto',
-            containIntrinsicSize: isScaled ? `${scaledWidth}px ${scaledHeight}px` : '794px 1123px',
-          }}
+          isPrinting={isPrinting}
+          isScaled={isScaled}
+          scaledWidth={scaledWidth}
+          scaledHeight={scaledHeight}
+          defaultWidth={cssWidth}
+          defaultHeight={cssHeight}
         >
           <div 
             id={tocPage.isFirstPage ? "toc-page" : `toc-page-${tocPage.pageIndex}`}
@@ -310,22 +367,19 @@ const SongPagesList = memo(function SongPagesList({
               })}
             </div>
           </div>
-        </div>
+        </VirtualPage>
       ))}
 
       {/* SONG PAGES */}
       {songs.map((song, i) => (
-        <div 
+        <VirtualPage
           key={song.id || `song-${i}`}
-          className="mx-auto mb-6 sm:mb-10 print:mb-0 print:mx-0 shrink-0 song-page-outer-wrapper"
-          style={{
-            width: isScaled ? `${scaledWidth}px` : 'fit-content',
-            height: isScaled ? `${scaledHeight}px` : 'auto',
-            minHeight: isScaled ? `${scaledHeight}px` : undefined,
-            position: 'relative',
-            contentVisibility: 'auto',
-            containIntrinsicSize: isScaled ? `${scaledWidth}px ${scaledHeight}px` : '794px 1123px',
-          }}
+          isPrinting={isPrinting}
+          isScaled={isScaled}
+          scaledWidth={scaledWidth}
+          scaledHeight={scaledHeight}
+          defaultWidth={cssWidth}
+          defaultHeight={cssHeight}
         >
           <div 
             id={`song-${i}`}
@@ -354,7 +408,7 @@ const SongPagesList = memo(function SongPagesList({
 
             <SongDisplay song={song} index={i} settings={settings} isDarkMode={effectiveDarkMode} isDebugMode={isDebugMode} />
           </div>
-        </div>
+        </VirtualPage>
       ))}
 
       {songs.length === 0 && (
@@ -447,8 +501,7 @@ const areSettingsEquivalent = (prev: PrintSettings, next: PrintSettings): boolea
     prev.showChords === next.showChords &&
     prev.smartFit === next.smartFit &&
     prev.pageMargin === next.pageMargin &&
-    prev.maxScaleMultiplier === next.maxScaleMultiplier &&
-    prev.maxAutoFontSize === next.maxAutoFontSize &&
+    prev.maxFontSizePx === next.maxFontSizePx &&
     prev.indexSortOrder === next.indexSortOrder &&
     prev.titleColor === next.titleColor &&
     prev.artistColor === next.artistColor &&
@@ -1160,6 +1213,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             isDebugMode={isDebugFeatureEnabled && isDebugOpen}
             isPrintPreviewMode={isPrintPreviewMode}
             showMarginGuides={showMarginGuides}
+            isPrinting={isPrinting}
           />
         </div>
 

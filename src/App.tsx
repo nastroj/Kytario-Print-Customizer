@@ -3,7 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { SongbookPreview } from './components/SongbookPreview';
 import { ProgressBar } from './components/ProgressBar';
 import { SongbookData, PrintSettings } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon, Eye } from 'lucide-react';
+import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon, Eye } from 'lucide-react';
 import { safeParseSongbookJson } from './utils';
 import { APP_CONFIG } from './config';
 
@@ -25,8 +25,7 @@ const defaultSettings: PrintSettings = {
   tocFontSize: 12,
   showChords: true,
   smartFit: true,
-  maxScaleMultiplier: 2.0,
-  maxAutoFontSize: 0,
+  maxFontSizePx: 32,
   indexSortOrder: 'alphabetical',
 };
 
@@ -48,8 +47,7 @@ const defaultDarkSettings: PrintSettings = {
   tocFontSize: 12,
   showChords: true,
   smartFit: true,
-  maxScaleMultiplier: 2.0,
-  maxAutoFontSize: 0,
+  maxFontSizePx: 32,
   indexSortOrder: 'alphabetical',
 };
 
@@ -77,6 +75,18 @@ export default function App() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
   const [isLoadingJson, setIsLoadingJson] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'info' = 'success') => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+    }, 3500);
+  }, []);
   const [loadingStatus, setLoadingStatus] = useState<{ title: string; subtitle?: string }>({
     title: 'Loading songbook...',
     subtitle: 'Processing songs and Table of Contents...',
@@ -129,6 +139,16 @@ export default function App() {
         ) {
           parsed.lyricsFontSize = 12;
           parsed.chordsFontSize = 12;
+        }
+        
+        // Migrate maxScaleMultiplier to maxFontSizePx
+        if (typeof parsed.maxFontSizePx !== 'number') {
+          if (typeof parsed.maxScaleMultiplier === 'number') {
+             const baseLyricsPt = parsed.lyricsFontSize || 12;
+             parsed.maxFontSizePx = Math.round(baseLyricsPt * parsed.maxScaleMultiplier * (96 / 72));
+          } else {
+             parsed.maxFontSizePx = 32;
+          }
         }
 
         return { ...baseDefaults, ...parsed, columns: 2 };
@@ -223,6 +243,7 @@ export default function App() {
       // 4. Keep the updating status active until layout rendering completes, then dismiss
       updateTimersRef.current.finishTimer = setTimeout(() => {
         setIsUpdatingLayout(false);
+        showToast("Settings successfully applied!");
       }, 650);
     }, 120);
   };
@@ -271,6 +292,9 @@ export default function App() {
         requestAnimationFrame(() => {
           setTimeout(() => {
             setIsLoadingJson(false);
+            const songCount = songs.length;
+            const bookTitle = data.title || fileName || 'Songbook';
+            showToast(`Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`);
           }, 350);
         });
       } catch (err: any) {
@@ -420,35 +444,63 @@ export default function App() {
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-colors ${
-                isDragging ? 'border-zinc-800 bg-zinc-50' : 'border-black/10 hover:border-zinc-400 bg-zinc-50/50'
+              className={`relative overflow-hidden border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all duration-300 ${
+                isDragging ? 'border-zinc-800 bg-zinc-100/50 scale-[1.02] shadow-sm' : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50/30'
               }`}
             >
-              <Upload className="w-8 h-8 text-zinc-400 mx-auto mb-3" />
-              <p className="text-xs sm:text-sm font-medium text-zinc-700 mb-1">
-                Drag and drop your Kytario .json file here
-              </p>
-              <p className="text-[11px] sm:text-xs text-zinc-400 mb-4">Supports standard and large songbook exports</p>
+              {/* Decorative background pattern */}
+              <div className="absolute inset-0 pointer-events-none opacity-[0.03] overflow-hidden flex items-center justify-center">
+                <svg className="w-full h-full" width="100%" height="100%">
+                  <pattern id="pattern-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+                    <circle cx="2" cy="2" r="1.5" className="fill-zinc-900" />
+                  </pattern>
+                  <rect x="0" y="0" width="100%" height="100%" fill="url(#pattern-dots)" />
+                </svg>
+              </div>
               
-              <label className={`inline-flex items-center gap-2 text-white text-xs sm:text-sm font-medium px-4 sm:px-5 py-2.5 rounded-lg transition-colors shadow-sm ${
-                isLoadingJson
-                  ? 'bg-zinc-800 pointer-events-none'
-                  : 'bg-zinc-900 hover:bg-zinc-800 cursor-pointer'
-              }`}>
-                {isLoadingJson ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-white" />
-                ) : (
-                  <Upload className="w-4 h-4" />
-                )}
-                <span>{isLoadingJson ? 'Reading & Processing...' : 'Browse File'}</span>
-                <input
-                  type="file"
-                  accept=".json,application/json,text/plain"
-                  disabled={isLoadingJson}
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
+              {/* Floating decorative elements */}
+              <div className={`absolute top-6 left-8 text-zinc-400/20 transition-transform duration-500 ${isDragging ? 'scale-110 -translate-y-2 -rotate-12' : 'scale-100 rotate-0'}`}>
+                <Music className="w-12 h-12" />
+              </div>
+              <div className={`absolute bottom-8 right-8 text-zinc-400/20 transition-transform duration-500 ${isDragging ? 'scale-110 translate-y-2 rotate-12' : 'scale-100 rotate-0'}`}>
+                <FileJson className="w-16 h-16" />
+              </div>
+              <div className={`absolute top-1/2 right-12 text-zinc-400/10 transition-transform duration-500 ${isDragging ? 'scale-125 -translate-y-4 translate-x-2 rotate-45' : 'scale-100 rotate-12'}`}>
+                <FileText className="w-10 h-10" />
+              </div>
+              <div className={`absolute bottom-12 left-12 text-zinc-400/10 transition-transform duration-500 ${isDragging ? 'scale-125 translate-y-4 -translate-x-2 -rotate-45' : 'scale-100 -rotate-12'}`}>
+                <Music className="w-8 h-8" />
+              </div>
+
+              <div className="relative z-10 flex flex-col items-center justify-center">
+                <div className={`w-16 h-16 bg-white rounded-full shadow-sm border border-zinc-100 flex items-center justify-center mb-4 transition-transform duration-300 ${isDragging ? 'scale-110 shadow-md' : 'scale-100'}`}>
+                  <Upload className={`w-7 h-7 transition-colors duration-300 ${isDragging ? 'text-zinc-900' : 'text-zinc-400'}`} />
+                </div>
+                <p className={`text-base sm:text-lg font-semibold transition-colors duration-300 mb-1 ${isDragging ? 'text-zinc-900' : 'text-zinc-700'}`}>
+                  Drag and drop your Kytario .json file here
+                </p>
+                <p className="text-[12px] sm:text-sm text-zinc-500 mb-6 font-medium">Supports standard and large songbook exports</p>
+                
+                <label className={`inline-flex items-center gap-2 text-white text-xs sm:text-sm font-semibold px-5 sm:px-6 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
+                  isLoadingJson
+                    ? 'bg-zinc-800 pointer-events-none'
+                    : 'bg-zinc-900 hover:bg-zinc-800 hover:shadow-md cursor-pointer'
+                }`}>
+                  {isLoadingJson ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  <span>{isLoadingJson ? 'Reading & Processing...' : 'Browse File'}</span>
+                  <input
+                    type="file"
+                    accept=".json,application/json,text/plain"
+                    disabled={isLoadingJson}
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -640,6 +692,23 @@ export default function App() {
             setIsDesktopSidebarCollapsed(false);
           }}
         />
+
+        {/* Toast Notification */}
+        {toast && (
+          <div className="fixed bottom-6 right-6 z-[100] print:hidden animate-in fade-in slide-in-from-bottom-3 duration-300">
+            <div className="flex items-center gap-3 bg-zinc-900 dark:bg-zinc-800 text-white px-4 py-3 rounded-xl shadow-2xl border border-white/10 text-xs sm:text-sm font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{toast.message}</span>
+              <button 
+                onClick={() => setToast(null)}
+                className="ml-2 text-zinc-400 hover:text-white transition-colors p-1 cursor-pointer"
+                title="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

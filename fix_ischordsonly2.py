@@ -1,0 +1,22 @@
+import sys
+
+with open("src/components/SongDisplay.tsx", "r") as f:
+    content = f.read()
+
+target = """                const isRep = lineData.isRepetitionLine;
+                return (
+                  <div 
+                    key={i} 
+                    className={`relative song-line grid items-end ${isChordsOnly ? 'mb-0' : 'mb-[5px]'}`}"""
+
+replacement = """                const isRep = lineData.isRepetitionLine;
+                const isChordsOnly = isRep || (!chunks || !chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef));
+                return (
+                  <div 
+                    key={i} 
+                    className={`relative song-line grid items-end ${isChordsOnly ? 'mb-0' : 'mb-[5px]'}`}"""
+
+content = content.replace(target, replacement)
+
+with open("src/components/SongDisplay.tsx", "w") as f:
+    f.write(content)
