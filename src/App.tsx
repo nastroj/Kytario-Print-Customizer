@@ -2,6 +2,8 @@ import React, { useState, useEffect, useDeferredValue, useRef, useCallback } fro
 import { Sidebar } from './components/Sidebar';
 import { SongbookPreview } from './components/SongbookPreview';
 import { ProgressBar } from './components/ProgressBar';
+import { PWAInstallButton } from './components/PWAInstallButton';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { SongbookData, PrintSettings } from './types';
 import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon, Eye } from 'lucide-react';
 import { safeParseSongbookJson } from './utils';
@@ -390,8 +392,8 @@ export default function App() {
 
         <div className="max-w-xl w-full bg-white rounded-2xl shadow-lg border border-black/5 p-5 sm:p-8 space-y-5 sm:space-y-6">
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-zinc-900 text-white rounded-lg flex items-center justify-center mx-auto shadow-sm">
-              <FileJson className="w-6 h-6 sm:w-7 sm:h-7" />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-zinc-900 rounded-2xl flex items-center justify-center mx-auto shadow-md overflow-hidden p-2 border border-zinc-800">
+              <img src="/favicon.svg" alt="Kytario Logo" className="w-full h-full object-contain" />
             </div>
             <div className="flex items-center justify-center gap-2">
               <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Kytario Print Customizer</h1>
@@ -402,6 +404,9 @@ export default function App() {
             <p className="text-zinc-500 text-xs sm:text-sm max-w-sm mx-auto">
               Transform your Kytario songbook into print-ready PDF pages with automatic Table of Contents and clean formatting.
             </p>
+            <div className="pt-1 flex justify-center">
+              <PWAInstallButton variant="primary" />
+            </div>
           </div>
 
           {/* Tabs */}
@@ -587,6 +592,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-1.5">
+            <PWAInstallButton variant="minimal" />
             <button
               onClick={() => setIsConfirmResetOpen(true)}
               className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
@@ -692,6 +698,9 @@ export default function App() {
             setIsDesktopSidebarCollapsed(false);
           }}
         />
+
+        {/* Offline Indicator */}
+        <OfflineIndicator />
 
         {/* Toast Notification */}
         {toast && (

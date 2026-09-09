@@ -52,3 +52,50 @@
   animation: indeterminate-bar 1.4s ease-in-out infinite;
 }
 
+/* Smart Column Balancing & Orphan Prevention */
+.song-columns-container {
+  column-fill: balance;
+  -webkit-column-fill: balance;
+  orphans: 2;
+  widows: 2;
+}
+
+.song-section {
+  orphans: 2;
+  widows: 2;
+}
+
+.break-before-column {
+  break-before: column;
+  -webkit-column-break-before: always;
+  page-break-before: always;
+}
+
+.song-orphan-guard-head,
+.song-orphan-guard-tail {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+}
+
+@media print {
+  .song-columns-container {
+    column-fill: balance !important;
+    -webkit-column-fill: balance !important;
+    orphans: 2 !important;
+    widows: 2 !important;
+  }
+  .break-before-column {
+    break-before: column !important;
+    -webkit-column-break-before: always !important;
+    page-break-before: always !important;
+  }
+  .song-orphan-guard-head,
+  .song-orphan-guard-tail {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    -webkit-column-break-inside: avoid !important;
+  }
+}
+
+

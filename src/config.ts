@@ -19,7 +19,7 @@ export interface AppConfig {
 }
 
 export const APP_CONFIG: AppConfig = {
-  APP_VERSION: '1.0.3',
+  APP_VERSION: '1.0.4',
   // Set to true to enable and show the Debug HUD and the debug icon in the toolbar
   ENABLE_DEBUG_HUD: false,
 };

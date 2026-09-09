@@ -56,8 +56,13 @@ export const SongFitDebugHud: React.FC<SongFitDebugHudProps> = ({
       `- **Calculated Column Height:** ${debugInfo.calculatedHeight}px / ${debugInfo.availColHeight}px (${debugInfo.heightUtilization}% utilization)`,
       `- **Layout:** ${debugInfo.columns} columns, ${debugInfo.pageFormat} ${debugInfo.orientation}`,
       `- **SmartFit Enabled:** ${debugInfo.smartFitEnabled ? 'Yes' : 'No'}`,
-      debugInfo.sectionsDetail.length > 0 ? `\n#### Sections:\n` + debugInfo.sectionsDetail.map((s, idx) => `  ${idx + 1}. \`${s.marker}\`: ${s.lineCount} lines (~${s.estimatedHeight}px)`).join('\n') : ''
-    ].join('\n');
+      debugInfo.columnBalancing ? `- **Smart Column Balancing:** Strategy: "${debugInfo.columnBalancing.strategy}", Orphan Protection: ${debugInfo.columnBalancing.hasOrphanProtection ? 'Active' : 'None'}, Max Col Est: ~${debugInfo.columnBalancing.estimatedMaxColumnHeight}px` : '',
+      debugInfo.sectionsDetail.length > 0 ? `\n#### Sections:\n` + debugInfo.sectionsDetail.map((s, idx) => {
+        const secPlan = debugInfo.columnBalancing?.sections?.[idx];
+        const planNote = secPlan ? ` [avoid-break: ${secPlan.avoidBreakInside}, break-before: ${secPlan.breakBeforeColumn}, orphan-guard: ${secPlan.orphanProtection?.hasHeadGroup ? 'yes' : 'no'}]` : '';
+        return `  ${idx + 1}. \`${s.marker}\`: ${s.lineCount} lines (~${s.estimatedHeight}px)${planNote}`;
+      }).join('\n') : ''
+    ].filter(Boolean).join('\n');
 
     navigator.clipboard.writeText(markdown).then(() => {
       setCopied(true);
@@ -308,6 +313,20 @@ export const SongFitDebugHud: React.FC<SongFitDebugHudProps> = ({
               {debugInfo.smartFitEnabled ? 'SmartFit Active' : 'Fixed Scale'}
             </span>
           </div>
+
+          {debugInfo.columnBalancing && (
+            <div className="border-t border-zinc-800/80 pt-1.5 flex items-center justify-between text-[10px]">
+              <span className="text-zinc-400">Column Balancing:</span>
+              <span className="font-semibold text-teal-400 flex items-center gap-1">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-teal-400"></span>
+                {debugInfo.columnBalancing.strategy === 'clean-breaks' 
+                  ? 'Clean Breaks' 
+                  : debugInfo.columnBalancing.strategy === 'protected-split'
+                  ? 'Orphan-Guarded' 
+                  : 'Single Column'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Sections Breakdown Accordion */}

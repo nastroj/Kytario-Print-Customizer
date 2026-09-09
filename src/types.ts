@@ -50,6 +50,26 @@ export interface SectionDebugDetail {
   estimatedHeight: number;
 }
 
+export interface SectionBalancePlan {
+  sectionIndex: number;
+  breakBeforeColumn: boolean;
+  avoidBreakInside: boolean;
+  orphanProtection: {
+    hasHeadGroup: boolean;
+    headGroupCount: number;
+    hasTailGroup: boolean;
+    tailGroupStartIndex: number;
+  };
+}
+
+export interface ColumnBalancePlan {
+  colCount: number;
+  isMultiColumn: boolean;
+  sections: SectionBalancePlan[];
+  orphanPrevented: boolean;
+  strategy: 'single-column' | 'inter-section-clean' | 'protected-split';
+}
+
 export interface SongFitDebugInfo {
   songIndex: number;
   title: string;
@@ -77,6 +97,11 @@ export interface SongFitDebugInfo {
   orientation: string;
   smartFitEnabled: boolean;
   sectionsDetail: SectionDebugDetail[];
+  columnBalancing?: {
+    isBalanced: boolean;
+    orphanPrevented: boolean;
+    strategy: string;
+  };
 }
 
 export type { SongSection } from './utils';

@@ -1,4 +1,4 @@
-import { SongbookData, Song, PrintSettings, SongFitDebugInfo } from './types';
+import { SongbookData, Song, PrintSettings, SongFitDebugInfo, ColumnBalancePlan, SectionBalancePlan } from './types';
 
 export interface ChordChunk {
   chord: string | null;
@@ -852,8 +852,15 @@ export function computeSmartFitScale(
     }
 
     const total = sectionHeights.reduce((a, b) => a + b, 0);
-    if (colCount <= 1 || sections.length <= 1) {
+    if (colCount <= 1) {
       return { height: total, maxWrapLines };
+    }
+    if (sections.length === 1) {
+      const nonEmpties = sections[0].parsedLines.filter(l => !l.isEmpty).length;
+      if (nonEmpties <= 3) {
+        return { height: total, maxWrapLines };
+      }
+      return { height: Math.ceil(total / colCount), maxWrapLines };
     }
 
     // Balance multi-column distribution simulating CSS columnFill: 'balance' & break-inside: avoid
@@ -960,6 +967,202 @@ export function computeSmartFitScale(
   }
 
   return Math.round(bestScale * 100) / 100;
+}
+
+/**
+ * Smart Column Balancing Algorithm
+ *
+ * Prevents lone lines / orphans at the top of a new column and lone lines / widows
+ * at the bottom of a preceding column when songs are rendered in multi-column layouts.
+ *
+ * Key rules & features:
+ * 1. Evaluates total visual height per section and per line at the active scale.
+ * 2. Checks for clean inter-section break points between stanzas that balance column heights
+ *    without breaking any stanza.
+ * 3. When a long section must span across columns, enforces strict orphan & widow prevention:
+ *    - Never allows a break that leaves only 1 lone line at the top of the next column.
+ *    - Never allows a break that leaves only 1 lone line at the bottom of the previous column.
+ *    - Groups the first 2 lines (+ marker) and the last 2 lines into atomic unbreakable sub-blocks
+ *      (`break-inside: avoid`), ensuring at least 2 lines always carry over together.
+ * 4. Stanzas with <= 3 lines are always kept intact (`avoidBreakInside: true`).
+ */
+export function computeSmartColumnBalance(
+  sections: SongSection[],
+  settings: {
+    pageFormat?: 'A4' | 'A5' | 'Letter';
+    orientation?: 'portrait' | 'landscape';
+    columns?: number;
+    titleFontSize?: number;
+    artistFontSize?: number;
+    lyricsFontSize?: number;
+    chordsFontSize?: number;
+    showChords?: boolean;
+    pageMargin?: number;
+  },
+  availColH: number,
+  scale: number
+): ColumnBalancePlan {
+  const colCount = Math.max(1, settings.columns || 2);
+  const showChords = settings.showChords ?? true;
+  const lSize = (Number(settings.lyricsFontSize) || 12) * scale;
+  const cSize = (Number(settings.chordsFontSize) || 12) * scale;
+
+  if (colCount <= 1 || !sections || sections.length === 0) {
+    return {
+      colCount: 1,
+      isMultiColumn: false,
+      orphanPrevented: true,
+      strategy: 'single-column',
+      sections: (sections || []).map((sec, idx) => ({
+        sectionIndex: idx,
+        breakBeforeColumn: false,
+        avoidBreakInside: sec.parsedLines.filter(l => !l.isEmpty).length <= 3,
+        orphanProtection: {
+          hasHeadGroup: false,
+          headGroupCount: 0,
+          hasTailGroup: false,
+          tailGroupStartIndex: -1,
+        },
+      })),
+    };
+  }
+
+  // 1. Calculate the estimated height of each section and line
+  const sectionHeights: number[] = [];
+  const sectionNonEmptyCounts: number[] = [];
+
+  for (let i = 0; i < sections.length; i++) {
+    const sec = sections[i];
+    let secH = 0;
+    const pLines = sec.parsedLines;
+    let nonEmptyCount = 0;
+
+    if (sec.marker && (!pLines || pLines.length === 0 || pLines.every(l => l.isEmpty))) {
+      secH += Math.round(lSize + 6);
+    }
+
+    for (let j = 0; j < pLines.length; j++) {
+      const lineData = pLines[j];
+      if (lineData.isEmpty) {
+        secH += Math.max(10, Math.round(12 * Math.min(1.4, scale)));
+        continue;
+      }
+      nonEmptyCount++;
+      const isChordsOnly = lineData.isRepetitionLine ||
+        (!lineData.chunks || !lineData.chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef));
+      const hasChords = lineData.hasChords && showChords;
+
+      if (isChordsOnly) {
+        secH += Math.round((cSize + 4) * 1.05);
+      } else if (hasChords) {
+        secH += Math.round((cSize + lSize + 4) * 1.05 + 5);
+      } else {
+        secH += Math.round((lSize + 4) * 1.05 + 5);
+      }
+    }
+    secH += Math.max(14, Math.round(16 * Math.min(1.3, scale))); // mb-4 buffer
+    sectionHeights.push(secH);
+    sectionNonEmptyCounts.push(nonEmptyCount);
+  }
+
+  const totalHeight = sectionHeights.reduce((a, b) => a + b, 0);
+  const targetColHeight = totalHeight / colCount;
+
+  // 2. Evaluate Clean Inter-Section Breaks (Stanzas kept 100% intact)
+  let bestCleanBreakSectionIndex = -1;
+  let minCleanDiff = Infinity;
+
+  if (sections.length >= 2) {
+    let currentH = 0;
+    for (let i = 0; i < sections.length - 1; i++) {
+      currentH += sectionHeights[i];
+      const remainderH = totalHeight - currentH;
+
+      // Check if both sides fit within column height (or reasonable safety margin)
+      const fitsCol1 = currentH <= availColH * 1.04;
+      const fitsCol2 = remainderH <= availColH * 1.04;
+
+      if (fitsCol1 && fitsCol2) {
+        const diff = Math.abs(currentH - remainderH);
+        if (diff < minCleanDiff) {
+          minCleanDiff = diff;
+          bestCleanBreakSectionIndex = i + 1; // Break before section i+1
+        }
+      }
+    }
+  }
+
+  // If a clean break between stanzas exists that balances columns nicely:
+  if (bestCleanBreakSectionIndex !== -1 && minCleanDiff <= targetColHeight * 0.75) {
+    return {
+      colCount,
+      isMultiColumn: true,
+      orphanPrevented: true,
+      strategy: 'inter-section-clean',
+      sections: sections.map((sec, idx) => {
+        return {
+          sectionIndex: idx,
+          breakBeforeColumn: idx === bestCleanBreakSectionIndex,
+          avoidBreakInside: true, // Keep all stanzas intact
+          orphanProtection: {
+            hasHeadGroup: false,
+            headGroupCount: 0,
+            hasTailGroup: false,
+            tailGroupStartIndex: -1,
+          },
+        };
+      }),
+    };
+  }
+
+  // 3. Protected-Split Strategy with Atomic Head & Tail Groups
+  // When sections are long or cannot be split cleanly between stanzas:
+  // We activate orphan and widow protection on all sections.
+  return {
+    colCount,
+    isMultiColumn: true,
+    orphanPrevented: true,
+    strategy: 'protected-split',
+    sections: sections.map((sec, idx) => {
+      const nonEmptyLines = sec.parsedLines
+        .map((l, originalIdx) => ({ ...l, originalIdx }))
+        .filter(l => !l.isEmpty);
+      const count = nonEmptyLines.length;
+
+      // Small stanzas (<= 3 lines) should NEVER break across columns
+      if (count <= 3) {
+        return {
+          sectionIndex: idx,
+          breakBeforeColumn: false,
+          avoidBreakInside: true,
+          orphanProtection: {
+            hasHeadGroup: false,
+            headGroupCount: 0,
+            hasTailGroup: false,
+            tailGroupStartIndex: -1,
+          },
+        };
+      }
+
+      // Sections with >= 4 lines can break across columns if needed,
+      // but the first 2 lines (head) and last 2 lines (tail) are protected
+      const headGroupCount = 2;
+      // Tail group starts at the index of the second-to-last non-empty line
+      const tailGroupStartIndex = nonEmptyLines[count - 2].originalIdx;
+
+      return {
+        sectionIndex: idx,
+        breakBeforeColumn: false,
+        avoidBreakInside: false,
+        orphanProtection: {
+          hasHeadGroup: true,
+          headGroupCount,
+          hasTailGroup: true,
+          tailGroupStartIndex,
+        },
+      };
+    }),
+  };
 }
 
 export function computeSongFitDebug(
@@ -1144,6 +1347,7 @@ export function computeSongFitDebug(
   // Check if minimum readability constraint was active
   const baseEval = calcHeightAtScale(1.0);
   const isMinConstraintActive = baseEval.height > availColH && computedScale <= (minScaleFloor + 0.01);
+  const colPlan = computeSmartColumnBalance(sections, settings, availColH, computedScale);
 
   return {
     songIndex: index,
@@ -1172,6 +1376,11 @@ export function computeSongFitDebug(
     orientation: settings.orientation,
     smartFitEnabled: Boolean(settings.smartFit),
     sectionsDetail: resultAtScale.secDetails,
+    columnBalancing: {
+      isBalanced: true,
+      orphanPrevented: colPlan.orphanPrevented,
+      strategy: colPlan.strategy,
+    },
   };
 }
 

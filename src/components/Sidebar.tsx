@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PrintSettings } from '../types';
 import { APP_CONFIG } from '../config';
+import { PWAInstallButton } from './PWAInstallButton';
 import { 
   Settings2, 
   Type, 
@@ -635,10 +636,13 @@ export function Sidebar({
               </div>
             </div>
           </div>
-          <div className="text-center pt-8 pb-2">
-            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium tracking-wide">
-              Kytario Print Customizer v{APP_CONFIG.APP_VERSION}
-            </span>
+          <div className="pt-6 pb-2 space-y-3">
+            <PWAInstallButton variant="sidebar" />
+            <div className="text-center">
+              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium tracking-wide">
+                Kytario Print Customizer v{APP_CONFIG.APP_VERSION}
+              </span>
+            </div>
           </div>
 
 
