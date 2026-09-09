@@ -711,6 +711,9 @@ export function computeSmartFitScale(
     chordsFontSize?: number;
     showChords?: boolean;
     smartFit?: boolean;
+    pageMargin?: number;
+    maxScaleMultiplier?: number;
+    maxAutoFontSize?: number;
   },
   hasTitle: boolean = true,
   hasArtist: boolean = false
@@ -740,9 +743,11 @@ export function computeSmartFitScale(
       break;
   }
 
-  // Padding: px-[5mm] py-[6mm] (Total Y: 12mm = 45.35px, Total X: 10mm = 37.8px)
-  const paddingY = 12 * mmToPx;
-  const paddingX = 10 * mmToPx;
+  // Margin calculation: horizontal margin = pageMargin mm, vertical margin = round(pageMargin * 1.2) mm
+  const marginMmX = settings.pageMargin ?? 5;
+  const marginMmY = Math.round((settings.pageMargin ?? 5) * 1.2);
+  const paddingY = (marginMmY * 2) * mmToPx;
+  const paddingX = (marginMmX * 2) * mmToPx;
 
   const usableW = Math.max(200, totalPxWidth - paddingX);
   const usableH = Math.max(200, totalPxHeight - paddingY);
@@ -922,6 +927,23 @@ export function computeSmartFitScale(
     maxWrapLinesLimit = 2;
   }
 
+  // Apply user-configured max auto-scale multiplier
+  const userMultiplierCap = (typeof settings.maxScaleMultiplier === 'number' && settings.maxScaleMultiplier > 0)
+    ? settings.maxScaleMultiplier
+    : 2.0;
+  maxUpscale = Math.min(maxUpscale, userMultiplierCap);
+
+  // Apply user-configured max auto-scale font size cap (for lyrics font size)
+  if (typeof settings.maxAutoFontSize === 'number' && settings.maxAutoFontSize > 0) {
+    const fontCapMultiplier = settings.maxAutoFontSize / baseLyricsSize;
+    maxUpscale = Math.min(maxUpscale, fontCapMultiplier);
+  }
+
+  // If maxUpscale is constrained to <= 1.0, do not upscale short songs beyond 1.0
+  if (maxUpscale <= 1.0) {
+    return 1.0;
+  }
+
   const targetMaxH = availColH * targetColUtilization;
   let bestScale = 1.0;
 
@@ -976,8 +998,10 @@ export function computeSongFitDebug(
       break;
   }
 
-  const paddingY = 12 * mmToPx;
-  const paddingX = 10 * mmToPx;
+  const marginMmX = settings.pageMargin ?? 5;
+  const marginMmY = Math.round((settings.pageMargin ?? 5) * 1.2);
+  const paddingY = (marginMmY * 2) * mmToPx;
+  const paddingX = (marginMmX * 2) * mmToPx;
 
   const usableW = Math.max(200, totalPxWidth - paddingX);
   const usableH = Math.max(200, totalPxHeight - paddingY);

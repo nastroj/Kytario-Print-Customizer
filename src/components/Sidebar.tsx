@@ -16,8 +16,10 @@ import {
   Minus, 
   Plus,
   RefreshCw,
+  RotateCcw,
   Sun,
-  Moon
+  Moon,
+  Eye
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -26,6 +28,7 @@ interface SidebarProps {
   onResetSongbook?: () => void;
   onFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadPdf?: () => void;
+  onOpenPrintPreview?: () => void;
   isDownloadingPdf?: boolean;
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
@@ -151,7 +154,7 @@ function TypographyItemRow({
       </div>
 
       {/* Stepper with - / input / + */}
-      <div className="flex items-center border border-transparent bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 focus:bg-white dark:focus:bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-2xs focus-within:ring-1 focus-within:ring-zinc-800 dark:focus-within:ring-zinc-400">
+      <div className="flex items-center border border-black/5 dark:border-zinc-700/60 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 focus:bg-white dark:focus:bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-2xs focus-within:ring-1 focus-within:ring-zinc-800 dark:focus-within:ring-zinc-400">
         <button
           type="button"
           onClick={handleDecrement}
@@ -201,6 +204,7 @@ export function Sidebar({
   onResetSongbook, 
   onFileUpload, 
   onDownloadPdf,
+  onOpenPrintPreview,
   isDownloadingPdf = false,
   isMobileOpen = false,
   onMobileClose,
@@ -224,9 +228,12 @@ export function Sidebar({
     return (
       draftSettings.pageFormat !== settings.pageFormat ||
       draftSettings.orientation !== settings.orientation ||
+      draftSettings.pageMargin !== settings.pageMargin ||
       draftSettings.indexSortOrder !== settings.indexSortOrder ||
       draftSettings.showChords !== settings.showChords ||
       draftSettings.smartFit !== settings.smartFit ||
+      draftSettings.maxScaleMultiplier !== settings.maxScaleMultiplier ||
+      draftSettings.maxAutoFontSize !== settings.maxAutoFontSize ||
       draftSettings.titleFontSize !== settings.titleFontSize ||
       draftSettings.artistFontSize !== settings.artistFontSize ||
       draftSettings.lyricsFontSize !== settings.lyricsFontSize ||
@@ -283,34 +290,37 @@ export function Sidebar({
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Page layout, fonts & colors</p>
           </div>
-          {isDrawer ? (
-            <button 
-              onClick={onMobileClose} 
-              className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
-              title="Close Settings"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              {onToggleDarkMode && (
-                <button 
-                  onClick={onToggleDarkMode} 
-                  className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer" 
-                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                >
-                  {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-                </button>
-              )}
+          <div className="flex items-center gap-1.5">
+            {onToggleDarkMode && (
+              <button 
+                onClick={onToggleDarkMode} 
+                className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer" 
+                title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              >
+                {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+              </button>
+            )}
+            {isDrawer ? (
+              <button 
+                onClick={onMobileClose} 
+                className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+                title="Close Settings"
+                aria-label="Close Settings"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            ) : (
               <button 
                 onClick={() => setCollapsed(true)} 
                 className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer" 
                 title="Collapse Sidebar"
+                aria-label="Collapse Sidebar"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Clean, Non-nested Settings Sections */}
@@ -330,7 +340,7 @@ export function Sidebar({
               </label>
               <select
                 id={`pageFormat-${idSuffix}`}
-                className="w-full rounded-lg border border-transparent dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 focus:bg-white dark:focus:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-400"
+                className="w-full rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 focus:bg-white dark:focus:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-0 focus:border-transparent cursor-pointer"
                 value={draftSettings.pageFormat}
                 onChange={(e) => handleSettingChange('pageFormat', e.target.value)}
               >
@@ -347,12 +357,34 @@ export function Sidebar({
               </label>
               <select
                 id={`orientation-${idSuffix}`}
-                className="w-full rounded-lg border border-transparent dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 focus:bg-white dark:focus:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-400"
+                className="w-full rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 focus:bg-white dark:focus:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-0 focus:border-transparent cursor-pointer"
                 value={draftSettings.orientation}
                 onChange={(e) => handleSettingChange('orientation', e.target.value)}
               >
                 <option value="portrait">Portrait</option>
                 <option value="landscape">Landscape</option>
+              </select>
+            </div>
+
+            {/* Page Margins Dropdown */}
+            <div>
+              <label htmlFor={`pageMargin-${idSuffix}`} className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                Page Margins
+              </label>
+              <select
+                id={`pageMargin-${idSuffix}`}
+                className="w-full rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 focus:bg-white dark:focus:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-0 focus:border-transparent cursor-pointer"
+                value={draftSettings.pageMargin ?? 5}
+                onChange={(e) => handleSettingChange('pageMargin', parseInt(e.target.value, 10))}
+              >
+                <option value="3">Ultra Compact (3 mm)</option>
+                <option value="4">Compact (4 mm)</option>
+                <option value="5">Standard (5 mm)</option>
+                <option value="6">Comfortable (6 mm)</option>
+                <option value="8">Normal (8 mm)</option>
+                <option value="10">Spacious (10 mm)</option>
+                <option value="12">Wide / Ring Binder (12 mm)</option>
+                <option value="15">Extra Wide (15 mm)</option>
               </select>
             </div>
 
@@ -363,7 +395,7 @@ export function Sidebar({
               </label>
               <select
                 id={`indexSortOrder-${idSuffix}`}
-                className="w-full rounded-lg border border-transparent dark:border-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 focus:bg-white dark:focus:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-400"
+                className="w-full rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 focus:bg-white dark:focus:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-0 focus:border-transparent cursor-pointer"
                 value={draftSettings.indexSortOrder}
                 onChange={(e) => handleSettingChange('indexSortOrder', e.target.value)}
               >
@@ -399,6 +431,85 @@ export function Sidebar({
                   Auto-scale lyrics & chords to page
                 </span>
               </label>
+
+              {draftSettings.smartFit && (() => {
+                const multiplier = typeof draftSettings.maxScaleMultiplier === 'number' ? draftSettings.maxScaleMultiplier : 2.0;
+                const baseLyricsPt = draftSettings.lyricsFontSize || 12;
+                const maxLyricsPt = Math.round(baseLyricsPt * multiplier * 10) / 10;
+                const minMult = 1.0;
+                const maxMult = 2.5;
+                const step = 0.1;
+
+                const handleDecrement = () => {
+                  const next = Math.max(minMult, Math.round((multiplier - step) * 10) / 10);
+                  setDraftSettings((prev) => ({
+                    ...prev,
+                    maxScaleMultiplier: next,
+                    maxAutoFontSize: 0,
+                  }));
+                };
+
+                const handleIncrement = () => {
+                  const next = Math.min(maxMult, Math.round((multiplier + step) * 10) / 10);
+                  setDraftSettings((prev) => ({
+                    ...prev,
+                    maxScaleMultiplier: next,
+                    maxAutoFontSize: 0,
+                  }));
+                };
+
+                return (
+                  <div className="pl-6 pt-1 border-l-2 border-zinc-200 dark:border-zinc-700 ml-1.5 animate-in fade-in slide-in-from-top-1">
+                    <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
+                      <div className="flex flex-col min-w-0">
+                        <label 
+                          htmlFor={`max-scale-input-${idSuffix}`}
+                          className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate cursor-pointer select-none"
+                        >
+                          Max. Auto-Scale
+                        </label>
+                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
+                          {multiplier <= 1.001
+                            ? `Base ${baseLyricsPt} pt (no growth)`
+                            : `Max ${maxLyricsPt} pt lyrics`}
+                        </span>
+                      </div>
+
+                      {/* Stepper with - / value / + */}
+                      <div className="flex items-center border border-black/5 dark:border-zinc-700/60 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 rounded-lg overflow-hidden shrink-0 shadow-2xs">
+                        <button
+                          type="button"
+                          id={`max-scale-dec-${idSuffix}`}
+                          onClick={handleDecrement}
+                          disabled={multiplier <= minMult}
+                          className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-600 dark:hover:text-zinc-100 active:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                          title="Decrease max auto-scale multiplier"
+                          aria-label="Decrease max auto-scale multiplier"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <div 
+                          id={`max-scale-input-${idSuffix}`}
+                          className="px-2 py-0.5 text-center text-xs font-bold font-mono text-zinc-900 dark:text-zinc-100 select-none min-w-[48px]"
+                        >
+                          {multiplier.toFixed(1)}×
+                        </div>
+                        <button
+                          type="button"
+                          id={`max-scale-inc-${idSuffix}`}
+                          onClick={handleIncrement}
+                          disabled={multiplier >= maxMult}
+                          className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-600 dark:hover:text-zinc-100 active:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                          title="Increase max auto-scale multiplier"
+                          aria-label="Increase max auto-scale multiplier"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -530,90 +641,123 @@ export function Sidebar({
               </div>
             </div>
           </div>
+          <div className="text-center pt-8 pb-2">
+            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium tracking-wide">
+              Kytario Print Customizer v{APP_CONFIG.APP_VERSION}
+            </span>
+          </div>
+
 
         </div>
         
+
+
         {/* Sticky Action Footer */}
         <div className="pt-3 border-t border-black/5 dark:border-zinc-800 space-y-2 shrink-0">
           {hasChanges && (
-            <div className="flex gap-2 animate-in fade-in">
+            <div className="flex items-center gap-2 animate-in fade-in">
               <button
                 type="button"
+                id={`footer-discard-settings-btn-${idSuffix}`}
                 onClick={handleDiscardChanges}
                 disabled={isUpdatingLayout}
-                className="w-1/3 bg-[#b40b24] hover:bg-[#9b091f] active:bg-[#82071a] disabled:opacity-50 text-white rounded-lg py-2.5 text-xs font-semibold transition-colors flex justify-center items-center shadow-sm cursor-pointer"
+                className="flex-1 py-2 px-3 flex items-center justify-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 border border-black/5 dark:border-zinc-700/60 shadow-2xs"
                 title="Discard pending changes"
+                aria-label="Discard pending changes"
               >
-                Discard
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Discard</span>
               </button>
               <button
                 type="button"
                 id={`footer-update-settings-btn-${idSuffix}`}
                 onClick={() => handleUpdateClick(isDrawer)}
                 disabled={isUpdatingLayout}
-                className="w-2/3 bg-[#3c8706] hover:bg-[#337305] active:bg-[#2a5e04] disabled:opacity-50 text-white rounded-lg py-2.5 text-xs font-semibold transition-all flex justify-center items-center gap-2 shadow-md cursor-pointer disabled:cursor-wait"
+                className="flex-1 py-2 px-3 flex items-center justify-center gap-1.5 bg-zinc-900 hover:bg-black dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                title="Apply changes & update preview"
+                aria-label="Apply changes & update preview"
               >
-                <RefreshCw className={`w-4 h-4 ${isUpdatingLayout ? 'animate-spin' : ''}`} />
-                <span>{isUpdatingLayout ? 'Updating...' : 'Update Preview'}</span>
+                <RefreshCw className={`w-3.5 h-3.5 ${isUpdatingLayout ? 'animate-spin' : ''}`} />
+                <span>Update</span>
               </button>
             </div>
           )}
 
-          <button
-            id={isDrawer ? "download-pdf-btn-mobile" : "download-pdf-btn"}
-            onClick={() => {
-              if (isDrawer && onMobileClose) onMobileClose();
-              if (onDownloadPdf) {
-                onDownloadPdf();
-              } else {
-                window.print();
-              }
-            }}
-            disabled={isDownloadingPdf}
-            className="w-full bg-[#4FC3F7] hover:bg-[#29B6F6] active:bg-[#03A9F4] text-zinc-950 rounded-lg py-2.5 text-xs font-semibold transition-colors flex justify-center items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
-            title="Download formatted songbook as PDF"
-          >
-            {isDownloadingPdf ? (
-              <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
-            ) : (
-              <FileDown className="w-4 h-4 text-zinc-950" />
+          {/* Compact Icon-Only Action Buttons */}
+          <div className="flex items-center gap-1.5">
+            {onResetSongbook && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isDrawer && onMobileClose) onMobileClose();
+                  onResetSongbook();
+                }}
+                className="flex-1 py-2 flex items-center justify-center bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+                title="Change Songbook (load different JSON)"
+                aria-label="Change Songbook"
+              >
+                <FolderOpen className="w-4 h-4" />
+              </button>
             )}
-            <span>Download as PDF</span>
-          </button>
 
-          <button
-            id={isDrawer ? "print-songbook-btn-mobile" : "print-songbook-btn"}
-            onClick={() => {
-              if (isDrawer && onMobileClose) onMobileClose();
-              window.print();
-            }}
-            className="w-full bg-[#f6cf02] hover:bg-[#e5be02] active:bg-[#d4ad02] text-zinc-950 rounded-lg py-2 text-xs font-semibold transition-colors flex justify-center items-center gap-2 border border-transparent shadow-sm cursor-pointer"
-            title="Open browser print dialog"
-          >
-            <Printer className="w-3.5 h-3.5 text-zinc-950" />
-            <span>Direct Print</span>
-          </button>
-
-          {onResetSongbook && (
             <button
               type="button"
+              id={isDrawer ? "screen-print-preview-btn-mobile" : "screen-print-preview-btn"}
               onClick={() => {
                 if (isDrawer && onMobileClose) onMobileClose();
-                onResetSongbook();
+                if (onOpenPrintPreview) {
+                  onOpenPrintPreview();
+                }
               }}
-              className="w-full bg-[#afafaf] hover:bg-[#9e9e9e] active:bg-[#8e8e8e] text-zinc-900 rounded-lg py-2 text-xs font-semibold transition-colors flex justify-center items-center gap-2 border border-transparent shadow-sm cursor-pointer"
-              title="Change Songbook"
+              className="flex-1 py-2 flex items-center justify-center bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+              title="On-Screen Print Preview (boundaries & margins)"
+              aria-label="On-Screen Print Preview"
             >
-              <FolderOpen className="w-3.5 h-3.5 text-zinc-900" />
-              <span>Change Songbook</span>
+              <Eye className="w-4 h-4" />
             </button>
-          )}
 
-          <div className="text-center pt-1">
-            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium tracking-wide">
-              Kytario Print Customizer v{APP_CONFIG.APP_VERSION}
-            </span>
+            <button
+              type="button"
+              id={isDrawer ? "print-songbook-btn-mobile" : "print-songbook-btn"}
+              onClick={() => {
+                if (isDrawer && onMobileClose) onMobileClose();
+                if (onDownloadPdf) {
+                  onDownloadPdf();
+                } else {
+                  window.print();
+                }
+              }}
+              className="flex-1 py-2 flex items-center justify-center bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+              title="Direct Print (open browser print dialog)"
+              aria-label="Direct Print"
+            >
+              <Printer className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              id={isDrawer ? "download-pdf-btn-mobile" : "download-pdf-btn"}
+              onClick={() => {
+                if (isDrawer && onMobileClose) onMobileClose();
+                if (onDownloadPdf) {
+                  onDownloadPdf();
+                } else {
+                  window.print();
+                }
+              }}
+              disabled={isDownloadingPdf}
+              className="flex-1 py-2 flex items-center justify-center bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 transition-colors cursor-pointer disabled:opacity-50"
+              title="Download as PDF"
+              aria-label="Download as PDF"
+            >
+              {isDownloadingPdf ? (
+                <Loader2 className="w-4 h-4 animate-spin text-zinc-600 dark:text-zinc-300" />
+              ) : (
+                <FileDown className="w-4 h-4" />
+              )}
+            </button>
           </div>
+
         </div>
       </div>
     );
@@ -623,7 +767,7 @@ export function Sidebar({
     <>
       {/* Mobile Drawer Backdrop and Modal with smooth CSS transition */}
       <div 
-        className={`fixed inset-0 z-50 md:hidden flex transition-all duration-300 ease-in-out ${
+        className={`fixed inset-0 z-50 md:hidden flex print:hidden transition-all duration-300 ease-in-out ${
           isMobileOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
         }`}
         aria-hidden={!isMobileOpen}
@@ -660,7 +804,7 @@ export function Sidebar({
           <button 
             id="desktop-expand-sidebar-btn"
             onClick={() => setCollapsed(false)} 
-            className="p-2 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 rounded-lg text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer" 
+            className="p-2 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 rounded-lg border border-black/5 shadow-2xs text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer" 
             title="Open Settings Panel"
           >
             <ChevronRight className="w-5 h-5" />
@@ -668,7 +812,7 @@ export function Sidebar({
 
           <button
             onClick={() => setCollapsed(false)}
-            className="p-2 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+            className="p-2 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800 rounded-lg border border-transparent hover:border-black/5 dark:hover:border-zinc-700/60 hover:shadow-2xs transition-all cursor-pointer"
             title="Settings"
           >
             <Settings2 className="w-4 h-4" />
@@ -677,7 +821,7 @@ export function Sidebar({
           {onToggleDarkMode && (
             <button
               onClick={onToggleDarkMode}
-              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
               title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
@@ -687,7 +831,42 @@ export function Sidebar({
           <div className="flex-1" />
 
           {/* Action buttons in collapsed state */}
-          <div className="flex flex-col items-center gap-2.5 pb-2">
+          <div className="flex flex-col items-center gap-2 pb-2">
+            {onResetSongbook && (
+              <button
+                type="button"
+                onClick={onResetSongbook}
+                className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
+                title="Change Songbook (load different JSON)"
+                aria-label="Change Songbook"
+              >
+                <FolderOpen className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (onOpenPrintPreview) onOpenPrintPreview();
+              }}
+              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
+              title="On-Screen Print Preview"
+              aria-label="On-Screen Print Preview"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                if (onDownloadPdf) {
+                  onDownloadPdf();
+                } else {
+                  window.print();
+                }
+              }}
+              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
+              title="Direct Print"
+              aria-label="Direct Print"
+            >
+              <Printer className="w-4 h-4" />
+            </button>
             <button
               onClick={() => {
                 if (onDownloadPdf) {
@@ -697,32 +876,16 @@ export function Sidebar({
                 }
               }}
               disabled={isDownloadingPdf}
-              className="p-2.5 bg-[#4FC3F7] hover:bg-[#29B6F6] active:bg-[#03A9F4] text-zinc-950 rounded-lg transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
               title="Download as PDF"
+              aria-label="Download as PDF"
             >
               {isDownloadingPdf ? (
-                <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
+                <Loader2 className="w-4 h-4 animate-spin text-zinc-600 dark:text-zinc-300" />
               ) : (
-                <FileDown className="w-4 h-4 text-zinc-950" />
+                <FileDown className="w-4 h-4" />
               )}
             </button>
-            <button
-              onClick={() => window.print()}
-              className="p-2.5 bg-[#f6cf02] hover:bg-[#e5be02] active:bg-[#d4ad02] text-zinc-950 rounded-lg transition-colors shadow-sm cursor-pointer"
-              title="Direct Print"
-            >
-              <Printer className="w-4 h-4 text-zinc-950" />
-            </button>
-            {onResetSongbook && (
-              <button
-                type="button"
-                onClick={onResetSongbook}
-                className="p-2.5 bg-[#afafaf] hover:bg-[#9e9e9e] active:bg-[#8e8e8e] text-zinc-900 rounded-lg transition-colors shadow-sm cursor-pointer"
-                title="Change Songbook (Open)"
-              >
-                <FolderOpen className="w-4 h-4 text-zinc-900" />
-              </button>
-            )}
           </div>
         </div>
 

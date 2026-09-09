@@ -3,13 +3,14 @@ import { Sidebar } from './components/Sidebar';
 import { SongbookPreview } from './components/SongbookPreview';
 import { ProgressBar } from './components/ProgressBar';
 import { SongbookData, PrintSettings } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon } from 'lucide-react';
+import { FileJson, Upload, Clipboard, CheckCircle2, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon, Eye } from 'lucide-react';
 import { safeParseSongbookJson } from './utils';
 import { APP_CONFIG } from './config';
 
 const defaultSettings: PrintSettings = {
   pageFormat: 'A4',
   orientation: 'landscape',
+  pageMargin: 5,
   columns: 2,
   titleColor: '#1c1917', // zinc-900
   artistColor: '#57534e', // zinc-500
@@ -24,12 +25,15 @@ const defaultSettings: PrintSettings = {
   tocFontSize: 12,
   showChords: true,
   smartFit: true,
+  maxScaleMultiplier: 2.0,
+  maxAutoFontSize: 0,
   indexSortOrder: 'alphabetical',
 };
 
 const defaultDarkSettings: PrintSettings = {
   pageFormat: 'A4',
   orientation: 'landscape',
+  pageMargin: 5,
   columns: 2,
   titleColor: '#f4f4f5', // zinc-100
   artistColor: '#a1a1aa', // zinc-400
@@ -44,6 +48,8 @@ const defaultDarkSettings: PrintSettings = {
   tocFontSize: 12,
   showChords: true,
   smartFit: true,
+  maxScaleMultiplier: 2.0,
+  maxAutoFontSize: 0,
   indexSortOrder: 'alphabetical',
 };
 
@@ -137,6 +143,7 @@ export default function App() {
   const [isUpdatingLayout, setIsUpdatingLayout] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
+  const [isPrintPreviewActive, setIsPrintPreviewActive] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('kytario-dark-mode', JSON.stringify(isDarkMode));
@@ -162,10 +169,21 @@ export default function App() {
   };
 
   const printTriggerRef = useRef<(() => void) | null>(null);
+  const printPreviewTriggerRef = useRef<(() => void) | null>(null);
   const updateTimersRef = useRef<{ applyTimer?: ReturnType<typeof setTimeout>; finishTimer?: ReturnType<typeof setTimeout> }>({});
 
   const handleRegisterPrintTrigger = useCallback((trigger: () => void) => {
     printTriggerRef.current = trigger;
+  }, []);
+
+  const handleRegisterPrintPreviewTrigger = useCallback((trigger: () => void) => {
+    printPreviewTriggerRef.current = trigger;
+  }, []);
+
+  const handleOpenPrintPreview = useCallback(() => {
+    if (printPreviewTriggerRef.current) {
+      printPreviewTriggerRef.current();
+    }
   }, []);
 
   const handleDownloadPdf = useCallback(() => {
@@ -470,7 +488,7 @@ export default function App() {
   const songbookTitle = songbookData.title || songbookData.name || 'Songbook';
 
   return (
-    <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans relative">
+    <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans relative print:h-auto print:min-h-0 print:overflow-visible print:block print:bg-white print:text-black print:p-0 print:m-0">
       {/* Full-screen Loading Spinner Overlay while parsing or loading a new songbook */}
       <ProgressBar
         active={isLoadingJson}
@@ -486,6 +504,7 @@ export default function App() {
         onResetSongbook={() => setIsConfirmResetOpen(true)}
         onFileUpload={handleFileUpload}
         onDownloadPdf={handleDownloadPdf}
+        onOpenPrintPreview={handleOpenPrintPreview}
         isDownloadingPdf={isDownloadingPdf}
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setIsMobileSidebarOpen(false)}
@@ -497,16 +516,17 @@ export default function App() {
         onToggleDarkMode={handleToggleDarkMode}
       />
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 flex flex-col h-full overflow-hidden print:h-auto print:min-h-0 print:overflow-visible print:block print:p-0 print:m-0">
         {/* Mobile Header Bar */}
         <header className="md:hidden bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-black/5 dark:border-zinc-800 px-3.5 py-2.5 flex items-center justify-between shrink-0 print:hidden z-20 shadow-xs">
           <button
             id="mobile-open-settings-btn"
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg text-xs font-semibold transition-colors border border-black/5 dark:border-zinc-700"
+            className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
+            title="Settings"
+            aria-label="Settings"
           >
-            <SlidersHorizontal className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
-            <span>Settings</span>
+            <SlidersHorizontal className="w-4 h-4" />
           </button>
 
           <div className="text-center px-2 truncate max-w-[130px] sm:max-w-[200px]">
@@ -516,44 +536,55 @@ export default function App() {
 
           <div className="flex items-center gap-1.5">
             <button
-              onClick={handleToggleDarkMode}
-              className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg transition-colors shadow-xs cursor-pointer"
-              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              onClick={() => setIsConfirmResetOpen(true)}
+              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
+              title="Change Songbook (load different JSON)"
+              aria-label="Change Songbook"
             >
-              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+              <FolderOpen className="w-4 h-4" />
             </button>
+
+            <button
+              onClick={handleOpenPrintPreview}
+              className={`p-2 rounded-lg border shadow-2xs transition-colors cursor-pointer ${
+                isPrintPreviewActive 
+                  ? 'bg-zinc-900 hover:bg-black dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
+                  : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 border-black/5 dark:border-zinc-700/60'
+              }`}
+              title="On-Screen Print Preview (boundaries & margins)"
+              aria-label="On-Screen Print Preview"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={handleDownloadPdf}
+              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
+              title="Direct Print (open browser print dialog)"
+              aria-label="Direct Print"
+            >
+              <Printer className="w-4 h-4" />
+            </button>
+
             <button
               onClick={handleDownloadPdf}
               disabled={isDownloadingPdf}
-              className="p-2 bg-[#4FC3F7] hover:bg-[#29B6F6] active:bg-[#03A9F4] text-zinc-950 font-semibold rounded-lg transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
               title="Download as PDF"
+              aria-label="Download as PDF"
             >
               {isDownloadingPdf ? (
-                <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
+                <Loader2 className="w-4 h-4 animate-spin text-zinc-600 dark:text-zinc-300" />
               ) : (
-                <FileDown className="w-4 h-4 text-zinc-950" />
+                <FileDown className="w-4 h-4" />
               )}
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="p-2 bg-[#f6cf02] hover:bg-[#e5be02] active:bg-[#d4ad02] text-zinc-950 font-semibold rounded-lg transition-colors shadow-xs cursor-pointer"
-              title="Direct Print"
-            >
-              <Printer className="w-4 h-4 text-zinc-950" />
-            </button>
-            <button
-              onClick={() => setIsConfirmResetOpen(true)}
-              className="p-2 bg-[#afafaf] hover:bg-[#9e9e9e] active:bg-[#8e8e8e] text-zinc-900 font-semibold rounded-lg transition-colors shadow-xs cursor-pointer"
-              title="Change Songbook"
-            >
-              <FolderOpen className="w-4 h-4 text-zinc-900" />
             </button>
           </div>
         </header>
 
         {/* Confirmation Dialog for Changing Songbook */}
         {isConfirmResetOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:hidden">
             <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-xs animate-in fade-in" onClick={() => setIsConfirmResetOpen(false)} />
             <div className="relative bg-white rounded-2xl shadow-2xl border border-black/10 max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 z-10">
               <h3 className="text-base font-bold text-zinc-900">Change Songbook?</h3>
@@ -600,6 +631,8 @@ export default function App() {
           settings={settings}
           isUpdatingLayout={isUpdatingLayout}
           onRegisterPrintTrigger={handleRegisterPrintTrigger}
+          onRegisterPrintPreviewTrigger={handleRegisterPrintPreviewTrigger}
+          onPrintPreviewStateChange={setIsPrintPreviewActive}
           onDownloadStatusChange={setIsDownloadingPdf}
           isDarkMode={isDarkMode}
           onOpenSettings={() => {

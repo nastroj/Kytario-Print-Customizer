@@ -44,6 +44,9 @@ export function useSmartFit({
     settings.lyricsFontSize,
     settings.chordsFontSize,
     settings.showChords,
+    settings.pageMargin,
+    settings.maxScaleMultiplier,
+    settings.maxAutoFontSize,
     hasTitle,
     hasArtist,
   ]);

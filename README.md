@@ -1,28 +1,28 @@
-# Kytario Print Customizer 🎵📄
+<div align="center">
+  <img src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/music.svg" width="60" alt="Kytario Print Customizer Logo" />
+  <h1>Kytario Print Customizer</h1>
+  <p><strong>A sophisticated React/Vite application for formatting, paginating, and printing chorded songbooks.</strong></p>
+  <p>
+    <img src="https://img.shields.io/badge/version-1.0.2-blue.svg" alt="Version 1.0.2" />
+    <img src="https://img.shields.io/badge/React-19-61dafb.svg?logo=react" alt="React 19" />
+    <img src="https://img.shields.io/badge/TypeScript-5.8-3178c6.svg?logo=typescript" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/Vite-6-646cff.svg?logo=vite" alt="Vite 6" />
+    <img src="https://img.shields.io/badge/TailwindCSS-4-06b6d4.svg?logo=tailwind-css" alt="Tailwind 4" />
+  </p>
+</div>
 
-[![Version](https://img.shields.io/badge/version-1.0.1-emerald.svg)](package.json)
-[![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-6.2-purple.svg)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.1-38bdf8.svg)](https://tailwindcss.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+## 🎸 Overview
 
-A modern, responsive web application designed for guitarists, musicians, worship teams, and choir leaders to format, customize, preview, and print beautiful, professional songbooks with chords and lyrics.
+**Kytario Print Customizer** is a client-side web application designed to take raw JSON song data (containing inline chords, lyrics, and metadata) and transform it into beautiful, print-ready, multi-column songbooks. 
 
-Built to process and print exported songbook JSON files from [Kytario](https://kytario.cz) or standard bracketed chord notation (`[Am]`, `[G]`, `[C]`).
+It is engineered for musicians, worship leaders, and campfire guitarists who need highly legible, perfectly paginated chord sheets without the hassle of manual Word document formatting.
 
----
+## ✨ Key Features
 
-## 🌟 Key Features
-
-### 📄 Professional Print Engine
-- **Physical Page Precision**: Supports **A4** (210 × 297 mm), **A5** (148 × 210 mm), and **US Letter** (8.5 × 11 in) in both **Landscape** and **Portrait** orientations.
-- **Pixel-Perfect Printing**: Native `@media print` CSS engine with strict page break isolation (`break-after: page`), balanced margins, and two-sided printing support.
-- **Direct PDF Export**: Seamlessly print or export to PDF via the browser print dialog (`Ctrl+P` / `Cmd+P` or the one-click toolbar button) with crisp vector fonts.
-
-### 📐 SmartFit Auto-Scaling Algorithm
-- **Intelligent Section-Aware Fitting**: Calculates the physical vertical height of songs by summing line heights, chords, stanza breaks (`h-3`), and inter-section margin buffers (`mb-4`).
-- **Page-Filling for Short Songs**: Automatically detects songs with fewer lines and upscales them (up to 2.25×) to fill the page with generous, readable typography, eliminating awkward empty space.
+### 📐 Dynamic `smartFit` Algorithm (Zero Page Breaks)
+- **Mathematical Line Wrapping & Fitting**: The core `smartFit` algorithm analytically measures raw line counts, section headers, chords, and lyrics to compute precise viewport heights.
+- **Auto-Scaling**: If a song threatens to spill onto a second page, the algorithm dynamically and proportionally shrinks the font size (down to a safe minimum) to force the song to fit perfectly on a single page. 
+- **Auto-Upscaling (Fill Empty Space)**: Detects shorter songs with fewer lines and upscales them (up to 2.25×) to fill the page with generous, readable typography, eliminating awkward empty space.
 - **Strict Readability Floor**: Enforces a strict minimum font size constraint (**≥ 9.0px**), guaranteeing that dense multi-stanza songs remain easily readable on stage, music stands, and tablets.
 
 ### 🎨 Complete Typography & Color Customization
@@ -73,7 +73,6 @@ npm install
 ```bash
 npm run dev
 ```
-
 Open your browser and navigate to:
 ```
 http://localhost:3000
@@ -84,7 +83,6 @@ To create an optimized production build in `dist/`:
 ```bash
 npm run build
 ```
-
 To test the production build locally:
 ```bash
 npm run preview
@@ -126,7 +124,6 @@ Use the left sidebar to fine-tune your songbook:
 ## 📋 Supported JSON Format
 
 The application expects JSON matching the Kytario schema:
-
 ```json
 {
   "title": "My Acoustic Songbook",

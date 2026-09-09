@@ -37,7 +37,10 @@ export interface PrintSettings {
   tocFontSize: number;
   showChords: boolean;
   smartFit: boolean;
+  maxScaleMultiplier?: number; // Max auto-scale factor limit (e.g. 1.0 to 3.0, default 2.0)
+  maxAutoFontSize?: number;    // Cap auto-scaled lyrics font size in pt (0 = no limit)
   indexSortOrder: 'original' | 'alphabetical';
+  pageMargin?: number; // Margin in mm (default: 5)
 }
 
 export interface SectionDebugDetail {
