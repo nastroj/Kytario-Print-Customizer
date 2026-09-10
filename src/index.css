@@ -65,6 +65,11 @@
   widows: 2;
 }
 
+.song-section-with-line {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 .break-before-column {
   break-before: column;
   -webkit-column-break-before: always;
@@ -95,6 +100,12 @@
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     -webkit-column-break-inside: avoid !important;
+  }
+  .song-section-with-line {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-decoration-break: clone !important;
+    -webkit-box-decoration-break: clone !important;
   }
 }
 

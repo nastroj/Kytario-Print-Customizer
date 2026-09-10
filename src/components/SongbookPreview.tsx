@@ -57,6 +57,7 @@ interface TocPage {
 interface PageMarginGuidesProps {
   marginMmX: number;
   marginMmY: number;
+  marginMmYBottom?: number;
   pageFormat: string;
   orientation: string;
   pageLabel?: string;
@@ -65,10 +66,12 @@ interface PageMarginGuidesProps {
 const PageMarginGuides = memo(function PageMarginGuides({
   marginMmX,
   marginMmY,
+  marginMmYBottom,
   pageFormat,
   orientation,
   pageLabel
 }: PageMarginGuidesProps) {
+  const bottomMm = marginMmYBottom ?? marginMmY;
   return (
     <div 
       className="pointer-events-none absolute inset-0 z-30 print:hidden overflow-hidden select-none"
@@ -79,14 +82,14 @@ const PageMarginGuides = memo(function PageMarginGuides({
         className="absolute border border-dashed border-sky-500/70 dark:border-sky-400/60 bg-sky-500/[0.02] dark:bg-sky-400/[0.02]"
         style={{
           top: `${marginMmY}mm`,
-          bottom: `${marginMmY}mm`,
+          bottom: `${bottomMm}mm`,
           left: `${marginMmX}mm`,
           right: `${marginMmX}mm`,
         }}
       >
         {/* Margin Guide Tag */}
         <div className="absolute top-1 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-50/95 dark:bg-sky-950/90 text-sky-700 dark:text-sky-300 text-[9px] font-mono font-semibold border border-sky-300/80 dark:border-sky-700/60 shadow-2xs">
-          <span>Safe Area ({marginMmX}mm × {marginMmY}mm)</span>
+          <span>Safe Area ({marginMmX}mm × {marginMmY}{bottomMm !== marginMmY ? `/${bottomMm}` : ''}mm)</span>
         </div>
       </div>
 
@@ -128,7 +131,8 @@ const VirtualPage = memo(function VirtualPage({
   scaledWidth,
   scaledHeight,
   defaultWidth,
-  defaultHeight
+  defaultHeight,
+  id
 }: { 
   children: React.ReactNode, 
   isPrinting: boolean,
@@ -136,7 +140,8 @@ const VirtualPage = memo(function VirtualPage({
   scaledWidth: number,
   scaledHeight: number,
   defaultWidth: string,
-  defaultHeight: string
+  defaultHeight: string,
+  id?: string
 }) {
   const [isVisible, setIsVisible] = useState(isPrinting);
   const ref = useRef<HTMLDivElement>(null);
@@ -148,9 +153,11 @@ const VirtualPage = memo(function VirtualPage({
     }
 
     const observer = new IntersectionObserver(([entry]) => {
-      setIsVisible(entry.isIntersecting);
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+      }
     }, {
-      rootMargin: '100% 0px'
+      rootMargin: '200% 0px'
     });
 
     if (ref.current) {
@@ -162,6 +169,7 @@ const VirtualPage = memo(function VirtualPage({
   return (
     <div 
       ref={ref}
+      id={id}
       className="mx-auto mb-6 sm:mb-10 print:mb-0 print:mx-0 shrink-0 song-page-outer-wrapper"
       style={{
         width: isScaled ? `${scaledWidth}px` : 'fit-content',
@@ -224,7 +232,12 @@ const SongPagesList = memo(function SongPagesList({
 
   const marginMmX = settings.pageMargin ?? 5;
   const marginMmY = Math.round((settings.pageMargin ?? 5) * 1.2);
+  const tocMarginMmX = settings.pageMargin ?? 5;
+  const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.1);
+  const tocMarginMmYBottom = Math.max(3, Math.round((settings.pageMargin ?? 5) * 0.75));
   const effectiveDarkMode = isDarkMode;
+  const safeTocSize = Number(settings.tocFontSize) || (Number(settings.lyricsFontSize) * 0.95) || 12;
+  const safeTitleSize = Number(settings.titleFontSize) || 16;
 
   const pageContainerClass = isPrintPreviewMode
     ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-black/10 dark:border-zinc-800 shadow-[0_8px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] ring-1 ring-black/5 dark:ring-white/5 print:bg-white print:text-black print:border-none print:shadow-none print:ring-0'
@@ -233,147 +246,172 @@ const SongPagesList = memo(function SongPagesList({
   return (
     <>
       {/* INDEX / TABLE OF CONTENTS PAGES (PAGINATED) */}
-      {tocPages.map((tocPage) => (
-        <VirtualPage
-          key={`toc-page-${tocPage.pageIndex}`}
-          isPrinting={isPrinting}
-          isScaled={isScaled}
-          scaledWidth={scaledWidth}
-          scaledHeight={scaledHeight}
-          defaultWidth={cssWidth}
-          defaultHeight={cssHeight}
-        >
-          <div 
-            id={tocPage.isFirstPage ? "toc-page" : `toc-page-${tocPage.pageIndex}`}
-            className={`${pageContainerClass} print-index-container flex flex-col overflow-hidden origin-top-left`}
-            style={{ 
-              width: cssWidth, 
-              height: cssHeight,
-              minHeight: cssHeight,
-              padding: `${marginMmY}mm ${marginMmX}mm`,
-              transform: isScaled ? `scale(${effectiveScale})` : 'none',
-              transformOrigin: 'top left',
-              position: isScaled ? 'absolute' : 'relative',
-              top: 0,
-              left: 0,
-            }}
-          >
-            {/* On-Screen Print Margin Guides Overlay */}
-            {isPrintPreviewMode && showMarginGuides && (
-              <PageMarginGuides 
-                marginMmX={marginMmX} 
-                marginMmY={marginMmY} 
-                pageFormat={settings.pageFormat} 
-                orientation={settings.orientation}
-                pageLabel={`Contents p.${tocPage.pageIndex}`}
-              />
-            )}
+      {tocPages.map((tocPage) => {
+        const itemsPerCol = Math.max(1, Math.ceil(tocPage.items.length / tocPage.columns));
+        const columnsData = Array.from({ length: tocPage.columns }, (_, c) => {
+          const start = c * itemsPerCol;
+          return tocPage.items.slice(start, start + itemsPerCol);
+        });
 
-            {/* Page Header */}
-            {tocPage.isFirstPage ? (
-              <div className="mb-6 sm:mb-8 text-center">
-                <h1 
-                  className="font-bold uppercase tracking-tight toc-title-header"
-                  style={{ 
-                    color: getDisplayColor(settings.titleColor, effectiveDarkMode), 
-                    fontSize: `${settings.titleFontSize * 1.2}px` 
-                  }}
-                >
-                  {title}
-                </h1>
-                {tocPages.length > 1 && (
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 uppercase tracking-wider font-medium">
-                    Obsah • Strana 1 z {tocPages.length}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="mb-4 text-center border-b border-black/5 dark:border-zinc-800 pb-2">
-                <h2 
-                  className="font-bold uppercase tracking-tight toc-title-header"
-                  style={{ 
-                    color: getDisplayColor(settings.titleColor, effectiveDarkMode), 
-                    fontSize: `${settings.titleFontSize * 0.85}px` 
-                  }}
-                >
-                  {title} <span className="text-zinc-400 dark:text-zinc-500 font-normal text-xs normal-case">(pokračování)</span>
-                </h2>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 uppercase tracking-wider font-medium">
-                  Obsah • Strana {tocPage.pageIndex} z {tocPages.length}
-                </p>
-              </div>
-            )}
-            
-            {/* Columns of Song Titles */}
+        return (
+          <VirtualPage
+            key={`toc-page-${tocPage.pageIndex}`}
+            id={tocPage.isFirstPage ? "toc-page" : `toc-page-${tocPage.pageIndex}`}
+            isPrinting={isPrinting}
+            isScaled={isScaled}
+            scaledWidth={scaledWidth}
+            scaledHeight={scaledHeight}
+            defaultWidth={cssWidth}
+            defaultHeight={cssHeight}
+          >
             <div 
-              className="flex-1 toc-columns-body"
+              className={`${pageContainerClass} print-index-container flex flex-col overflow-hidden origin-top-left`}
               style={{ 
-                columnCount: tocPage.columns, 
-                columnGap: '2.5rem',
-                color: getDisplayColor(settings.tocColor || settings.lyricsColor, effectiveDarkMode),
-                fontSize: `${settings.tocFontSize || (settings.lyricsFontSize * 0.95)}px`,
-                lineHeight: '1.4'
+                width: cssWidth, 
+                height: cssHeight,
+                minHeight: cssHeight,
+                padding: `${tocMarginMmYTop}mm ${tocMarginMmX}mm ${tocMarginMmYBottom}mm ${tocMarginMmX}mm`,
+                transform: isScaled ? `scale(${effectiveScale})` : 'none',
+                transformOrigin: 'top left',
+                position: isScaled ? 'absolute' : 'relative',
+                top: 0,
+                left: 0,
               }}
             >
-              {tocPage.items.map((item) => {
-                const fullTitle = `${item.originalIndex + 1}. ${item.title}${item.artist ? ` - ${item.artist}` : ''}`;
-                return (
-                  <div 
-                    key={item.originalIndex} 
-                    className="mb-1.5 break-inside-avoid max-w-full overflow-hidden" 
-                    style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
+              {/* On-Screen Print Margin Guides Overlay */}
+              {isPrintPreviewMode && showMarginGuides && (
+                <PageMarginGuides 
+                  marginMmX={tocMarginMmX} 
+                  marginMmY={tocMarginMmYTop} 
+                  marginMmYBottom={tocMarginMmYBottom}
+                  pageFormat={settings.pageFormat} 
+                  orientation={settings.orientation}
+                  pageLabel={`Contents p.${tocPage.pageIndex}`}
+                />
+              )}
+
+              {/* Page Header */}
+              {tocPage.isFirstPage ? (
+                <div className="mb-3 sm:mb-3.5 text-center shrink-0">
+                  <h1 
+                    className="font-bold uppercase tracking-tight toc-title-header truncate px-2"
+                    style={{ 
+                      color: getDisplayColor(settings.titleColor, effectiveDarkMode), 
+                      fontSize: `${safeTitleSize * 1.15}px`,
+                      lineHeight: 1.2
+                    }}
                   >
-                    <a 
-                      href={`#song-${item.originalIndex}`} 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        onScrollToSong(`song-${item.originalIndex}`);
-                      }}
-                      title={fullTitle}
-                      className="flex items-baseline w-full max-w-full group cursor-pointer transition-colors hover:opacity-85"
-                      style={{ 
-                        color: 'inherit', 
-                        textDecoration: 'none',
-                      }}
-                    >
-                      <span 
-                        className="shrink-0 text-right tabular-nums font-semibold pr-2 select-none toc-song-number"
-                        style={{ 
-                          width: numColWidth,
-                          color: getDisplayColor(settings.titleColor, effectiveDarkMode),
-                          opacity: 0.8
-                        }}
-                      >
-                        {item.originalIndex + 1}.
-                      </span>
-                      <span className="truncate flex-1 min-w-0">
-                        <span className="font-medium group-hover:underline toc-song-title">{item.title}</span>
-                        {item.artist && (
-                          <span 
-                            className="font-normal ml-1.5 toc-song-artist"
+                    {title}
+                  </h1>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none">
+                    <span>Obsah{tocPages.length > 1 ? ` • Strana 1 z ${tocPages.length}` : ''}</span>
+                    <span className="print:hidden normal-case font-normal text-[11px] text-zinc-400 dark:text-zinc-500">
+                      • tap to jump
+                    </span>
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-2.5 text-center border-b border-black/5 dark:border-zinc-800 pb-1 shrink-0">
+                  <h2 
+                    className="font-bold uppercase tracking-tight toc-title-header truncate px-2"
+                    style={{ 
+                      color: getDisplayColor(settings.titleColor, effectiveDarkMode), 
+                      fontSize: `${safeTitleSize * 0.85}px`,
+                      lineHeight: 1.2
+                    }}
+                  >
+                    {title} <span className="text-zinc-400 dark:text-zinc-500 font-normal text-xs normal-case">(pokračování)</span>
+                  </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none">
+                    <span>Obsah • Strana {tocPage.pageIndex} z {tocPages.length}</span>
+                    <span className="print:hidden normal-case font-normal text-[11px] text-zinc-400 dark:text-zinc-500">
+                      • tap to jump
+                    </span>
+                  </p>
+                </div>
+              )}
+              
+              {/* Columns of Song Titles */}
+              <div 
+                className="flex-1 min-h-0 flex toc-columns-body overflow-hidden"
+                style={{ 
+                  gap: tocPage.columns === 3 ? '1.75rem' : '2.5rem',
+                  color: getDisplayColor(settings.tocColor || settings.lyricsColor, effectiveDarkMode),
+                  fontSize: `${safeTocSize}px`,
+                }}
+              >
+                {columnsData.map((colItems, colIdx) => (
+                  <div 
+                    key={colIdx} 
+                    className="flex-1 min-w-0 flex flex-col overflow-hidden"
+                    style={{ 
+                      maxWidth: `${100 / tocPage.columns}%` 
+                    }}
+                  >
+                    {colItems.map((item) => {
+                      const fullTitle = `${item.originalIndex + 1}. ${item.title}${item.artist ? ` - ${item.artist}` : ''}`;
+                      return (
+                        <div 
+                          key={item.originalIndex} 
+                          className="mb-0.5 max-w-full overflow-hidden shrink-0"
+                        >
+                          <a 
+                            href={`#song-${item.originalIndex}`} 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onScrollToSong(`song-${item.originalIndex}`);
+                            }}
+                            title={fullTitle}
+                            className="flex items-baseline w-full max-w-full group cursor-pointer transition-colors hover:opacity-85 touch-manipulation py-0.5 active:opacity-60"
                             style={{ 
-                              color: getDisplayColor(settings.artistColor, effectiveDarkMode),
-                              opacity: 0.75,
-                              fontSize: '0.92em'
+                              color: 'inherit', 
+                              textDecoration: 'none',
+                              lineHeight: 1.28
                             }}
                           >
-                            - {item.artist}
-                          </span>
-                        )}
-                      </span>
-                    </a>
+                            <span 
+                              className="shrink-0 text-right tabular-nums font-semibold pr-2 select-none toc-song-number"
+                              style={{ 
+                                width: numColWidth,
+                                color: getDisplayColor(settings.titleColor, effectiveDarkMode),
+                                opacity: 0.8
+                              }}
+                            >
+                              {item.originalIndex + 1}.
+                            </span>
+                            <span className="truncate flex-1 min-w-0">
+                              <span className="font-medium group-hover:underline toc-song-title">{item.title}</span>
+                              {item.artist && (
+                                <span 
+                                  className="font-normal ml-1.5 toc-song-artist"
+                                  style={{ 
+                                    color: getDisplayColor(settings.artistColor, effectiveDarkMode),
+                                    opacity: 0.75,
+                                    fontSize: '0.92em'
+                                  }}
+                                >
+                                  - {item.artist}
+                                </span>
+                              )}
+                            </span>
+                          </a>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
-        </VirtualPage>
-      ))}
+          </VirtualPage>
+        );
+      })}
 
       {/* SONG PAGES */}
       {songs.map((song, i) => (
         <VirtualPage
           key={song.id || `song-${i}`}
+          id={`song-${i}`}
           isPrinting={isPrinting}
           isScaled={isScaled}
           scaledWidth={scaledWidth}
@@ -382,7 +420,6 @@ const SongPagesList = memo(function SongPagesList({
           defaultHeight={cssHeight}
         >
           <div 
-            id={`song-${i}`}
             className={`${pageContainerClass} print-page-container flex flex-col overflow-hidden origin-top-left`}
             style={{ 
               width: cssWidth, 
@@ -901,7 +938,11 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   const scrollToTop = () => {
     if (containerRef.current) {
-      containerRef.current.scrollTo({ top: 0, behavior: 'auto' });
+      try {
+        containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (e) {
+        containerRef.current.scrollTop = 0;
+      }
     }
   };
 
@@ -921,25 +962,31 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     const mmToPx = 3.779528;
     const isLandscape = settings.orientation === 'landscape';
     const tocColumns = isLandscape ? 3 : 2;
-    const marginMmY = Math.round((settings.pageMargin ?? 5) * 1.2);
-    const paddingTotalY = (marginMmY * 2) * mmToPx;
+    const tocMarginMmX = settings.pageMargin ?? 5;
+    const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.1);
+    const tocMarginMmYBottom = Math.max(3, Math.round((settings.pageMargin ?? 5) * 0.75));
+    const paddingTotalY = (tocMarginMmYTop + tocMarginMmYBottom) * mmToPx;
     
     const safeTocSize = Number(settings.tocFontSize) || (Number(settings.lyricsFontSize) * 0.95) || 12;
     const safeTitleSize = Number(settings.titleFontSize) || 16;
 
-    // Height occupied by 1 item line
-    const itemLineHeight = Math.max(16, (safeTocSize * 1.4) + 6);
+    // Exact height occupied by 1 item line:
+    // lineHeight (1.28) + padding py-0.5 (4px) + margin mb-0.5 (2px)
+    const itemLineHeight = Math.ceil(safeTocSize * 1.28) + 5;
     
-    // Header on Page 1 (Title + margins)
-    const headerHeightP1 = (safeTitleSize * 1.2 * 1.3) + 38;
-    const availableContentHeightP1 = Math.max(120, basePxHeight - paddingTotalY - headerHeightP1 - 10);
-    const rowsPerColP1 = Math.max(4, Math.floor(availableContentHeightP1 / itemLineHeight));
+    // Safety buffer (4px) to prevent sub-pixel rounding overflow while keeping bottom margin compact
+    const bottomBuffer = 4;
+
+    // Header on Page 1 (Title + subtitle + margins + spacing)
+    const headerHeightP1 = Math.ceil(safeTitleSize * 1.15 * 1.2) + 30;
+    const availableContentHeightP1 = Math.max(80, basePxHeight - paddingTotalY - headerHeightP1 - bottomBuffer);
+    const rowsPerColP1 = Math.max(3, Math.floor(availableContentHeightP1 / itemLineHeight));
     const itemsPerPage1 = Math.max(1, rowsPerColP1 * tocColumns);
 
     // Header on Subsequent Pages
-    const headerHeightSubsequent = (safeTitleSize * 0.85 * 1.3) + 30;
-    const availableContentHeightSubsequent = Math.max(120, basePxHeight - paddingTotalY - headerHeightSubsequent - 10);
-    const rowsPerColSubsequent = Math.max(4, Math.floor(availableContentHeightSubsequent / itemLineHeight));
+    const headerHeightSubsequent = Math.ceil(safeTitleSize * 0.85 * 1.2) + 33;
+    const availableContentHeightSubsequent = Math.max(80, basePxHeight - paddingTotalY - headerHeightSubsequent - bottomBuffer);
+    const rowsPerColSubsequent = Math.max(3, Math.floor(availableContentHeightSubsequent / itemLineHeight));
     const itemsPerPageSubsequent = Math.max(1, rowsPerColSubsequent * tocColumns);
 
     const pages: TocPage[] = [];
@@ -978,7 +1025,18 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     }
 
     return pages;
-  }, [songs, settings.indexSortOrder, settings.orientation, settings.lyricsFontSize, settings.titleFontSize, basePxHeight]);
+  }, [
+    songs, 
+    title,
+    settings.indexSortOrder, 
+    settings.orientation, 
+    settings.pageFormat,
+    settings.pageMargin,
+    settings.tocFontSize,
+    settings.lyricsFontSize, 
+    settings.titleFontSize, 
+    basePxHeight
+  ]);
 
   const isScaled = Math.abs(effectiveScale - 1.0) > 0.005;
 
@@ -1088,6 +1146,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   const marginMmX = settings.pageMargin ?? 5;
   const marginMmY = Math.round((settings.pageMargin ?? 5) * 1.2);
+  const tocMarginMmX = settings.pageMargin ?? 5;
+  const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.1);
+  const tocMarginMmYBottom = Math.max(3, Math.round((settings.pageMargin ?? 5) * 0.75));
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative print:h-auto print:min-h-0 print:overflow-visible print:block print:static">
@@ -1587,8 +1648,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             break-after: auto !important;
           }
 
-          .print-page-container,
-          .print-index-container {
+          .print-page-container {
             will-change: auto !important;
             width: ${cssWidth} !important;
             height: ${cssHeight} !important;
@@ -1604,6 +1664,26 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             overflow: hidden !important;
             margin: 0 !important;
             padding: ${marginMmY}mm ${marginMmX}mm !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
+
+          .print-index-container {
+            will-change: auto !important;
+            width: ${cssWidth} !important;
+            height: ${cssHeight} !important;
+            min-height: ${cssHeight} !important;
+            max-height: ${cssHeight} !important;
+            transform: none !important;
+            position: relative !important;
+            top: 0 !important;
+            left: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: ${tocMarginMmYTop}mm ${tocMarginMmX}mm ${tocMarginMmYBottom}mm ${tocMarginMmX}mm !important;
             background: #ffffff !important;
             color: #000000 !important;
           }

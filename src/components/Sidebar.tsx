@@ -16,15 +16,24 @@ import {
   Loader2, 
   Minus, 
   Plus,
+  Italic,
   RefreshCw,
   RotateCcw,
   Sun,
   Moon,
-  Eye
+  Eye,
+  AlertCircle,
+  Check
 } from 'lucide-react';
+import { ChangedSettingItem, getChangedSettingsList } from './UnappliedSettingsBanner';
 
 interface SidebarProps {
   settings: PrintSettings;
+  draftSettings?: PrintSettings;
+  onDraftSettingsChange?: (settings: PrintSettings) => void;
+  onDiscardSettings?: () => void;
+  hasUnappliedChanges?: boolean;
+  changes?: ChangedSettingItem[];
   onApplySettings: (settings: PrintSettings) => void;
   onResetSongbook?: () => void;
   onFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -50,8 +59,10 @@ interface TypographyItemProps {
   max?: number;
   step?: number;
   defaultValue?: number;
+  isItalic?: boolean;
   onFontSizeChange: (val: number) => void;
   onColorChange: (color: string) => void;
+  onItalicChange?: (val: boolean) => void;
 }
 
 function TypographyItemRow({
@@ -63,8 +74,10 @@ function TypographyItemRow({
   max = 48,
   step = 1,
   defaultValue = 12,
+  isItalic = false,
   onFontSizeChange,
   onColorChange,
+  onItalicChange,
 }: TypographyItemProps) {
   const [localStr, setLocalStr] = useState(fontSize.toString());
   const [isFocused, setIsFocused] = useState(false);
@@ -154,8 +167,24 @@ function TypographyItemRow({
         </label>
       </div>
 
-      {/* Stepper with - / input / + */}
-      <div className="flex items-center border border-black/5 dark:border-zinc-700/60 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 focus:bg-white dark:focus:bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-2xs focus-within:ring-1 focus-within:ring-zinc-800 dark:focus-within:ring-zinc-400">
+      <div className="flex items-center gap-1.5 shrink-0">
+        {onItalicChange && (
+          <button
+            type="button"
+            onClick={() => onItalicChange(!isItalic)}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg border transition-all cursor-pointer ${
+              isItalic 
+                ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 shadow-sm' 
+                : 'bg-white dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 border-black/10 dark:border-zinc-600'
+            }`}
+            title={isItalic ? "Remove italics" : "Make italic"}
+          >
+            <Italic className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {/* Stepper with - / input / + */}
+        <div className="flex items-center border border-black/5 dark:border-zinc-700/60 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 focus:bg-white dark:focus:bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-2xs focus-within:ring-1 focus-within:ring-zinc-800 dark:focus-within:ring-zinc-400">
         <button
           type="button"
           onClick={handleDecrement}
@@ -196,15 +225,21 @@ function TypographyItemRow({
         </button>
       </div>
     </div>
-  );
+  </div>
+);
 }
 
 export function Sidebar({ 
   settings, 
+  draftSettings: externalDraftSettings,
+  onDraftSettingsChange,
+  onDiscardSettings,
+  hasUnappliedChanges: externalHasUnappliedChanges,
+  changes: externalChanges,
   onApplySettings, 
   onResetSongbook, 
   onFileUpload, 
-  onDownloadPdf,
+  onDownloadPdf, 
   onOpenPrintPreview,
   isDownloadingPdf = false,
   isMobileOpen = false,
@@ -219,33 +254,30 @@ export function Sidebar({
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
 
-  const [draftSettings, setDraftSettings] = useState<PrintSettings>(settings);
+  const [internalDraftSettings, setInternalDraftSettings] = useState<PrintSettings>(settings);
 
+  // Synchronize internal draft when settings prop changes if not controlled
   useEffect(() => {
-    setDraftSettings(settings);
+    setInternalDraftSettings(settings);
   }, [settings]);
 
-  const hasChanges = useMemo(() => {
-    return (
-      draftSettings.pageFormat !== settings.pageFormat ||
-      draftSettings.orientation !== settings.orientation ||
-      draftSettings.pageMargin !== settings.pageMargin ||
-      draftSettings.indexSortOrder !== settings.indexSortOrder ||
-      draftSettings.showChords !== settings.showChords ||
-      draftSettings.smartFit !== settings.smartFit ||
-      draftSettings.maxFontSizePx !== settings.maxFontSizePx ||
-      
-      draftSettings.titleFontSize !== settings.titleFontSize ||
-      draftSettings.artistFontSize !== settings.artistFontSize ||
-      draftSettings.lyricsFontSize !== settings.lyricsFontSize ||
-      draftSettings.chordsFontSize !== settings.chordsFontSize ||
-      draftSettings.titleColor !== settings.titleColor ||
-      draftSettings.artistColor !== settings.artistColor ||
-      draftSettings.lyricsColor !== settings.lyricsColor ||
-      draftSettings.chordsColor !== settings.chordsColor ||
-      draftSettings.markerColor !== settings.markerColor
-    );
-  }, [draftSettings, settings]);
+  // Effective draft settings
+  const draftSettings = externalDraftSettings ?? internalDraftSettings;
+
+  // Compute changes using standard helper
+  const changes = useMemo(() => {
+    return externalChanges ?? getChangedSettingsList(draftSettings, settings);
+  }, [externalChanges, draftSettings, settings]);
+
+  const hasChanges = externalHasUnappliedChanges !== undefined ? externalHasUnappliedChanges : changes.length > 0;
+
+  const hasLayoutChanges = useMemo(() => {
+    return changes.some(c => c.section === 'layout');
+  }, [changes]);
+
+  const hasTypographyChanges = useMemo(() => {
+    return changes.some(c => c.section === 'typography');
+  }, [changes]);
 
   const setCollapsed = (val: boolean) => {
     if (onToggleCollapse) {
@@ -255,8 +287,17 @@ export function Sidebar({
     }
   };
 
+  const updateDraft = (updater: (prev: PrintSettings) => PrintSettings) => {
+    const updated = updater(draftSettings);
+    if (onDraftSettingsChange) {
+      onDraftSettingsChange(updated);
+    } else {
+      setInternalDraftSettings(updated);
+    }
+  };
+
   const handleSettingChange = (key: keyof PrintSettings, value: any) => {
-    setDraftSettings((prev) => ({
+    updateDraft((prev) => ({
       ...prev,
       [key]: value,
     }));
@@ -272,22 +313,36 @@ export function Sidebar({
   };
 
   const handleDiscardChanges = () => {
-    setDraftSettings(settings);
+    if (onDiscardSettings) {
+      onDiscardSettings();
+    } else {
+      setInternalDraftSettings(settings);
+    }
   };
 
   const renderContent = (isDrawer = false) => {
     const idSuffix = isDrawer ? 'mobile' : 'desktop';
 
     return (
-      <div className="flex flex-col h-full gap-4">
+      <div className="flex flex-col h-full gap-3.5">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-zinc-800 shrink-0">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                 <Settings2 className="w-4 h-4 text-zinc-800 dark:text-zinc-200" />
                 Settings
               </h2>
+              {hasChanges && (
+                <span 
+                  id={`unapplied-badge-${idSuffix}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                  title={`${changes.length} unapplied changes`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Unapplied ({changes.length})
+                </span>
+              )}
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Page layout, fonts & colors</p>
           </div>
@@ -305,7 +360,7 @@ export function Sidebar({
             {isDrawer ? (
               <button 
                 onClick={onMobileClose} 
-                className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+                className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer" 
                 title="Close Settings"
                 aria-label="Close Settings"
               >
@@ -333,17 +388,24 @@ export function Sidebar({
               <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
                 <LayoutTemplate className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                 Page & Layout
+                {hasLayoutChanges && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/20 px-1.5 py-0.2 rounded-md normal-case">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    Modified
+                  </span>
+                )}
               </h3>
               <button
                 type="button"
                 onClick={() => {
-                  setDraftSettings(prev => ({
+                  updateDraft(prev => ({
                     ...prev,
                     pageFormat: 'A4',
                     orientation: 'landscape',
                     indexSortOrder: 'alphabetical',
                     showChords: true,
                     smartFit: false,
+                    showSectionLines: true,
                     pageMargin: 5
                   }));
                 }}
@@ -422,10 +484,7 @@ export function Sidebar({
                 </select>
               </div>
 
-              <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
-                <label htmlFor={`showChords-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 shrink-0 cursor-pointer select-none">
-                  Display Chords
-                </label>
+              <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
                 <input
                   type="checkbox"
                   id={`showChords-${idSuffix}`}
@@ -433,12 +492,12 @@ export function Sidebar({
                   onChange={(e) => handleSettingChange('showChords', e.target.checked)}
                   className="rounded border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-400 w-4 h-4 cursor-pointer"
                 />
+                <label htmlFor={`showChords-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none">
+                  Display Chords
+                </label>
               </div>
 
-              <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
-                <label htmlFor={`smartFit-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 shrink-0 cursor-pointer select-none" title="Auto-scales song lyrics and chords to fit comfortably on the page">
-                  Smart Auto-scale
-                </label>
+              <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
                 <input
                   type="checkbox"
                   id={`smartFit-${idSuffix}`}
@@ -446,6 +505,9 @@ export function Sidebar({
                   onChange={(e) => handleSettingChange('smartFit', e.target.checked)}
                   className="rounded border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-400 w-4 h-4 cursor-pointer"
                 />
+                <label htmlFor={`smartFit-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none" title="Auto-scales song lyrics and chords to fit comfortably on the page">
+                  Smart Auto-scale
+                </label>
               </div>
 
               {draftSettings.smartFit && (() => {
@@ -456,14 +518,14 @@ export function Sidebar({
                 const step = 1;
                 
                 const handleDecrement = () => {
-                  setDraftSettings((prev) => ({
+                  updateDraft((prev) => ({
                     ...prev,
                     maxFontSizePx: Math.max(minPx, maxFontSizePx - step),
                   }));
                 };
 
                 const handleIncrement = () => {
-                  setDraftSettings((prev) => ({
+                  updateDraft((prev) => ({
                     ...prev,
                     maxFontSizePx: Math.min(maxPx, maxFontSizePx + step),
                   }));
@@ -505,6 +567,19 @@ export function Sidebar({
                   </div>
                 );
               })()}
+
+              <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
+                <input
+                  type="checkbox"
+                  id={`showSectionLines-${idSuffix}`}
+                  checked={draftSettings.showSectionLines ?? true}
+                  onChange={(e) => handleSettingChange('showSectionLines', e.target.checked)}
+                  className="rounded border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-400 w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor={`showSectionLines-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none" title="Displays vertical guide lines next to each song section (like on Kytario.com)">
+                  Section Lines
+                </label>
+              </div>
             </div>
           </div>
 
@@ -514,6 +589,12 @@ export function Sidebar({
               <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Type className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                 Fonts & Colors
+                {hasTypographyChanges && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/20 px-1.5 py-0.2 rounded-md normal-case">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    Modified
+                  </span>
+                )}
               </h3>
               <button
                 type="button"
@@ -525,11 +606,15 @@ export function Sidebar({
                     chordsColor: '#60a5fa',
                     markerColor: '#f4f4f5',
                     tocColor: '#f4f4f5',
+                    sectionLineColor: '#52525b',
+                    refrainLineColor: '#60a5fa',
                     titleFontSize: 16,
                     artistFontSize: 16,
                     lyricsFontSize: 12,
                     chordsFontSize: 12,
                     tocFontSize: 12,
+                    lyricsItalic: false,
+                    chordsItalic: true,
                   } : {
                     titleColor: '#1c1917',
                     artistColor: '#57534e',
@@ -537,13 +622,17 @@ export function Sidebar({
                     chordsColor: '#2563eb',
                     markerColor: '#27272a',
                     tocColor: '#1c1917',
+                    sectionLineColor: '#a1a1aa',
+                    refrainLineColor: '#2563eb',
                     titleFontSize: 16,
                     artistFontSize: 16,
                     lyricsFontSize: 12,
                     chordsFontSize: 12,
                     tocFontSize: 12,
+                    lyricsItalic: false,
+                    chordsItalic: true,
                   };
-                  setDraftSettings(prev => ({
+                  updateDraft(prev => ({
                     ...prev,
                     ...defaults
                   }));
@@ -586,8 +675,10 @@ export function Sidebar({
                 min={6}
                 max={36}
                 defaultValue={12}
+                isItalic={draftSettings.lyricsItalic}
                 onFontSizeChange={(val) => handleSettingChange('lyricsFontSize', val)}
                 onColorChange={(col) => handleSettingChange('lyricsColor', col)}
+                onItalicChange={(val) => handleSettingChange('lyricsItalic', val)}
               />
               <TypographyItemRow
                 id={`chords-${idSuffix}`}
@@ -597,8 +688,10 @@ export function Sidebar({
                 min={6}
                 max={36}
                 defaultValue={12}
+                isItalic={draftSettings.chordsItalic}
                 onFontSizeChange={(val) => handleSettingChange('chordsFontSize', val)}
                 onColorChange={(col) => handleSettingChange('chordsColor', col)}
+                onItalicChange={(val) => handleSettingChange('chordsItalic', val)}
               />
               <TypographyItemRow
                 id={`toc-${idSuffix}`}
@@ -634,6 +727,55 @@ export function Sidebar({
                 </div>
                 <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">Color only</span>
               </div>
+
+              {/* Section Line Color Row */}
+              {draftSettings.showSectionLines !== false && (
+                <>
+                  <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div 
+                        className="relative w-5 h-5 rounded-full border border-black/10 dark:border-zinc-600 shrink-0 hover:scale-110 transition-transform overflow-hidden cursor-pointer"
+                        style={{ backgroundColor: draftSettings.sectionLineColor || (isDarkMode ? '#52525b' : '#a1a1aa') }}
+                      >
+                        <input
+                          type="color"
+                          id={`section-line-color-${idSuffix}`}
+                          value={draftSettings.sectionLineColor || (isDarkMode ? '#52525b' : '#a1a1aa')}
+                          onChange={(e) => handleSettingChange('sectionLineColor', e.target.value)}
+                          className="absolute opacity-0 inset-0 w-full h-full cursor-pointer"
+                          title="Click to change section line color"
+                        />
+                      </div>
+                      <label htmlFor={`section-line-color-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none truncate">
+                        Section Line
+                      </label>
+                    </div>
+                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">Color only</span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div 
+                        className="relative w-5 h-5 rounded-full border border-black/10 dark:border-zinc-600 shrink-0 hover:scale-110 transition-transform overflow-hidden cursor-pointer"
+                        style={{ backgroundColor: draftSettings.refrainLineColor || (isDarkMode ? '#60a5fa' : '#2563eb') }}
+                      >
+                        <input
+                          type="color"
+                          id={`refrain-line-color-${idSuffix}`}
+                          value={draftSettings.refrainLineColor || (isDarkMode ? '#60a5fa' : '#2563eb')}
+                          onChange={(e) => handleSettingChange('refrainLineColor', e.target.value)}
+                          className="absolute opacity-0 inset-0 w-full h-full cursor-pointer"
+                          title="Click to change refrain/chorus line color"
+                        />
+                      </div>
+                      <label htmlFor={`refrain-line-color-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none truncate">
+                        Refrain Line
+                      </label>
+                    </div>
+                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">Color only</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           <div className="pt-6 pb-2 space-y-3">
@@ -652,31 +794,64 @@ export function Sidebar({
 
         {/* Sticky Action Footer */}
         <div className="pt-3 border-t border-black/5 dark:border-zinc-800 space-y-2 shrink-0">
-          {hasChanges && (
-            <div className="flex items-center gap-2 animate-in fade-in">
+          {/* Update / Discard Buttons - Fixed directly above the 4 small action buttons */}
+          {hasChanges ? (
+            <div className="space-y-1.5 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between text-[11px] text-amber-700 dark:text-amber-300 font-semibold px-0.5">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Unapplied changes
+                </span>
+                <span className="text-[10px] bg-amber-500/20 text-amber-800 dark:text-amber-200 px-1.5 py-0.2 rounded font-semibold">
+                  {changes.length} {changes.length === 1 ? 'change' : 'changes'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  id={`footer-discard-settings-btn-${idSuffix}`}
+                  onClick={handleDiscardChanges}
+                  disabled={isUpdatingLayout}
+                  className="flex-1 py-2 px-3 flex items-center justify-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 border border-black/5 dark:border-zinc-700/60 shadow-2xs"
+                  title="Discard pending changes and restore applied layout"
+                  aria-label="Discard pending changes"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Discard</span>
+                </button>
+                <button
+                  type="button"
+                  id={`footer-update-settings-btn-${idSuffix}`}
+                  onClick={() => handleUpdateClick(isDrawer)}
+                  disabled={isUpdatingLayout}
+                  className="flex-1 py-2 px-3 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 dark:bg-amber-500 dark:hover:bg-amber-400 text-zinc-950 font-bold rounded-lg text-xs transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                  title="Apply changes & recalculate layout"
+                  aria-label="Apply changes and recalculate layout"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isUpdatingLayout ? 'animate-spin' : ''}`} />
+                  <span>Update</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 opacity-50">
               <button
                 type="button"
-                id={`footer-discard-settings-btn-${idSuffix}`}
-                onClick={handleDiscardChanges}
-                disabled={isUpdatingLayout}
-                className="flex-1 py-2 px-3 flex items-center justify-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 border border-black/5 dark:border-zinc-700/60 shadow-2xs"
-                title="Discard pending changes"
-                aria-label="Discard pending changes"
+                disabled
+                className="flex-1 py-2 px-3 flex items-center justify-center gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/40 text-zinc-400 dark:text-zinc-600 rounded-lg text-xs font-medium cursor-not-allowed border border-black/5 dark:border-zinc-800"
+                title="No pending changes to discard"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="w-3.5 h-3.5 opacity-50" />
                 <span>Discard</span>
               </button>
               <button
                 type="button"
-                id={`footer-update-settings-btn-${idSuffix}`}
-                onClick={() => handleUpdateClick(isDrawer)}
-                disabled={isUpdatingLayout}
-                className="flex-1 py-2 px-3 flex items-center justify-center gap-1.5 bg-zinc-900 hover:bg-black dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer disabled:opacity-50"
-                title="Apply changes & update preview"
-                aria-label="Apply changes & update preview"
+                disabled
+                className="flex-1 py-2 px-3 flex items-center justify-center gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/40 text-zinc-400 dark:text-zinc-600 rounded-lg text-xs font-medium cursor-not-allowed border border-black/5 dark:border-zinc-800"
+                title="All settings are applied"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isUpdatingLayout ? 'animate-spin' : ''}`} />
-                <span>Update</span>
+                <Check className="w-3.5 h-3.5 opacity-60" />
+                <span>Up to date</span>
               </button>
             </div>
           )}
@@ -802,18 +977,30 @@ export function Sidebar({
           <button 
             id="desktop-expand-sidebar-btn"
             onClick={() => setCollapsed(false)} 
-            className="p-2 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 rounded-lg border border-black/5 shadow-2xs text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer" 
-            title="Open Settings Panel"
+            className="relative p-2 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 rounded-lg border border-black/5 shadow-2xs text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer" 
+            title={hasChanges ? `Open Settings (${changes.length} unapplied changes pending)` : "Open Settings Panel"}
           >
             <ChevronRight className="w-5 h-5" />
+            {hasChanges && (
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+              </span>
+            )}
           </button>
 
           <button
             onClick={() => setCollapsed(false)}
-            className="p-2 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800 rounded-lg border border-transparent hover:border-black/5 dark:hover:border-zinc-700/60 hover:shadow-2xs transition-all cursor-pointer"
-            title="Settings"
+            className="relative p-2 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800 rounded-lg border border-transparent hover:border-black/5 dark:hover:border-zinc-700/60 hover:shadow-2xs transition-all cursor-pointer"
+            title={hasChanges ? `Settings (${changes.length} unapplied changes pending)` : "Settings"}
           >
             <Settings2 className="w-4 h-4" />
+            {hasChanges && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+              </span>
+            )}
           </button>
 
           {onToggleDarkMode && (

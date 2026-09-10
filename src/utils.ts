@@ -699,6 +699,42 @@ export const MIN_READABLE_CHORDS_FONT_SIZE = 9.0;
  * Specifically ensures songs with fewer lines are rendered with a larger font size to fill the page,
  * while enforcing a strict minimum font size constraint to maintain readability.
  */
+/**
+ * Internal helper to calculate the estimated height of a single song line.
+ * KISS: Keep it simple by grouping related height logic.
+ */
+function estimateLineHeight(
+  lineData: ParsedLine, 
+  s: number, 
+  lSize: number, 
+  cSize: number, 
+  charsPerCol: number, 
+  showChords: boolean
+): number {
+  if (lineData.isEmpty) {
+    return Math.max(10, Math.round(12 * Math.min(1.4, s)));
+  }
+
+  const isRep = lineData.isRepetitionLine ||
+    (!lineData.chunks || !lineData.chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef));
+
+  const textLen = lineData.raw.replace(/\[[^\]]*\]|\{[^\}]*\}/g, '').length;
+  let chordsLen = 0;
+  const hasChords = lineData.hasChords && showChords;
+  
+  if (hasChords && lineData.chunks) {
+    for (const c of lineData.chunks) {
+      if (c.chord) chordsLen += c.chord.length + 2;
+    }
+  }
+  
+  const visualLines = Math.max(1, Math.ceil(Math.max(textLen, chordsLen) / charsPerCol));
+  
+  if (isRep) return Math.round((cSize + 4) * 1.05) * visualLines;
+  if (hasChords) return Math.round((cSize + lSize + 4) * 1.05 + 5) * visualLines;
+  return Math.round((lSize + 4) * 1.05 + 5) * visualLines;
+}
+
 export function computeSmartFitScale(
   sections: SongSection[],
   settings: {
@@ -713,36 +749,30 @@ export function computeSmartFitScale(
     smartFit?: boolean;
     pageMargin?: number;
     maxFontSizePx?: number;
+    showSectionLines?: boolean;
   },
   hasTitle: boolean = true,
   hasArtist: boolean = false
 ): number {
-  if (!settings.smartFit || !sections || sections.length === 0) {
-    return 1.0;
-  }
+  if (!settings.smartFit || !sections?.length) return 1.0;
 
   const isLand = settings.orientation === 'landscape';
-  const mmToPx = 3.779528; // Standard 96 DPI CSS pixels per mm
+  const mmToPx = 3.779528;
 
   let totalPxWidth = 210 * mmToPx;
   let totalPxHeight = 297 * mmToPx;
 
-  switch (settings.pageFormat) {
-    case 'A4':
-      totalPxWidth = (isLand ? 297 : 210) * mmToPx;
-      totalPxHeight = (isLand ? 210 : 297) * mmToPx;
-      break;
-    case 'A5':
-      totalPxWidth = (isLand ? 210 : 148) * mmToPx;
-      totalPxHeight = (isLand ? 148 : 210) * mmToPx;
-      break;
-    case 'Letter':
-      totalPxWidth = (isLand ? 11 : 8.5) * 96;
-      totalPxHeight = (isLand ? 8.5 : 11) * 96;
-      break;
+  if (settings.pageFormat === 'A5') {
+    totalPxWidth = (isLand ? 210 : 148) * mmToPx;
+    totalPxHeight = (isLand ? 148 : 210) * mmToPx;
+  } else if (settings.pageFormat === 'Letter') {
+    totalPxWidth = (isLand ? 11 : 8.5) * 96;
+    totalPxHeight = (isLand ? 8.5 : 11) * 96;
+  } else { // A4 Default
+    totalPxWidth = (isLand ? 297 : 210) * mmToPx;
+    totalPxHeight = (isLand ? 210 : 297) * mmToPx;
   }
 
-  // Margin calculation: horizontal margin = pageMargin mm, vertical margin = round(pageMargin * 1.2) mm
   const marginMmX = settings.pageMargin ?? 5;
   const marginMmY = Math.round((settings.pageMargin ?? 5) * 1.2);
   const paddingY = (marginMmY * 2) * mmToPx;
@@ -751,219 +781,93 @@ export function computeSmartFitScale(
   const usableW = Math.max(200, totalPxWidth - paddingX);
   const usableH = Math.max(200, totalPxHeight - paddingY);
 
-  const titleSize = Number(settings.titleFontSize) || 16;
-  const artistSize = Number(settings.artistFontSize) || 16;
   const baseLyricsSize = Number(settings.lyricsFontSize) || 12;
   const baseChordsSize = Number(settings.chordsFontSize) || 12;
 
-  // Title block height
-  const titleBlockH = (hasTitle ? titleSize * 1.25 : 0) + (hasArtist ? artistSize * 1.25 : 0) + 18;
+  const titleBlockH = (hasTitle ? (Number(settings.titleFontSize) || 16) * 1.25 : 0) + 
+                     (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 18;
   const availColH = Math.max(100, usableH - titleBlockH - 24);
 
   const colCount = Math.max(1, settings.columns || 2);
-  const colGap = colCount > 1 ? 24 : 0;
-  const colWidth = (usableW - (colCount - 1) * colGap) / colCount;
+  const colWidth = (usableW - (colCount > 1 ? 24 : 0) * (colCount - 1)) / colCount;
 
-  // Approximate character wrap limit (accounting for marker column indent if markers exist)
-  const hasMarkers = sections.some(s => Boolean(s.marker && s.marker.trim()));
+  const hasMarkers = sections.some(s => !!s.marker?.trim());
   let maxMarkerLen = 0;
   if (hasMarkers) {
-    for (const s of sections) {
-      if (s.marker) {
-        const cleanMarker = s.marker.replace(/^\[(.*)\]$/, '$1').trim();
-        maxMarkerLen = Math.max(maxMarkerLen, cleanMarker.length);
-      }
-    }
+    sections.forEach(s => {
+      if (s.marker) maxMarkerLen = Math.max(maxMarkerLen, s.marker.replace(/[\[\]]/g, '').trim().length);
+    });
   }
+  
   const markerColEm = maxMarkerLen <= 2 ? 1.85 : maxMarkerLen <= 4 ? 2.2 : Math.max(2.2, maxMarkerLen * 0.6 + 0.4);
-  const effectiveColW = hasMarkers ? Math.max(80, colWidth - (baseLyricsSize * markerColEm)) : colWidth;
+  const sectionLineIndentEm = settings.showSectionLines !== false ? 0.6 : 0;
+  const effectiveColW = Math.max(80, colWidth - (baseLyricsSize * ((hasMarkers ? markerColEm : 0) + sectionLineIndentEm)));
   const showChords = settings.showChords ?? true;
 
-  // Strict minimum font size readability constraint
-  const minLyricsScale = MIN_READABLE_LYRICS_FONT_SIZE / baseLyricsSize;
-  const minChordsScale = MIN_READABLE_CHORDS_FONT_SIZE / baseChordsSize;
-  const minScaleFloor = Math.max(0.55, Math.min(minLyricsScale, minChordsScale));
-
-  // Analytical height evaluation at candidate scale factor s
   const calcHeightAtScale = (s: number): { height: number; maxWrapLines: number } => {
     const lSize = baseLyricsSize * s;
     const cSize = baseChordsSize * s;
-    const avgCharW = lSize * 0.54;
-    const charsPerCol = Math.max(16, Math.floor(effectiveColW / avgCharW));
+    const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * 0.54)));
 
     let maxWrapLines = 1;
-    const sectionHeights: number[] = [];
-
-    for (let i = 0; i < sections.length; i++) {
-      const sec = sections[i];
+    const sectionHeights = sections.map(sec => {
       let secH = 0;
-      const pLines = sec.parsedLines;
-      const hasLines = pLines && pLines.length > 0;
-
-      // Standalone section marker line (e.g. [Intro] or [Refrain] with no text on same line)
-      if (sec.marker && (!hasLines || pLines.every(l => l.isEmpty))) {
+      if (sec.marker && (!sec.parsedLines?.length || sec.parsedLines.every(l => l.isEmpty))) {
         secH += Math.round(lSize + 6);
       }
-
-      for (let j = 0; j < pLines.length; j++) {
-        const lineData = pLines[j];
-        if (lineData.isEmpty) {
-          // Empty line buffer: in SongDisplay rendered as <div className="h-3"></div> (12px)
-          const emptyBufferH = Math.max(10, Math.round(12 * Math.min(1.4, s)));
-          secH += emptyBufferH;
-          continue;
-        }
-
-        // Accurately determine if line contains only chords (without lyric text)
-        const isChordsOnly = lineData.isRepetitionLine ||
-          (!lineData.chunks || !lineData.chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef));
-
-        const textLen = lineData.raw.replace(/\[[^\]]*\]|\{[^\}]*\}/g, '').length;
-        let chordsLen = 0;
-        const hasChords = lineData.hasChords && showChords;
-        if (hasChords && lineData.chunks) {
-          for (const c of lineData.chunks) {
-            if (c.chord) chordsLen += c.chord.length + 2;
-          }
-        }
-        const effectiveChars = Math.max(textLen, chordsLen);
-        const visualLines = Math.max(1, Math.ceil(effectiveChars / charsPerCol));
-        maxWrapLines = Math.max(maxWrapLines, visualLines);
-
-        if (isChordsOnly) {
-          // Repetition or chord-only line: minHeight: (chords-size + 4) + 0px margin
-          const chordLineH = Math.round((cSize + 4) * 1.05);
-          secH += chordLineH * visualLines;
-        } else if (hasChords) {
-          // Both chords and lyrics: minHeight: (chords-size + lyrics-size + 4) + 5px margin
-          const chordLyricLineH = Math.round((cSize + lSize + 4) * 1.05 + 5);
-          secH += chordLyricLineH * visualLines;
-        } else {
-          // Lyrics only: minHeight: (lyrics-size + 4) + 5px margin
-          const lyricLineH = Math.round((lSize + 4) * 1.05 + 5);
-          secH += lyricLineH * visualLines;
-        }
-      }
-
-      // Section spacing buffer: in SongDisplay rendered as mb-4 (16px)
-      const sectionBufferH = Math.max(14, Math.round(16 * Math.min(1.3, s)));
-      secH += sectionBufferH;
-      sectionHeights.push(secH);
-    }
+      sec.parsedLines.forEach(line => {
+        secH += estimateLineHeight(line, s, lSize, cSize, charsPerCol, showChords);
+      });
+      return secH + Math.max(14, Math.round(16 * Math.min(1.3, s)));
+    });
 
     const total = sectionHeights.reduce((a, b) => a + b, 0);
-    if (colCount <= 1) {
+    if (colCount <= 1 || (sections.length === 1 && sections[0].parsedLines.filter(l => !l.isEmpty).length <= 3)) {
       return { height: total, maxWrapLines };
     }
-    if (sections.length === 1) {
-      const nonEmpties = sections[0].parsedLines.filter(l => !l.isEmpty).length;
-      if (nonEmpties <= 3) {
-        return { height: total, maxWrapLines };
-      }
-      return { height: Math.ceil(total / colCount), maxWrapLines };
-    }
 
-    // Balance multi-column distribution simulating CSS columnFill: 'balance' & break-inside: avoid
-    const maxSec = Math.max(...sectionHeights);
-    let low = Math.max(Math.ceil(total / colCount), Math.min(maxSec, Math.ceil(availColH * 0.95)));
+    // Balanced columns binary search
+    let low = Math.max(Math.ceil(total / colCount), Math.min(Math.max(...sectionHeights), Math.ceil(availColH * 0.95)));
     let high = total;
     let best = total;
 
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
-      let colsNeeded = 1;
-      let currentH = 0;
-      for (const h of sectionHeights) {
-        if (currentH + h > mid) {
-          colsNeeded++;
-          currentH = h;
-        } else {
-          currentH += h;
-        }
-      }
-      if (colsNeeded <= colCount) {
-        best = mid;
-        high = mid - 1;
-      } else {
-        low = mid + 1;
-      }
+      let colsNeeded = 1, currentH = 0;
+      sectionHeights.forEach(h => {
+        if (currentH + h > mid) { colsNeeded++; currentH = h; }
+        else { currentH += h; }
+      });
+      if (colsNeeded <= colCount) { best = mid; high = mid - 1; }
+      else { low = mid + 1; }
     }
     return { height: best, maxWrapLines };
   };
 
-  // Evaluate baseline scale 1.0
   const { height: baseHeight } = calcHeightAtScale(1.0);
-
   if (baseHeight > availColH) {
-    // Overflow -> scale down smoothly with safety margin so the song fits on 1 page
-    // STRICT CONSTRAINT: Never scale below minScaleFloor to guarantee readable fonts (>= 9.0px)
-    const ratio = (availColH * 0.96) / Math.max(availColH, baseHeight);
-    const clampedScale = Math.max(minScaleFloor, Math.min(0.98, ratio));
-    return Math.round(clampedScale * 100) / 100;
+    const minScale = Math.max(0.55, MIN_READABLE_LYRICS_FONT_SIZE / baseLyricsSize);
+    return Math.round(Math.max(minScale, Math.min(0.98, (availColH * 0.96) / baseHeight)) * 100) / 100;
   }
 
-  // Song fits at scale 1.0 -> determine optimal upscale parameters based on line count and section density
-  const totalNonEmptyLines = sections.reduce((acc, sec) => acc + sec.parsedLines.filter(l => !l.isEmpty).length, 0);
-  const linesPerCol = totalNonEmptyLines / colCount;
+  const linesPerCol = sections.reduce((acc, sec) => acc + sec.parsedLines.filter(l => !l.isEmpty).length, 0) / colCount;
+  const config = linesPerCol <= 12 ? { max: 2.25, util: 0.94, wrap: 3 } :
+                 linesPerCol <= 18 ? { max: 1.95, util: 0.93, wrap: 3 } :
+                 linesPerCol <= 25 ? { max: 1.70, util: 0.91, wrap: 2 } :
+                                     { max: 1.50, util: 0.90, wrap: 2 };
 
-  // Songs with fewer lines get a higher upscale limit and targeted column filling to eliminate vast empty space
-  let maxUpscale = 1.50;
-  let targetColUtilization = 0.90;
-  let maxWrapLinesLimit = 2;
+  const maxPx = settings.maxFontSizePx || 32;
+  const upscaleLimit = Math.min(config.max, (maxPx * 0.75) / baseLyricsSize);
+  if (upscaleLimit <= 1.0) return 1.0;
 
-  if (linesPerCol <= 12) {
-    // Very short song (e.g. <= 24 lines in 2 columns, or <= 12 lines in 1 column)
-    maxUpscale = 2.25;
-    targetColUtilization = 0.94;
-    maxWrapLinesLimit = 3;
-  } else if (linesPerCol <= 18) {
-    // Short song (e.g. Wish You Were Here with ~24-30 lines across 2 columns)
-    maxUpscale = 1.95;
-    targetColUtilization = 0.93;
-    maxWrapLinesLimit = 3;
-  } else if (linesPerCol <= 25) {
-    // Medium-short song
-    maxUpscale = 1.70;
-    targetColUtilization = 0.91;
-    maxWrapLinesLimit = 2;
-  } else {
-    // Denser song
-    maxUpscale = 1.50;
-    targetColUtilization = 0.90;
-    maxWrapLinesLimit = 2;
-  }
-
-  // Apply user-configured max font size in px
-  const maxFontSizePx = (typeof settings.maxFontSizePx === 'number' && settings.maxFontSizePx > 0)
-    ? settings.maxFontSizePx
-    : 32;
-    
-  // Convert px to pt (1pt = 1.333px, so px * 0.75 = pt)
-  const maxFontSizePt = maxFontSizePx * (72 / 96);
+  const targetMaxH = availColH * config.util;
+  let bestScale = 1.0, low = 1.0, high = upscaleLimit;
   
-  // Constrain maxUpscale based on the font cap
-  const fontCapMultiplier = maxFontSizePt / baseLyricsSize;
-  maxUpscale = Math.min(maxUpscale, fontCapMultiplier);
-
-  // If maxUpscale is constrained to <= 1.0, do not upscale short songs beyond 1.0
-  if (maxUpscale <= 1.0) {
-    return 1.0;
-  }
-
-  const targetMaxH = availColH * targetColUtilization;
-  let bestScale = 1.0;
-
-  let low = 1.0;
-  let high = maxUpscale;
-  for (let step = 0; step < 9; step++) {
+  for (let i = 0; i < 8; i++) {
     const mid = (low + high) / 2;
     const { height, maxWrapLines } = calcHeightAtScale(mid);
-    if (height <= targetMaxH && maxWrapLines <= maxWrapLinesLimit) {
-      bestScale = mid;
-      low = mid;
-    } else {
-      high = mid;
-    }
+    if (height <= targetMaxH && maxWrapLines <= config.wrap) { bestScale = mid; low = mid; }
+    else { high = mid; }
   }
 
   return Math.round(bestScale * 100) / 100;
@@ -1007,162 +911,72 @@ export function computeSmartColumnBalance(
   const lSize = (Number(settings.lyricsFontSize) || 12) * scale;
   const cSize = (Number(settings.chordsFontSize) || 12) * scale;
 
-  if (colCount <= 1 || !sections || sections.length === 0) {
-    return {
-      colCount: 1,
-      isMultiColumn: false,
-      orphanPrevented: true,
-      strategy: 'single-column',
-      sections: (sections || []).map((sec, idx) => ({
-        sectionIndex: idx,
-        breakBeforeColumn: false,
-        avoidBreakInside: sec.parsedLines.filter(l => !l.isEmpty).length <= 3,
-        orphanProtection: {
-          hasHeadGroup: false,
-          headGroupCount: 0,
-          hasTailGroup: false,
-          tailGroupStartIndex: -1,
-        },
-      })),
-    };
-  }
+  const defaultPlan = (strategy: ColumnBalancePlan['strategy'] = 'single-column'): ColumnBalancePlan => ({
+    colCount: colCount > 1 ? colCount : 1,
+    isMultiColumn: colCount > 1,
+    orphanPrevented: true,
+    strategy,
+    sections: sections.map((sec, idx) => ({
+      sectionIndex: idx,
+      breakBeforeColumn: false,
+      avoidBreakInside: sec.parsedLines.filter(l => !l.isEmpty).length <= 3,
+      orphanProtection: { hasHeadGroup: false, headGroupCount: 0, hasTailGroup: false, tailGroupStartIndex: -1 },
+    })),
+  });
 
-  // 1. Calculate the estimated height of each section and line
-  const sectionHeights: number[] = [];
-  const sectionNonEmptyCounts: number[] = [];
+  if (colCount <= 1 || !sections?.length) return defaultPlan();
 
-  for (let i = 0; i < sections.length; i++) {
-    const sec = sections[i];
+  // 1. Calculate section heights
+  const sectionHeights = sections.map(sec => {
     let secH = 0;
-    const pLines = sec.parsedLines;
-    let nonEmptyCount = 0;
-
-    if (sec.marker && (!pLines || pLines.length === 0 || pLines.every(l => l.isEmpty))) {
+    if (sec.marker && (!sec.parsedLines?.length || sec.parsedLines.every(l => l.isEmpty))) {
       secH += Math.round(lSize + 6);
     }
-
-    for (let j = 0; j < pLines.length; j++) {
-      const lineData = pLines[j];
-      if (lineData.isEmpty) {
-        secH += Math.max(10, Math.round(12 * Math.min(1.4, scale)));
-        continue;
-      }
-      nonEmptyCount++;
-      const isChordsOnly = lineData.isRepetitionLine ||
-        (!lineData.chunks || !lineData.chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef));
-      const hasChords = lineData.hasChords && showChords;
-
-      if (isChordsOnly) {
-        secH += Math.round((cSize + 4) * 1.05);
-      } else if (hasChords) {
-        secH += Math.round((cSize + lSize + 4) * 1.05 + 5);
-      } else {
-        secH += Math.round((lSize + 4) * 1.05 + 5);
-      }
-    }
-    secH += Math.max(14, Math.round(16 * Math.min(1.3, scale))); // mb-4 buffer
-    sectionHeights.push(secH);
-    sectionNonEmptyCounts.push(nonEmptyCount);
-  }
+    sec.parsedLines.forEach(line => {
+      secH += estimateLineHeight(line, scale, lSize, cSize, 100, showChords); // approx charsPerCol
+    });
+    return secH + Math.max(14, Math.round(16 * Math.min(1.3, scale)));
+  });
 
   const totalHeight = sectionHeights.reduce((a, b) => a + b, 0);
   const targetColHeight = totalHeight / colCount;
 
-  // 2. Evaluate Clean Inter-Section Breaks (Stanzas kept 100% intact)
-  let bestCleanBreakSectionIndex = -1;
-  let minCleanDiff = Infinity;
-
+  // 2. Try clean inter-section breaks
+  let bestCleanIdx = -1, minCleanDiff = Infinity;
   if (sections.length >= 2) {
     let currentH = 0;
     for (let i = 0; i < sections.length - 1; i++) {
       currentH += sectionHeights[i];
       const remainderH = totalHeight - currentH;
-
-      // Check if both sides fit within column height (or reasonable safety margin)
-      const fitsCol1 = currentH <= availColH * 1.04;
-      const fitsCol2 = remainderH <= availColH * 1.04;
-
-      if (fitsCol1 && fitsCol2) {
+      if (currentH <= availColH * 1.04 && remainderH <= availColH * 1.04) {
         const diff = Math.abs(currentH - remainderH);
-        if (diff < minCleanDiff) {
-          minCleanDiff = diff;
-          bestCleanBreakSectionIndex = i + 1; // Break before section i+1
-        }
+        if (diff < minCleanDiff) { minCleanDiff = diff; bestCleanIdx = i + 1; }
       }
     }
   }
 
-  // If a clean break between stanzas exists that balances columns nicely:
-  if (bestCleanBreakSectionIndex !== -1 && minCleanDiff <= targetColHeight * 0.75) {
-    return {
-      colCount,
-      isMultiColumn: true,
-      orphanPrevented: true,
-      strategy: 'inter-section-clean',
-      sections: sections.map((sec, idx) => {
-        return {
-          sectionIndex: idx,
-          breakBeforeColumn: idx === bestCleanBreakSectionIndex,
-          avoidBreakInside: true, // Keep all stanzas intact
-          orphanProtection: {
-            hasHeadGroup: false,
-            headGroupCount: 0,
-            hasTailGroup: false,
-            tailGroupStartIndex: -1,
-          },
-        };
-      }),
-    };
+  if (bestCleanIdx !== -1 && minCleanDiff <= targetColHeight * 0.75) {
+    const plan = defaultPlan('inter-section-clean');
+    plan.sections[bestCleanIdx].breakBeforeColumn = true;
+    plan.sections.forEach(s => s.avoidBreakInside = true);
+    return plan;
   }
 
-  // 3. Protected-Split Strategy with Atomic Head & Tail Groups
-  // When sections are long or cannot be split cleanly between stanzas:
-  // We activate orphan and widow protection on all sections.
-  return {
-    colCount,
-    isMultiColumn: true,
-    orphanPrevented: true,
-    strategy: 'protected-split',
-    sections: sections.map((sec, idx) => {
-      const nonEmptyLines = sec.parsedLines
-        .map((l, originalIdx) => ({ ...l, originalIdx }))
-        .filter(l => !l.isEmpty);
-      const count = nonEmptyLines.length;
-
-      // Small stanzas (<= 3 lines) should NEVER break across columns
-      if (count <= 3) {
-        return {
-          sectionIndex: idx,
-          breakBeforeColumn: false,
-          avoidBreakInside: true,
-          orphanProtection: {
-            hasHeadGroup: false,
-            headGroupCount: 0,
-            hasTailGroup: false,
-            tailGroupStartIndex: -1,
-          },
-        };
-      }
-
-      // Sections with >= 4 lines can break across columns if needed,
-      // but the first 2 lines (head) and last 2 lines (tail) are protected
-      const headGroupCount = 2;
-      // Tail group starts at the index of the second-to-last non-empty line
-      const tailGroupStartIndex = nonEmptyLines[count - 2].originalIdx;
-
-      return {
-        sectionIndex: idx,
-        breakBeforeColumn: false,
-        avoidBreakInside: false,
-        orphanProtection: {
-          hasHeadGroup: true,
-          headGroupCount,
-          hasTailGroup: true,
-          tailGroupStartIndex,
-        },
+  // 3. Fallback to protected-split strategy
+  const plan = defaultPlan('protected-split');
+  plan.sections.forEach((s, idx) => {
+    const nonEmpty = sections[idx].parsedLines.map((l, i) => ({ l, i })).filter(x => !x.l.isEmpty);
+    if (nonEmpty.length >= 4) {
+      s.avoidBreakInside = false;
+      s.orphanProtection = {
+        hasHeadGroup: true,
+        headGroupCount: 2,
+        hasTailGroup: true,
+        tailGroupStartIndex: nonEmpty[nonEmpty.length - 2].i
       };
-    }),
-  };
+    }
+  });
+  return plan;
 }
 
 export function computeSongFitDebug(

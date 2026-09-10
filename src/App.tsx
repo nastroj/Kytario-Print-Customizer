@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useDeferredValue, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useDeferredValue, useRef, useCallback, useMemo } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { SongbookPreview } from './components/SongbookPreview';
 import { ProgressBar } from './components/ProgressBar';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
 import { SongbookData, PrintSettings } from './types';
 import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon, Eye } from 'lucide-react';
 import { safeParseSongbookJson } from './utils';
@@ -20,6 +21,9 @@ const defaultSettings: PrintSettings = {
   chordsColor: '#2563eb', // blue-600
   markerColor: '#27272a', // zinc-800
   tocColor: '#1c1917', // zinc-900
+  sectionLineColor: '#a1a1aa', // zinc-400 (matches Kytario gray)
+  refrainLineColor: '#2563eb', // blue-600 (matches Kytario blue)
+  showSectionLines: true,
   titleFontSize: 16,
   artistFontSize: 16,
   lyricsFontSize: 12,
@@ -27,6 +31,8 @@ const defaultSettings: PrintSettings = {
   tocFontSize: 12,
   showChords: true,
   smartFit: true,
+  lyricsItalic: false,
+  chordsItalic: true,
   maxFontSizePx: 32,
   indexSortOrder: 'alphabetical',
 };
@@ -42,6 +48,9 @@ const defaultDarkSettings: PrintSettings = {
   chordsColor: '#60a5fa', // blue-400
   markerColor: '#f4f4f5', // zinc-100
   tocColor: '#f4f4f5', // zinc-100
+  sectionLineColor: '#52525b', // zinc-600
+  refrainLineColor: '#60a5fa', // blue-400
+  showSectionLines: true,
   titleFontSize: 16,
   artistFontSize: 16,
   lyricsFontSize: 12,
@@ -49,6 +58,8 @@ const defaultDarkSettings: PrintSettings = {
   tocFontSize: 12,
   showChords: true,
   smartFit: true,
+  lyricsItalic: false,
+  chordsItalic: true,
   maxFontSizePx: 32,
   indexSortOrder: 'alphabetical',
 };
@@ -132,6 +143,8 @@ export default function App() {
           parsed.chordsColor = baseDefaults.chordsColor;
           parsed.markerColor = baseDefaults.markerColor;
           parsed.tocColor = baseDefaults.tocColor;
+          parsed.sectionLineColor = baseDefaults.sectionLineColor;
+          parsed.refrainLineColor = baseDefaults.refrainLineColor;
         }
 
         // Migrate legacy defaults (14px or 11px) to 45-line 12px default
@@ -161,6 +174,24 @@ export default function App() {
     return baseDefaults;
   });
 
+  const [draftSettings, setDraftSettings] = useState<PrintSettings>(() => settings);
+
+  // Synchronize draft settings when active settings change externally
+  useEffect(() => {
+    setDraftSettings(settings);
+  }, [settings]);
+
+  const unappliedChanges = useMemo(() => {
+    return getChangedSettingsList(draftSettings, settings);
+  }, [draftSettings, settings]);
+
+  const hasUnappliedSettings = unappliedChanges.length > 0;
+
+  const handleDiscardDraftSettings = useCallback(() => {
+    setDraftSettings(settings);
+    showToast('Pending settings changes discarded', 'info');
+  }, [settings, showToast]);
+
   // Instant settings updates with clear visual feedback
   const [isUpdatingLayout, setIsUpdatingLayout] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -179,15 +210,19 @@ export default function App() {
     const nextMode = !isDarkMode;
     setIsDarkMode(nextMode);
     const defaults = nextMode ? defaultDarkSettings : defaultSettings;
-    setSettings(prev => ({
-      ...prev,
+    const nextSettings: PrintSettings = {
+      ...settings,
       titleColor: defaults.titleColor,
       artistColor: defaults.artistColor,
       lyricsColor: defaults.lyricsColor,
       chordsColor: defaults.chordsColor,
       tocColor: defaults.tocColor,
       markerColor: defaults.markerColor,
-    }));
+      sectionLineColor: defaults.sectionLineColor,
+      refrainLineColor: defaults.refrainLineColor,
+    };
+    setSettings(nextSettings);
+    setDraftSettings(nextSettings);
   };
 
   const printTriggerRef = useRef<(() => void) | null>(null);
@@ -241,6 +276,7 @@ export default function App() {
     updateTimersRef.current.applyTimer = setTimeout(() => {
       // 3. Now start applying changes
       setSettings(safeSettings);
+      setDraftSettings(safeSettings);
 
       // 4. Keep the updating status active until layout rendering completes, then dismiss
       updateTimersRef.current.finishTimer = setTimeout(() => {
@@ -545,7 +581,7 @@ export default function App() {
   const songbookTitle = songbookData.title || songbookData.name || 'Songbook';
 
   return (
-    <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans relative print:h-auto print:min-h-0 print:overflow-visible print:block print:bg-white print:text-black print:p-0 print:m-0">
+    <div className="flex h-screen h-[100dvh] min-h-[100dvh] bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans relative print:h-auto print:min-h-0 print:overflow-visible print:block print:bg-white print:text-black print:p-0 print:m-0">
       {/* Full-screen Loading Spinner Overlay while parsing or loading a new songbook */}
       <ProgressBar
         active={isLoadingJson}
@@ -557,6 +593,11 @@ export default function App() {
       {/* Sidebar Component (handles desktop docked + mobile drawer modal) */}
       <Sidebar
         settings={settings}
+        draftSettings={draftSettings}
+        onDraftSettingsChange={setDraftSettings}
+        onDiscardSettings={handleDiscardDraftSettings}
+        hasUnappliedChanges={hasUnappliedSettings}
+        changes={unappliedChanges}
         onApplySettings={handleApplySettings}
         onResetSongbook={() => setIsConfirmResetOpen(true)}
         onFileUpload={handleFileUpload}
@@ -573,22 +614,30 @@ export default function App() {
         onToggleDarkMode={handleToggleDarkMode}
       />
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden print:h-auto print:min-h-0 print:overflow-visible print:block print:p-0 print:m-0">
+      <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden print:h-auto print:min-h-0 print:overflow-visible print:block print:p-0 print:m-0">
         {/* Mobile Header Bar */}
         <header className="md:hidden bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-black/5 dark:border-zinc-800 px-3.5 py-2.5 flex items-center justify-between shrink-0 print:hidden z-20 shadow-xs">
           <button
             id="mobile-open-settings-btn"
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
-            title="Settings"
+            className="relative p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
+            title={hasUnappliedSettings ? `Settings (${unappliedChanges.length} unapplied changes pending)` : "Settings"}
             aria-label="Settings"
           >
             <SlidersHorizontal className="w-4 h-4" />
+            {hasUnappliedSettings && (
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+              </span>
+            )}
           </button>
 
           <div className="text-center px-2 truncate max-w-[130px] sm:max-w-[200px]">
             <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">{songbookTitle}</p>
-            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">{songCount} songs • {settings.pageFormat}</p>
+            <p className={`text-[10px] font-medium truncate ${hasUnappliedSettings ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-zinc-500 dark:text-zinc-400'}`}>
+              {songCount} songs • {hasUnappliedSettings ? 'Changes pending' : settings.pageFormat}
+            </p>
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -704,7 +753,10 @@ export default function App() {
 
         {/* Toast Notification */}
         {toast && (
-          <div className="fixed bottom-6 right-6 z-[100] print:hidden animate-in fade-in slide-in-from-bottom-3 duration-300">
+          <div 
+            className="fixed right-6 z-[100] print:hidden animate-in fade-in slide-in-from-bottom-3 duration-300"
+            style={{ bottom: 'max(1.5rem, calc(1rem + env(safe-area-inset-bottom, 0px)))' }}
+          >
             <div className="flex items-center gap-3 bg-zinc-900 dark:bg-zinc-800 text-white px-4 py-3 rounded-xl shadow-2xl border border-white/10 text-xs sm:text-sm font-medium">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>{toast.message}</span>

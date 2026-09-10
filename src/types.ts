@@ -37,11 +37,16 @@ export interface PrintSettings {
   tocFontSize: number;
   showChords: boolean;
   smartFit: boolean;
+  lyricsItalic?: boolean;
+  chordsItalic?: boolean;
   maxScaleMultiplier?: number;
   maxAutoFontSize?: number;
   maxFontSizePx?: number;
   indexSortOrder: 'original' | 'alphabetical';
   pageMargin?: number; // Margin in mm (default: 5)
+  showSectionLines?: boolean;
+  sectionLineColor?: string;
+  refrainLineColor?: string;
 }
 
 export interface SectionDebugDetail {

@@ -186,114 +186,96 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
     return `${Math.max(2.2, maxLen * 0.6 + 0.4)}em`;
   }, [sections, hasAnyMarkers]);
 
+  const defaultLineCol = isDarkMode ? '#52525b' : '#a1a1aa';
+  const defaultRefrainLineCol = isDarkMode ? '#60a5fa' : '#2563eb';
+
   const dynamicStyles = {
     '--title-color': settings.titleColor,
     '--artist-color': settings.artistColor,
     '--lyrics-color': settings.lyricsColor,
     '--chords-color': settings.chordsColor,
     '--marker-color': settings.markerColor,
+    '--section-line-color': settings.sectionLineColor || defaultLineCol,
+    '--refrain-line-color': settings.refrainLineColor || settings.chordsColor || defaultRefrainLineCol,
     '--title-size': `${settings.titleFontSize}px`,
     '--artist-size': `${settings.artistFontSize}px`,
     '--lyrics-size': `${settings.lyricsFontSize}px`,
     '--chords-size': `${settings.chordsFontSize}px`,
+    '--lyrics-font-style': settings.lyricsItalic ? 'italic' : 'normal',
+    '--chords-font-style': settings.chordsItalic ? 'italic' : 'normal',
     '--song-scale': computedScale.toString(),
+    '--marker-width': markerColWidth,
+    '--line-margin': '5px',
+    '--section-padding-left': '0.20rem',
   } as React.CSSProperties;
 
   const renderSongLine = (lineData: ParsedLine, i: number, firstNonEmptyIndex: number, secMarker: string) => {
-    if (lineData.isEmpty) {
-      return <div key={i} className="h-3"></div>;
-    }
+    if (lineData.isEmpty) return <div key={i} className="h-3"></div>;
 
     const isFirstNonEmpty = i === firstNonEmptyIndex;
     const { chunks, hasChords } = lineData;
     const isRep = lineData.isRepetitionLine;
     const isChordsOnly = isRep || (!chunks || !chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef));
 
+    const lineStyle = {
+      gridTemplateColumns: hasAnyMarkers ? 'var(--marker-width) 1fr' : '1fr',
+      fontSize: 'calc(var(--song-scale, 1) * var(--lyrics-size))',
+      minHeight: isRep 
+        ? 'calc(var(--song-scale, 1) * (var(--chords-size) + 4px))'
+        : (hasChords && settings.showChords 
+            ? 'calc(var(--song-scale, 1) * (var(--chords-size) + var(--lyrics-size) + 4px))' 
+            : 'calc(var(--song-scale, 1) * (var(--lyrics-size) + 4px))')
+    } as React.CSSProperties;
+
     return (
-      <div 
-        key={i} 
-        className={`relative song-line grid items-end ${isChordsOnly ? 'mb-0' : 'mb-[5px]'}`} 
-        style={{
-          gridTemplateColumns: hasAnyMarkers ? `${markerColWidth} 1fr` : '1fr',
-          fontSize: 'calc(var(--song-scale, 1) * var(--lyrics-size))',
-          ...(isRep
-            ? { minHeight: 'calc(var(--song-scale, 1) * (var(--chords-size) + 4px))' }
-            : (hasChords && settings.showChords 
-                ? { minHeight: 'calc(var(--song-scale, 1) * (var(--chords-size) + var(--lyrics-size) + 4px))' } 
-                : { minHeight: 'calc(var(--song-scale, 1) * (var(--lyrics-size) + 4px))' }
-              )
-          )
-        }}
-      >
+      <div key={i} className={`relative song-line grid items-end ${isChordsOnly ? 'mb-0' : 'mb-[var(--line-margin)]'}`} style={lineStyle}>
         <div className="flex items-baseline justify-end pr-1">
           {isFirstNonEmpty && secMarker && (
             <>
               <div className="leading-none song-marker select-none">
                 {secMarker.replace(/^\[(.*)\]$/, '$1')}
               </div>
-              {/* Typographic strut to align baseline perfectly with lyrics */}
               <div className="leading-none song-lyric w-0 overflow-hidden opacity-0 select-none">X</div>
             </>
           )}
         </div>
 
-        {isRep ? (
-          <div className="flex flex-wrap items-baseline gap-x-2 select-text song-repetition-line py-0.5">
-            {chunks.map((chunk, j) => {
-              if (chunk.chord && settings.showChords) {
-                return (
-                  <span 
-                    key={j} 
-                    className="font-bold italic leading-none song-chord select-text pr-1" 
-                    style={{ 
-                      color: 'var(--chords-color)', 
-                      fontSize: 'calc(var(--song-scale, 1) * var(--chords-size))' 
-                    }}
-                  >
-                    {chunk.chord}
-                  </span>
-                );
-              }
-              if (chunk.text && chunk.text.trim()) {
-                return (
-                  <span 
-                    key={j} 
-                    className={`leading-none select-text pr-1 ${chunk.isSectionRef ? 'song-marker font-semibold' : 'song-lyric font-semibold'}`}
-                    style={chunk.isSectionRef ? { color: 'var(--marker-color)' } : undefined}
-                  >
-                    {chunk.text}
-                  </span>
-                );
-              }
-              return null;
-            })}
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-end">
-            {chunks.map((chunk, j) => (
-              <div key={j} className="inline-flex flex-col">
-                {(hasChords && settings.showChords) && (
+        <div className={`flex flex-wrap ${isRep ? 'items-baseline gap-x-2 py-0.5' : 'items-end'}`}>
+          {chunks.map((chunk, j) => {
+            const isSectionRef = chunk.isSectionRef;
+            const hasChord = chunk.chord && settings.showChords;
+            const hasText = chunk.text && (isRep ? chunk.text.trim() : true);
+
+            return (
+              <div key={j} className={isRep ? 'contents' : 'inline-flex flex-col'}>
+                {hasChord && (
                   <div 
-                    className="font-bold italic leading-none pr-1.5 song-chord select-text" 
+                    className={`font-bold leading-none pr-1.5 song-chord select-text ${isRep ? '' : 'mb-0'}`}
                     style={{ 
                       color: 'var(--chords-color)', 
                       fontSize: 'calc(var(--song-scale, 1) * var(--chords-size))',
-                      minHeight: 'calc(var(--song-scale, 1) * var(--chords-size))'
+                      fontStyle: 'var(--chords-font-style)',
+                      ...(isRep ? {} : { minHeight: 'calc(var(--song-scale, 1) * var(--chords-size))' })
                     }}
                   >
-                    {chunk.chord || ' '}
+                    {chunk.chord}
                   </div>
                 )}
-                <div 
-                  className={`select-text ${chunk.isSectionRef ? 'song-marker font-semibold' : 'leading-none song-lyric'}`}
-                  style={chunk.isSectionRef ? { color: 'var(--marker-color)' } : undefined}
-                >
-                  {chunk.text ? chunk.text : (chunk.chord && settings.showChords ? '\u00A0' : '')}
-                </div>
+                {hasText && (
+                  <div 
+                    className={`select-text ${isSectionRef ? 'song-marker font-semibold' : `leading-none song-lyric ${isRep ? 'font-semibold' : ''}`}`}
+                    style={{
+                      color: isSectionRef ? 'var(--marker-color)' : undefined,
+                      fontStyle: !isSectionRef ? 'var(--lyrics-font-style)' : undefined
+                    }}
+                  >
+                    {chunk.text || (hasChord ? '\u00A0' : '')}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -378,10 +360,15 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
             }
           }
 
+          const showSectionLines = settings.showSectionLines !== false;
+          const currentLineColor = sec.isRefrain
+            ? (settings.refrainLineColor || settings.chordsColor || defaultRefrainLineCol)
+            : (settings.sectionLineColor || defaultLineCol);
+
           return (
             <div 
               key={vIndex} 
-              className={`relative mb-4 song-section ${shouldAvoidBreak ? 'break-inside-avoid' : ''} ${breakBeforeColumn ? 'break-before-column' : ''}`}
+              className={`relative mb-3.5 sm:mb-4 song-section ${shouldAvoidBreak ? 'break-inside-avoid' : ''} ${breakBeforeColumn ? 'break-before-column' : ''} ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''}`}
               style={{ 
                 pageBreakInside: shouldAvoidBreak ? 'avoid' : 'auto',
                 breakInside: shouldAvoidBreak ? 'avoid' : 'auto',
@@ -391,6 +378,12 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
                 } : {}),
                 orphans: 2,
                 widows: 2,
+                ...(showSectionLines ? {
+                  borderLeft: `0.22em solid ${currentLineColor}`,
+                  paddingLeft: 'var(--section-padding-left)',
+                  WebkitBoxDecorationBreak: 'clone' as any,
+                  boxDecorationBreak: 'clone' as any,
+                } : {}),
               }}
             >
               {sec.marker && firstNonEmptyIndex === -1 && (
