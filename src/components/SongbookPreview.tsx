@@ -166,22 +166,28 @@ const VirtualPage = memo(function VirtualPage({
     return () => observer.disconnect();
   }, [isPrinting]);
 
+  // When printing, immediately render all pages on first pass without waiting for async effects
+  const shouldRender = isPrinting || isVisible;
+
   return (
     <div 
       ref={ref}
       id={id}
       className="mx-auto mb-6 sm:mb-10 print:mb-0 print:mx-0 shrink-0 song-page-outer-wrapper"
       style={{
-        width: isScaled ? `${scaledWidth}px` : 'fit-content',
-        height: isVisible ? (isScaled ? `${scaledHeight}px` : 'auto') : (isScaled ? `${scaledHeight}px` : defaultHeight),
-        minHeight: isScaled ? `${scaledHeight}px` : defaultHeight,
-        minWidth: isScaled ? `${scaledWidth}px` : defaultWidth,
+        width: isPrinting ? defaultWidth : (isScaled ? `${scaledWidth}px` : 'fit-content'),
+        height: isPrinting 
+          ? defaultHeight 
+          : (shouldRender ? (isScaled ? `${scaledHeight}px` : 'auto') : (isScaled ? `${scaledHeight}px` : defaultHeight)),
+        minHeight: isPrinting ? defaultHeight : (isScaled ? `${scaledHeight}px` : defaultHeight),
+        maxHeight: isPrinting ? defaultHeight : undefined,
+        minWidth: isPrinting ? defaultWidth : (isScaled ? `${scaledWidth}px` : defaultWidth),
         position: 'relative',
         contentVisibility: isPrinting ? 'visible' : 'auto',
-        containIntrinsicSize: isScaled ? `${scaledWidth}px ${scaledHeight}px` : `${defaultWidth} ${defaultHeight}`,
+        containIntrinsicSize: isPrinting ? undefined : (isScaled ? `${scaledWidth}px ${scaledHeight}px` : `${defaultWidth} ${defaultHeight}`),
       }}
     >
-      {isVisible ? children : <div style={{ height: isScaled ? `${scaledHeight}px` : defaultHeight }} />}
+      {shouldRender ? children : <div style={{ height: isScaled ? `${scaledHeight}px` : defaultHeight }} />}
     </div>
   );
 });
@@ -271,9 +277,9 @@ const SongPagesList = memo(function SongPagesList({
                 height: cssHeight,
                 minHeight: cssHeight,
                 padding: `${tocMarginMmYTop}mm ${tocMarginMmX}mm ${tocMarginMmYBottom}mm ${tocMarginMmX}mm`,
-                transform: isScaled ? `scale(${effectiveScale})` : 'none',
+                transform: isPrinting ? 'none' : (isScaled ? `scale(${effectiveScale})` : 'none'),
                 transformOrigin: 'top left',
-                position: isScaled ? 'absolute' : 'relative',
+                position: isPrinting ? 'relative' : (isScaled ? 'absolute' : 'relative'),
                 top: 0,
                 left: 0,
               }}
@@ -425,9 +431,9 @@ const SongPagesList = memo(function SongPagesList({
               width: cssWidth, 
               height: cssHeight,
               padding: `${marginMmY}mm ${marginMmX}mm`,
-              transform: isScaled ? `scale(${effectiveScale})` : 'none',
+              transform: isPrinting ? 'none' : (isScaled ? `scale(${effectiveScale})` : 'none'),
               transformOrigin: 'top left',
-              position: isScaled ? 'absolute' : 'relative',
+              position: isPrinting ? 'relative' : (isScaled ? 'absolute' : 'relative'),
               top: 0,
               left: 0,
             }}
@@ -623,6 +629,10 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const printableRef = useRef<HTMLDivElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isPreparingPdf, setIsPreparingPdf] = useState(false);
+  const printTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const printSafetyTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const originalTitleRef = useRef<string>(typeof document !== 'undefined' ? document.title : '');
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ 
     width: typeof window !== 'undefined' ? window.innerWidth : 1000, 
     height: typeof window !== 'undefined' ? window.innerHeight : 900 
@@ -1045,41 +1055,99 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     return raw.trim().replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '_');
   }, [title]);
 
+  const cleanupPrint = useCallback(() => {
+    if (printTimeoutRef.current) {
+      clearTimeout(printTimeoutRef.current);
+      printTimeoutRef.current = null;
+    }
+    if (printSafetyTimerRef.current) {
+      clearTimeout(printSafetyTimerRef.current);
+      printSafetyTimerRef.current = null;
+    }
+    setIsPrinting(false);
+    setIsPreparingPdf(false);
+    if (onDownloadStatusChange) {
+      onDownloadStatusChange(false);
+    }
+    if (originalTitleRef.current) {
+      try {
+        document.title = originalTitleRef.current;
+      } catch (e) {}
+    }
+  }, [onDownloadStatusChange]);
+
   const handleDownloadPdf = useCallback(() => {
-    setIsPrinting(true);
-    const originalTitle = document.title;
+    // 1. Instantly trigger visual indicators (0ms delay) so user never sees a frozen app
+    setIsPreparingPdf(true);
+    if (onDownloadStatusChange) {
+      onDownloadStatusChange(true);
+    }
+
     try {
+      originalTitleRef.current = document.title;
       document.title = documentTitle;
     } catch (e) {}
 
-    // Minimal delay to ensure document title updates before browser print dialog opens
-    setTimeout(() => {
-      try {
-        window.print();
-      } finally {
-        setIsPrinting(false);
-        setTimeout(() => {
+    if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
+    if (printSafetyTimerRef.current) clearTimeout(printSafetyTimerRef.current);
+
+    // 2. Yield control via double requestAnimationFrame to ensure browser paints the blue banner immediately
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // 3. Mount full print DOM
+        setIsPrinting(true);
+
+        // 4. Mobile/Android optimization: give Chromium layout engine adequate time (~450ms)
+        // to compute column layouts, render SVG chord diagrams, and stabilize without crashing Android PrintSpooler
+        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        const waitTime = isMobile ? 450 : 250;
+
+        printTimeoutRef.current = setTimeout(() => {
+          let cleanedUp = false;
+          const doCleanup = () => {
+            if (cleanedUp) return;
+            cleanedUp = true;
+            window.removeEventListener('afterprint', doCleanup);
+            window.removeEventListener('focus', onFocusAfterPrint);
+            cleanupPrint();
+          };
+
+          const onFocusAfterPrint = () => {
+            // Slight delay after regaining window focus when print dialog closes
+            setTimeout(doCleanup, 600);
+          };
+
+          window.addEventListener('afterprint', doCleanup, { once: true });
+          setTimeout(() => {
+            window.addEventListener('focus', onFocusAfterPrint, { once: true });
+          }, 800);
+
+          // Absolute fallback safety timeout (25s) so UI is never permanently blocked
+          printSafetyTimerRef.current = setTimeout(doCleanup, 25000);
+
           try {
-            document.title = originalTitle;
-          } catch (e) {}
-        }, 500);
-      }
-    }, 50);
-  }, [documentTitle]);
+            window.print();
+          } catch (err) {
+            console.error('Print execution error:', err);
+            doCleanup();
+          }
+        }, waitTime);
+      });
+    });
+  }, [documentTitle, onDownloadStatusChange, cleanupPrint]);
 
   // Global browser print event listeners (handles Direct Print, Ctrl+P, and Download as PDF)
   useEffect(() => {
     const handleBeforePrint = () => {
+      setIsPreparingPdf(true);
       setIsPrinting(true);
       try {
+        originalTitleRef.current = document.title;
         document.title = documentTitle;
       } catch (e) {}
     };
     const handleAfterPrint = () => {
-      setIsPrinting(false);
-      try {
-        document.title = 'Kytario Print Customizer';
-      } catch (e) {}
+      cleanupPrint();
     };
     window.addEventListener('beforeprint', handleBeforePrint);
     window.addEventListener('afterprint', handleAfterPrint);
@@ -1087,7 +1155,15 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       window.removeEventListener('beforeprint', handleBeforePrint);
       window.removeEventListener('afterprint', handleAfterPrint);
     };
-  }, [documentTitle]);
+  }, [documentTitle, cleanupPrint]);
+
+  // Cleanup timers on component unmount
+  useEffect(() => {
+    return () => {
+      if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
+      if (printSafetyTimerRef.current) clearTimeout(printSafetyTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (onRegisterPrintTrigger) {
@@ -1097,9 +1173,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   useEffect(() => {
     if (onDownloadStatusChange) {
-      onDownloadStatusChange(isPrinting);
+      onDownloadStatusChange(isPreparingPdf || isPrinting);
     }
-  }, [isPrinting, onDownloadStatusChange]);
+  }, [isPreparingPdf, isPrinting, onDownloadStatusChange]);
 
   const totalPages = tocPages.length + songs.length;
 
@@ -1238,10 +1314,10 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           isPrintPreviewMode ? 'bg-zinc-200/80 dark:bg-zinc-950' : 'bg-zinc-50 dark:bg-zinc-950'
         } p-3 sm:p-8 print:p-0 print:m-0 print:bg-white print:h-auto print:min-h-0 print:overflow-visible print:block print:static print-scroll-container`}
       >
-        {isPrinting && (
+        {(isPreparingPdf || isPrinting) && (
           <div 
             id="preview-downloading-pdf-pill"
-            className="fixed top-14 left-1/2 -translate-x-1/2 z-50 print:hidden flex items-center gap-2.5 bg-blue-600 text-white px-4 py-2 rounded-full shadow-xl border border-blue-500/80 backdrop-blur-md animate-in fade-in slide-in-from-top-3 text-xs font-bold select-none"
+            className="fixed top-14 left-1/2 -translate-x-1/2 z-50 print:hidden flex items-center gap-2.5 bg-blue-600 text-white px-4 py-2 rounded-full shadow-xl border border-blue-500/80 backdrop-blur-md animate-in fade-in slide-in-from-top-3 text-xs font-bold select-none pointer-events-none"
           >
             <Loader2 className="w-4 h-4 animate-spin text-white" />
             <span>Preparing PDF for download...</span>

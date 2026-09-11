@@ -245,6 +245,7 @@ export default function App() {
   }, []);
 
   const handleDownloadPdf = useCallback(() => {
+    setIsDownloadingPdf(true);
     if (printTriggerRef.current) {
       printTriggerRef.current();
     } else {
