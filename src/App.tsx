@@ -4,6 +4,7 @@ import { SongbookPreview } from './components/SongbookPreview';
 import { ProgressBar } from './components/ProgressBar';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
 import { SongbookData, PrintSettings } from './types';
 import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon, Eye } from 'lucide-react';
@@ -428,8 +429,8 @@ export default function App() {
 
         <div className="max-w-xl w-full bg-white rounded-2xl shadow-lg border border-black/5 p-5 sm:p-8 space-y-5 sm:space-y-6">
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-zinc-900 rounded-2xl flex items-center justify-center mx-auto shadow-md overflow-hidden p-2 border border-zinc-800">
-              <img src="/favicon.svg" alt="Kytario Logo" className="w-full h-full object-contain" />
+            <div className="flex items-center justify-center mx-auto">
+              <KytarioLogo className="w-14 h-14 sm:w-16 sm:h-16" />
             </div>
             <div className="flex items-center justify-center gap-2">
               <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Kytario Print Customizer</h1>
