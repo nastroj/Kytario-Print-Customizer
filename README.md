@@ -1,29 +1,63 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.0.4
+**Version:** 1.0.6
 
-A powerful, customizable web application built with React and Tailwind CSS that allows you to process, format, and prepare Kytario songbook JSON data for pixel-perfect printing.
+A powerful, customizable web application built with React and Tailwind CSS that allows you to process, format, and prepare Kytario songbook JSON data for publication-grade, pixel-perfect printing.
 
 ## 🌟 Features
 
-- **SmartFit Auto-Scaling Algorithm:** Automatically calculates the optimal font size and layout scale for every single song to perfectly utilize page space, avoiding awkward mid-song page breaks.
-- **Smart Column Balancing & Orphan Prevention:** Automatically computes multi-column distribution to prevent lone lines or orphaned headers at the top of subsequent columns, keeping head groups and tail groups intact for a clean, publication-grade print aesthetic.
-- **Granular Layout Controls:** Configure max font sizes (px), page margins, page formats (A4, A5, Letter), column layouts, and orientation (Portrait/Landscape).
-- **Intelligent Spacing:** Precisely aligned chords that sit directly above their target words, with dynamic margin spacing applied specifically to lyric lines.
-- **Advanced Theming:** Complete control over title, artist, lyric, chord, and section marker colors.
-- **System Theme Sync:** Automatically defaults to your operating system's light/dark mode and persists user-defined default settings.
-- **Drag & Drop Upload:** A beautiful, responsive drop zone to instantly load your songbook JSON files.
-- **Progressive Web App (PWA) Ready:** Install Kytario directly to desktop or mobile home screens with offline caching, custom guitar & songbook icons, and instant loading.
-- **Lazy DOM Rendering:** Virtualized page loading strictly rendering only the visible (and +/- 1 adjacent) pages into the DOM, unlocking massive performance gains for large 100+ item songbooks.
-- **Print Ready:** Uses `react-to-print` for flawless PDF generation and physical printing.
+- **Robust Auto-Save & State Persistence (New in v1.0.6):**
+  - **IndexedDB Engine:** Seamlessly saves full songbooks and print settings into browser IndexedDB, eliminating browser storage quota limits for large 100+ song collections.
+  - **Local Storage Fallback & Auto-Migration:** Automatically detects and migrates legacy songbooks from `localStorage` into IndexedDB, while maintaining a mirrored fallback.
+  - **Draft Settings Protection:** Preserves in-progress tweaks and unapplied sidebar drafts across browser refreshes.
+  - **Smart Sync Triggers:** Debounced saving (1.2s), a 10s background heartbeat, and emergency saves on tab switch (`visibilitychange`) or window exit (`beforeunload`).
+  - **Status Indicator:** Real-time visual indicator displaying auto-save timestamps (`Auto-saved (HH:MM:SS)`) and active save spinners across desktop and mobile views.
+
+- **SmartFit Auto-Scaling Algorithm:**
+  - Automatically calculates the optimal font size and layout scale for every single song to perfectly fill page space without awkward mid-song page breaks.
+  - Configurable maximum font size caps (in pixels) to avoid oversized lyrics on short songs.
+
+- **Smart Column Balancing & Orphan Prevention:**
+  - Multi-column distribution calculates stanza breaks dynamically to avoid lone lyric lines or orphaned headers at the tops of columns.
+  - Keeps head groups and tail groups intact for a clean, publication-grade print aesthetic.
+
+- **Granular Layout & Typography Controls:**
+  - Page format presets: **A4**, **A5**, and **US Letter**.
+  - Orientation: **Portrait** or **Landscape**.
+  - Customizable margins (mm), line spacing, and column count (1 or 2 columns).
+  - Fine-grained typography color palette: Song Title, Artist/Metadata, Lyrics, Chords, and Section Markers.
+
+- **Virtual Page Rendering (Lazy DOM):**
+  - Uses `IntersectionObserver` to mount only visible and adjacent pages, maintaining smooth 60 FPS scrolling and low memory usage even for massive songbooks.
+
+- **Intelligent Chord & Lyric Alignment:**
+  - Chords align directly over target words.
+  - Natural vertical rhythm with dynamic line margins applied to lyric lines and special handling for chord-only repetition lines.
+
+- **Dynamic Table of Contents (TOC):**
+  - Automatically indexes all songs with computed page numbers and multi-column directory formatting.
+
+- **Unapplied Changes Management:**
+  - Live preview with explicit "Apply Settings" sticky toolbar, visual counters for pending changes, and one-click reset to defaults.
+
+- **Progressive Web App (PWA) & Offline Ready:**
+  - Installable directly to desktop or mobile home screens via `vite-plugin-pwa`.
+  - Offline connectivity indicator and offline asset caching.
+  - Tailored installation prompts, including step-by-step iOS Safari guidance.
+
+- **Print & PDF Optimization:**
+  - Powered by `react-to-print` with fine-tuned print stylesheets, exact `@page` rules, high-contrast printing, and ink-friendly color rendering.
 
 ## 🛠 Tech Stack
 
 - **Framework:** React 19 + TypeScript
 - **Styling:** Tailwind CSS v4
 - **Icons:** Lucide React
-- **Animations:** Motion (Framer Motion)
-- **Tooling:** Vite
+- **Animations:** Motion
+- **Storage:** IndexedDB API + LocalStorage
+- **Printing:** `react-to-print`
+- **PWA:** `vite-plugin-pwa`
+- **Tooling:** Vite 6
 
 ## 🚀 Getting Started
 
@@ -34,7 +68,7 @@ A powerful, customizable web application built with React and Tailwind CSS that 
 
 ### Installation
 
-1. Install dependencies:
+1. Clone the repository and install dependencies:
    ```bash
    npm install
    ```
@@ -43,25 +77,47 @@ A powerful, customizable web application built with React and Tailwind CSS that 
    ```bash
    npm run dev
    ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-3. Build for production:
+3. Type-check and build for production:
    ```bash
+   npm run lint
    npm run build
    ```
 
-## 📖 Usage
+4. Preview the production build:
+   ```bash
+   npm run preview
+   ```
 
-1. **Upload your Songbook:** Export your JSON file from Kytario and drag it into the designated upload area.
-2. **Customize Layout:** Use the sidebar to adjust font sizes, margins, column count, and orientation. The **SmartFit** toggle ensures each song fills the page beautifully.
-3. **Save Defaults:** Hit the "Set as Defaults" button in the sidebar if you want to keep your specific configuration for future sessions.
-4. **Print:** Click the "Print Songbook" button to generate a clean, print-optimized document.
+## 📖 Usage Guide
 
-## 📝 Recent Updates (v1.0.4)
-- **Smart Column Balancing & Orphan Prevention:** Enhanced the song rendering engine with an analytical column balancer that prevents lone lines from orphan breaks at the top of new columns. Protects atomic head and tail stanza groups (first 2 lines and last 2 lines) while allowing natural inter-section flow for long multi-verse songs.
-- **Progressive Web App (PWA) & Custom Branding:** Full PWA setup powered by `vite-plugin-pwa` with custom branded icons (`pwa-192x192.png`, `pwa-512x512.png`, maskable variants, `apple-touch-icon.png`, `favicon.ico`, and SVG vectors). Includes an in-app installation prompt with dedicated iOS Safari step-by-step guidance and an offline status indicator.
-- **Virtual Page Rendering (Lazy Render):** Restructured `SongbookPreview` to use an `IntersectionObserver` that only mounts the current page and its immediate neighbors into the DOM, drastically improving preview frame rates and scroll stability for massive songbooks.
-- **Formatting Overhaul:** Removed internal bottom spacing directly beneath chords. Margin logic has been refined to apply specifically to the bottom of lyric lines, creating a tighter and more natural chord-lyric pairing.
-- **Max Font Size (px):** Upgraded the auto-scaler to cap at a specific pixel size (e.g., 32px) rather than an arbitrary multiplier.
+1. **Import Songbook:** Drag and drop your Kytario `.json` export file into the upload zone, or click to browse.
+2. **Customize Layout:**
+   - Adjust page format (A4, A5, Letter) and orientation in the sidebar.
+   - Fine-tune font sizes, line margins, and page margins (in mm).
+   - Customize color themes for lyrics, chords, and section headers.
+3. **Review & Apply:** Changes are tracked in real-time. Click **Apply Settings** in the floating action bar to re-render the book with the new parameters.
+4. **Auto-Save:** All imported songbooks and settings are automatically persisted locally via IndexedDB. You can refresh or close the tab at any time without losing work.
+5. **Print or Export PDF:** Click the **Print Songbook** button to trigger the browser's native print dialog and save as PDF or send to a physical printer.
+
+## 📝 Release Notes
+
+### v1.0.6
+- **Auto-Save Engine:** Added periodic, debounced, and lifecycle-driven state persistence to IndexedDB with localStorage fallback.
+- **Auto-Save Status UI:** Added real-time save status badges in the sidebar footer, preview toolbar, and mobile header.
+- **Draft Session Restoration:** Preserves unapplied configuration drafts across page reloads.
+- **Clean Workspace:** Removed obsolete build and patch scripts, streamlining project structure and build dependencies.
+
+### v1.0.5
+- **Sticky Actions Footer:** Re-architected sidebar with a fixed bottom action dock for instant access to apply, reset, and print actions.
+- **Chord-Only Formatting Fix:** Fixed vertical spacing on repetition lines containing chords without accompanying lyrics.
+- **Visual Improvements:** Enhanced dark mode contrast and responsive layout scaling.
+
+### v1.0.4
+- **Smart Column Balancing:** Analytical column balancing preventing orphaned lines and stanza fragmentation.
+- **PWA Integration:** Full offline support, web app manifest, and install prompts.
+- **Virtual Page Rendering:** DOM virtualization via `IntersectionObserver` for high performance with 100+ songs.
 
 ## 📄 License
 
