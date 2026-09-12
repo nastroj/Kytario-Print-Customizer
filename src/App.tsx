@@ -10,6 +10,13 @@ import { SongbookData, PrintSettings } from './types';
 import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon, Eye } from 'lucide-react';
 import { safeParseSongbookJson } from './utils';
 import { APP_CONFIG } from './config';
+import { 
+  saveSongbookToStorage, 
+  saveSettingsToStorage, 
+  loadAppStateFromStorage, 
+  clearSavedSongbookStorage 
+} from './utils/storage';
+import { AutoSaveIndicator, AutoSaveStatus } from './components/AutoSaveIndicator';
 
 const defaultSettings: PrintSettings = {
   pageFormat: 'A4',
@@ -199,6 +206,21 @@ export default function App() {
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
   const [isPrintPreviewActive, setIsPrintPreviewActive] = useState(false);
 
+  // Auto-Save Engine State
+  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('saved');
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(() => {
+    try {
+      const saved = localStorage.getItem('kytario-last-saved-time');
+      return saved ? Number(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+  const [storageBackend, setStorageBackend] = useState<'indexeddb' | 'localstorage' | 'none'>('indexeddb');
+  const isInitialRestoreDoneRef = useRef(false);
+  const isDirtyRef = useRef(false);
+  const autoSaveDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     localStorage.setItem('kytario-dark-mode', JSON.stringify(isDarkMode));
     if (isDarkMode) {
@@ -288,17 +310,148 @@ export default function App() {
     }, 120);
   };
 
+  // 1. Initial asynchronous restoration from IndexedDB (or localStorage fallback/migration)
   useEffect(() => {
-    localStorage.setItem('kytario-print-settings-v2', JSON.stringify(settings));
-  }, [settings]);
+    let isMounted = true;
+    async function restoreSession() {
+      try {
+        const restored = await loadAppStateFromStorage();
+        if (!isMounted) return;
 
-  useEffect(() => {
-    if (songbookData) {
-      localStorage.setItem('kytario-saved-songbook', JSON.stringify(songbookData));
-    } else {
-      localStorage.removeItem('kytario-saved-songbook');
+        if (restored.backend) {
+          setStorageBackend(restored.backend);
+        }
+
+        if (restored.songbookData) {
+          setSongbookData(restored.songbookData);
+        }
+
+        if (restored.settings) {
+          const mergedSettings: PrintSettings = {
+            ...(isDarkMode ? defaultDarkSettings : defaultSettings),
+            ...restored.settings,
+            columns: 2,
+          };
+          setSettings(mergedSettings);
+
+          if (restored.draftSettings) {
+            const mergedDraft: PrintSettings = {
+              ...mergedSettings,
+              ...restored.draftSettings,
+              columns: 2,
+            };
+            setDraftSettings(mergedDraft);
+          }
+        }
+
+        if (restored.lastSavedAt) {
+          setLastSavedAt(restored.lastSavedAt);
+        }
+
+        setAutoSaveStatus('saved');
+      } catch (err) {
+        console.warn('Could not restore auto-saved session:', err);
+      } finally {
+        if (isMounted) {
+          isInitialRestoreDoneRef.current = true;
+        }
+      }
     }
-  }, [songbookData]);
+
+    restoreSession();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 2. Core Auto-Save execution
+  const triggerAutoSave = useCallback(async () => {
+    if (!isInitialRestoreDoneRef.current) return;
+    try {
+      setAutoSaveStatus('saving');
+      const now = Date.now();
+
+      await Promise.all([
+        saveSongbookToStorage(songbookData),
+        saveSettingsToStorage(settings, hasUnappliedSettings ? draftSettings : null),
+      ]);
+
+      isDirtyRef.current = false;
+      setLastSavedAt(now);
+      setAutoSaveStatus('saved');
+    } catch (err) {
+      console.error('Auto-save error:', err);
+      setAutoSaveStatus('error');
+    }
+  }, [songbookData, settings, draftSettings, hasUnappliedSettings]);
+
+  // 3. Mark dirty & debounced auto-save on any change to songbook or settings
+  useEffect(() => {
+    if (!isInitialRestoreDoneRef.current) return;
+
+    isDirtyRef.current = true;
+    setAutoSaveStatus('saving');
+
+    if (autoSaveDebounceTimerRef.current) {
+      clearTimeout(autoSaveDebounceTimerRef.current);
+    }
+
+    autoSaveDebounceTimerRef.current = setTimeout(() => {
+      triggerAutoSave();
+    }, 1200);
+
+    return () => {
+      if (autoSaveDebounceTimerRef.current) {
+        clearTimeout(autoSaveDebounceTimerRef.current);
+      }
+    };
+  }, [songbookData, settings, draftSettings, triggerAutoSave]);
+
+  // 4. Periodic Heartbeat Auto-Save (every 10 seconds if unsaved changes exist)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isDirtyRef.current) {
+        triggerAutoSave();
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [triggerAutoSave]);
+
+  // 5. Emergency Auto-Save on page exit or tab switch
+  useEffect(() => {
+    const handleEmergencySave = () => {
+      if (isDirtyRef.current || autoSaveStatus === 'saving') {
+        try {
+          if (songbookData) {
+            localStorage.setItem('kytario-saved-songbook', JSON.stringify(songbookData));
+          }
+          localStorage.setItem('kytario-print-settings-v2', JSON.stringify(settings));
+          if (hasUnappliedSettings) {
+            localStorage.setItem('kytario-draft-settings', JSON.stringify(draftSettings));
+          } else {
+            localStorage.removeItem('kytario-draft-settings');
+          }
+          localStorage.setItem('kytario-last-saved-time', String(Date.now()));
+        } catch (e) {}
+        triggerAutoSave();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        handleEmergencySave();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleEmergencySave);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleEmergencySave);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [songbookData, settings, draftSettings, hasUnappliedSettings, autoSaveStatus, triggerAutoSave]);
 
   const processJsonString = (rawString: string, fileName?: string) => {
     setErrorMessage(null);
@@ -407,14 +560,18 @@ export default function App() {
     processJsonString(pastedJson);
   };
 
-  const resetSongbook = () => {
+  const resetSongbook = async () => {
     setSongbookData(null);
     setPastedJson('');
     setErrorMessage(null);
     setRecoveryNotice(null);
     setIsLoadingJson(false);
     setIsMobileSidebarOpen(false);
-    localStorage.removeItem('kytario-saved-songbook');
+    isDirtyRef.current = false;
+    await clearSavedSongbookStorage();
+    setLastSavedAt(null);
+    setAutoSaveStatus('idle');
+    showToast('Songbook reset and auto-save cleared', 'info');
   };
 
   if (!songbookData) {
@@ -614,15 +771,18 @@ export default function App() {
         isLoadingJson={isLoadingJson}
         isDarkMode={isDarkMode}
         onToggleDarkMode={handleToggleDarkMode}
+        autoSaveStatus={autoSaveStatus}
+        lastSavedAt={lastSavedAt}
+        storageBackend={storageBackend}
       />
 
       <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden print:h-auto print:min-h-0 print:overflow-visible print:block print:p-0 print:m-0">
         {/* Mobile Header Bar */}
-        <header className="md:hidden bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-black/5 dark:border-zinc-800 px-3.5 py-2.5 flex items-center justify-between shrink-0 print:hidden z-20 shadow-xs">
+        <header className="md:hidden bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-black/5 dark:border-zinc-800 px-3 py-2 flex items-center justify-between shrink-0 print:hidden z-20 shadow-xs gap-2">
           <button
             id="mobile-open-settings-btn"
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="relative p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
+            className="relative p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer shrink-0"
             title={hasUnappliedSettings ? `Settings (${unappliedChanges.length} unapplied changes pending)` : "Settings"}
             aria-label="Settings"
           >
@@ -635,11 +795,19 @@ export default function App() {
             )}
           </button>
 
-          <div className="text-center px-2 truncate max-w-[130px] sm:max-w-[200px]">
+          <div className="text-center px-1 truncate min-w-0 flex-1">
             <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">{songbookTitle}</p>
-            <p className={`text-[10px] font-medium truncate ${hasUnappliedSettings ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-zinc-500 dark:text-zinc-400'}`}>
-              {songCount} songs • {hasUnappliedSettings ? 'Changes pending' : settings.pageFormat}
-            </p>
+            <div className="flex items-center justify-center gap-1.5 truncate">
+              <p className={`text-[10px] font-medium truncate ${hasUnappliedSettings ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-zinc-500 dark:text-zinc-400'}`}>
+                {songCount} songs • {hasUnappliedSettings ? 'Changes pending' : settings.pageFormat}
+              </p>
+              <AutoSaveIndicator 
+                status={autoSaveStatus} 
+                lastSavedAt={lastSavedAt} 
+                storageBackend={storageBackend} 
+                compact={true} 
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -744,6 +912,9 @@ export default function App() {
           onPrintPreviewStateChange={setIsPrintPreviewActive}
           onDownloadStatusChange={setIsDownloadingPdf}
           isDarkMode={isDarkMode}
+          autoSaveStatus={autoSaveStatus}
+          lastSavedAt={lastSavedAt}
+          storageBackend={storageBackend}
           onOpenSettings={() => {
             setIsMobileSidebarOpen(true);
             setIsDesktopSidebarCollapsed(false);

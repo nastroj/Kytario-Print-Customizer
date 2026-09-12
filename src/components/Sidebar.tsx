@@ -26,6 +26,7 @@ import {
   Check
 } from 'lucide-react';
 import { ChangedSettingItem, getChangedSettingsList } from './UnappliedSettingsBanner';
+import { AutoSaveIndicator, AutoSaveStatus } from './AutoSaveIndicator';
 
 interface SidebarProps {
   settings: PrintSettings;
@@ -48,6 +49,9 @@ interface SidebarProps {
   onToggleCollapse?: (collapsed: boolean) => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
+  autoSaveStatus?: AutoSaveStatus;
+  lastSavedAt?: number | null;
+  storageBackend?: 'indexeddb' | 'localstorage' | 'none';
 }
 
 interface TypographyItemProps {
@@ -249,7 +253,10 @@ export function Sidebar({
   isCollapsed: controlledCollapsed,
   onToggleCollapse,
   isDarkMode = false,
-  onToggleDarkMode
+  onToggleDarkMode,
+  autoSaveStatus,
+  lastSavedAt,
+  storageBackend = 'indexeddb' as 'indexeddb' | 'localstorage' | 'none'
 }: SidebarProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
@@ -931,6 +938,17 @@ export function Sidebar({
             </button>
           </div>
 
+          {/* Auto-Save Status Indicator */}
+          {autoSaveStatus && (
+            <div className="flex items-center justify-center pt-1.5">
+              <AutoSaveIndicator 
+                status={autoSaveStatus} 
+                lastSavedAt={lastSavedAt ?? null} 
+                storageBackend={storageBackend} 
+              />
+            </div>
+          )}
+
         </div>
       </div>
     );
@@ -1071,6 +1089,15 @@ export function Sidebar({
                 <FileDown className="w-4 h-4" />
               )}
             </button>
+
+            {autoSaveStatus && (
+              <AutoSaveIndicator 
+                status={autoSaveStatus} 
+                lastSavedAt={lastSavedAt ?? null} 
+                storageBackend={storageBackend} 
+                compact={true} 
+              />
+            )}
           </div>
         </div>
 

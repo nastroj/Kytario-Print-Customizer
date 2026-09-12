@@ -23,6 +23,7 @@ import {
   Columns,
   X
 } from 'lucide-react';
+import { AutoSaveIndicator, AutoSaveStatus } from './AutoSaveIndicator';
 
 interface SongbookPreviewProps {
   data: SongbookData;
@@ -34,6 +35,9 @@ interface SongbookPreviewProps {
   onPrintPreviewStateChange?: (isActive: boolean) => void;
   onDownloadStatusChange?: (isDownloading: boolean) => void;
   isDarkMode?: boolean;
+  autoSaveStatus?: AutoSaveStatus;
+  lastSavedAt?: number | null;
+  storageBackend?: 'indexeddb' | 'localstorage' | 'none';
 }
 
 type ZoomMode = 'fit-width' | 'fit-page' | 'custom';
@@ -621,7 +625,10 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   onRegisterPrintPreviewTrigger,
   onPrintPreviewStateChange,
   onDownloadStatusChange,
-  isDarkMode = false
+  isDarkMode = false,
+  autoSaveStatus,
+  lastSavedAt,
+  storageBackend = 'indexeddb' as 'indexeddb' | 'localstorage' | 'none'
 }) => {
   const songs = useMemo(() => data.songs || data.items || data.songbookSongs?.map((i: any) => i.song) || [], [data]);
   const title = data.title || data.name || 'Untitled Songbook';
@@ -1247,6 +1254,15 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
               <span>•</span>
               <span>{marginMmX}mm margin</span>
             </div>
+            {autoSaveStatus && (
+              <div className="hidden md:flex items-center ml-2 border-l border-black/5 dark:border-zinc-800 pl-3">
+                <AutoSaveIndicator 
+                  status={autoSaveStatus} 
+                  lastSavedAt={lastSavedAt ?? null} 
+                  storageBackend={storageBackend} 
+                />
+              </div>
+            )}
           </div>
 
           {/* Right: Only Guides and Pagination Toggle */}
