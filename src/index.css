@@ -84,6 +84,26 @@
 }
 
 @media print {
+  .song-page-outer-wrapper {
+    content-visibility: visible !important;
+    contain: none !important;
+    contain-intrinsic-size: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  .song-page-outer-wrapper:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+  .print-page-container,
+  .print-index-container {
+    content-visibility: visible !important;
+    contain: none !important;
+    transform: none !important;
+    position: relative !important;
+  }
   .song-columns-container {
     column-fill: balance !important;
     -webkit-column-fill: balance !important;

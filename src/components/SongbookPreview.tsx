@@ -147,42 +147,15 @@ const VirtualPage = memo(function VirtualPage({
   defaultHeight: string,
   id?: string
 }) {
-  const [isVisible, setIsVisible] = useState(isPrinting);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isPrinting) {
-      setIsVisible(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setIsVisible(true);
-      }
-    }, {
-      rootMargin: '200% 0px'
-    });
-
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-    return () => observer.disconnect();
-  }, [isPrinting]);
-
-  // When printing, immediately render all pages on first pass without waiting for async effects
-  const shouldRender = isPrinting || isVisible;
-
   return (
     <div 
-      ref={ref}
       id={id}
       className="mx-auto mb-6 sm:mb-10 print:mb-0 print:mx-0 shrink-0 song-page-outer-wrapper"
       style={{
         width: isPrinting ? defaultWidth : (isScaled ? `${scaledWidth}px` : 'fit-content'),
         height: isPrinting 
           ? defaultHeight 
-          : (shouldRender ? (isScaled ? `${scaledHeight}px` : 'auto') : (isScaled ? `${scaledHeight}px` : defaultHeight)),
+          : (isScaled ? `${scaledHeight}px` : 'auto'),
         minHeight: isPrinting ? defaultHeight : (isScaled ? `${scaledHeight}px` : defaultHeight),
         maxHeight: isPrinting ? defaultHeight : undefined,
         minWidth: isPrinting ? defaultWidth : (isScaled ? `${scaledWidth}px` : defaultWidth),
@@ -191,7 +164,7 @@ const VirtualPage = memo(function VirtualPage({
         containIntrinsicSize: isPrinting ? undefined : (isScaled ? `${scaledWidth}px ${scaledHeight}px` : `${defaultWidth} ${defaultHeight}`),
       }}
     >
-      {shouldRender ? children : <div style={{ height: isScaled ? `${scaledHeight}px` : defaultHeight }} />}
+      {children}
     </div>
   );
 });

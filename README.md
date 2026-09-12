@@ -27,8 +27,9 @@ A powerful, customizable web application built with React and Tailwind CSS that 
   - Customizable margins (mm), line spacing, and column count (1 or 2 columns).
   - Fine-grained typography color palette: Song Title, Artist/Metadata, Lyrics, Chords, and Section Markers.
 
-- **Virtual Page Rendering (Lazy DOM):**
-  - Uses `IntersectionObserver` to mount only visible and adjacent pages, maintaining smooth 60 FPS scrolling and low memory usage even for massive songbooks.
+- **Full Songbook Print Readiness & Native CSS Virtualization:**
+  - Fully mounts and renders every songbook page into the DOM upon loading so the entire songbook is instantly ready for printing without needing to scroll first.
+  - Leverages browser-native CSS `content-visibility: auto` and intrinsic sizing for smooth, low-memory preview scrolling while guaranteeing complete, unclipped pages in print previews and physical outputs.
 
 - **Intelligent Chord & Lyric Alignment:**
   - Chords align directly over target words.
