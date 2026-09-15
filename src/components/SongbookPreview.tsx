@@ -1617,6 +1617,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         }
         .song-lyric {
           color: var(--lyrics-color);
+          min-height: calc(var(--song-scale, 1) * var(--lyrics-size));
         }
 
         /* Page container scaling performance optimization */
@@ -1779,6 +1780,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           }
           .song-lyric {
             color: var(--lyrics-color) !important;
+            min-height: calc(var(--song-scale, 1) * var(--lyrics-size)) !important;
           }
         }
       `}</style>

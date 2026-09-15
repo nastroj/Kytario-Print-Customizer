@@ -243,33 +243,58 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
         <div className={`flex flex-wrap ${isRep ? 'items-baseline gap-x-2 py-0.5' : 'items-end'}`}>
           {chunks.map((chunk, j) => {
             const isSectionRef = chunk.isSectionRef;
-            const hasChord = chunk.chord && settings.showChords;
-            const hasText = chunk.text && (isRep ? chunk.text.trim() : true);
+            const hasChord = Boolean(chunk.chord && settings.showChords);
+            const isLast = j === chunks.length - 1;
+            const hasText = Boolean(chunk.text && (isRep ? chunk.text.trim() : true));
+            // In chorded lines, if a chunk has a chord, it MUST have a lyric slot so the chord aligns on the top track
+            const shouldRenderLyric = isRep ? hasText : (hasText || hasChord || isSectionRef);
+
+            const hasActualText = Boolean(chunk.text && chunk.text.length > 0);
+            const isWhitespaceOnly = hasActualText && chunk.text.trim().length === 0;
 
             return (
-              <div key={j} className={isRep ? 'contents' : 'inline-flex flex-col'}>
+              <div key={j} className={isRep ? 'contents' : 'inline-flex flex-col shrink-0'}>
                 {hasChord && (
                   <div 
-                    className={`font-bold leading-none pr-1.5 song-chord select-text ${isRep ? '' : 'mb-0'}`}
+                    className={`font-bold leading-none song-chord select-text ${isRep ? '' : 'mb-0'} ${isLast ? 'pr-0' : 'pr-1.5'}`}
                     style={{ 
                       color: 'var(--chords-color)', 
                       fontSize: 'calc(var(--song-scale, 1) * var(--chords-size))',
                       fontStyle: 'var(--chords-font-style)',
+                      lineHeight: 1,
                       ...(isRep ? {} : { minHeight: 'calc(var(--song-scale, 1) * var(--chords-size))' })
                     }}
                   >
                     {chunk.chord}
                   </div>
                 )}
-                {hasText && (
+                {shouldRenderLyric && (
                   <div 
                     className={`select-text ${isSectionRef ? 'song-marker font-semibold' : `leading-none song-lyric ${isRep ? 'font-semibold' : ''}`}`}
                     style={{
                       color: isSectionRef ? 'var(--marker-color)' : undefined,
-                      fontStyle: !isSectionRef ? 'var(--lyrics-font-style)' : undefined
+                      fontStyle: !isSectionRef ? 'var(--lyrics-font-style)' : undefined,
+                      minHeight: isRep ? undefined : 'calc(var(--song-scale, 1) * var(--lyrics-size))',
+                      lineHeight: 1,
                     }}
                   >
-                    {chunk.text || (hasChord ? '\u00A0' : '')}
+                    {isSectionRef ? (
+                      chunk.text
+                    ) : hasActualText && !isWhitespaceOnly ? (
+                      chunk.text
+                    ) : isWhitespaceOnly ? (
+                      <>
+                        {chunk.text.replace(/ /g, '\u00A0')}
+                        <span className="invisible select-none inline-block overflow-hidden" style={{ width: 0, height: 0 }} aria-hidden="true">
+                          Ág
+                        </span>
+                      </>
+                    ) : (
+                      // Empty lyric under chord (e.g. chord at the end of a line) with strut for exact baseline/line-height in Firefox
+                      <span className="invisible select-none inline-block overflow-hidden" style={{ width: 0, height: 0 }} aria-hidden="true">
+                        Ág
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
