@@ -996,6 +996,57 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     return raw.trim().replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '_');
   }, [title]);
 
+  const syncHeadPrintPageSetup = useCallback((pageFormat: string, orientation: string, width: string, height: string) => {
+    if (typeof document === 'undefined') return;
+    let styleEl = document.getElementById('kytario-print-page-setup') as HTMLStyleElement | null;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'kytario-print-page-setup';
+      document.head.appendChild(styleEl);
+    }
+    const formatName = pageFormat === 'Letter' ? 'letter' : pageFormat;
+
+    styleEl.textContent = `
+      @page {
+        size: ${width} ${height};
+        size: ${orientation};
+        size: ${formatName} ${orientation};
+        margin: 0mm !important;
+      }
+      @page :first {
+        size: ${width} ${height};
+        size: ${orientation};
+        size: ${formatName} ${orientation};
+        margin: 0mm !important;
+      }
+      @page :left {
+        size: ${width} ${height};
+        size: ${orientation};
+        size: ${formatName} ${orientation};
+        margin: 0mm !important;
+      }
+      @page :right {
+        size: ${width} ${height};
+        size: ${orientation};
+        size: ${formatName} ${orientation};
+        margin: 0mm !important;
+      }
+      @media print {
+        @page {
+          size: ${width} ${height};
+          size: ${orientation};
+          size: ${formatName} ${orientation};
+          margin: 0mm !important;
+        }
+      }
+    `;
+  }, []);
+
+  // Keep document head @page print rules in exact sync with current format and orientation
+  useEffect(() => {
+    syncHeadPrintPageSetup(settings.pageFormat, settings.orientation, cssWidth, cssHeight);
+  }, [settings.pageFormat, settings.orientation, cssWidth, cssHeight, syncHeadPrintPageSetup]);
+
   const cleanupPrint = useCallback(() => {
     if (printTimeoutRef.current) {
       clearTimeout(printTimeoutRef.current);
@@ -1018,6 +1069,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   }, [onDownloadStatusChange]);
 
   const handleDownloadPdf = useCallback(() => {
+    // 0. Ensure document head has exact, current @page size & orientation rules before printing
+    syncHeadPrintPageSetup(settings.pageFormat, settings.orientation, cssWidth, cssHeight);
+
     // 1. Instantly trigger visual indicators (0ms delay) so user never sees a frozen app
     setIsPreparingPdf(true);
     setIsPrinting(true);
@@ -1077,11 +1131,12 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         }, waitTime);
       });
     });
-  }, [documentTitle, songs.length, onDownloadStatusChange, cleanupPrint]);
+  }, [documentTitle, songs.length, onDownloadStatusChange, cleanupPrint, settings.pageFormat, settings.orientation, cssWidth, cssHeight, syncHeadPrintPageSetup]);
 
   // Global browser print event listeners (handles Direct Print, Ctrl+P, and Download as PDF)
   useEffect(() => {
     const handleBeforePrint = () => {
+      syncHeadPrintPageSetup(settings.pageFormat, settings.orientation, cssWidth, cssHeight);
       setIsPreparingPdf(true);
       setIsPrinting(true);
       try {
@@ -1098,7 +1153,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       window.removeEventListener('beforeprint', handleBeforePrint);
       window.removeEventListener('afterprint', handleAfterPrint);
     };
-  }, [documentTitle, cleanupPrint]);
+  }, [documentTitle, cleanupPrint, settings.pageFormat, settings.orientation, cssWidth, cssHeight, syncHeadPrintPageSetup]);
 
   // Cleanup timers on component unmount
   useEffect(() => {
@@ -1272,7 +1327,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             className="fixed top-14 left-1/2 -translate-x-1/2 z-50 print:hidden flex items-center gap-2.5 bg-blue-600 text-white px-4 py-2 rounded-full shadow-xl border border-blue-500/80 backdrop-blur-md animate-in fade-in slide-in-from-top-3 text-xs font-bold select-none pointer-events-none"
           >
             <Loader2 className="w-4 h-4 animate-spin text-white" />
-            <span>Preparing PDF for download...</span>
+            <span>
+              Preparing {settings.pageFormat} {settings.orientation === 'landscape' ? 'Landscape' : 'Portrait'} PDF...
+            </span>
           </div>
         )}
 
@@ -1596,8 +1653,16 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         }
 
         @page {
+          size: ${cssWidth} ${cssHeight};
+          size: ${settings.orientation};
           size: ${settings.pageFormat === 'Letter' ? 'letter' : settings.pageFormat} ${settings.orientation};
-          margin: 0mm;
+          margin: 0mm !important;
+        }
+        @page :first {
+          size: ${cssWidth} ${cssHeight};
+          size: ${settings.orientation};
+          size: ${settings.pageFormat === 'Letter' ? 'letter' : settings.pageFormat} ${settings.orientation};
+          margin: 0mm !important;
         }
 
         @media print {

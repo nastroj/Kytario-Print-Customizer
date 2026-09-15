@@ -39,6 +39,29 @@
         } catch (e) {}
       })();
     </script>
+    <!-- Dedicated print page size & orientation style (dynamically updated by print customizer) -->
+    <style id="kytario-print-page-setup">
+      @page {
+        size: 297mm 210mm;
+        size: landscape;
+        size: A4 landscape;
+        margin: 0mm !important;
+      }
+      @page :first {
+        size: 297mm 210mm;
+        size: landscape;
+        size: A4 landscape;
+        margin: 0mm !important;
+      }
+      @media print {
+        @page {
+          size: 297mm 210mm;
+          size: landscape;
+          size: A4 landscape;
+          margin: 0mm !important;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
