@@ -82,37 +82,6 @@ export function useSmartFit({
     return computeSmartColumnBalance(sections, settings, availColH, scale);
   }, [sections, settings, availColH, scale]);
 
-  // Apply scale to DOM container, with single-pass fine adjustment strictly bound by min readability constraint
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    if (!settings.smartFit) {
-      el.style.removeProperty('--song-scale');
-      return;
-    }
-    const pageContainer = el.closest('.print-page-container') as HTMLElement;
-    if (!pageContainer) return;
-
-    // Apply the analytically computed scale first
-    el.style.setProperty('--song-scale', scale.toString());
-
-    const rafId = requestAnimationFrame(() => {
-      if (!el || !pageContainer) return;
-      const scrollH = pageContainer.scrollHeight;
-      const clientH = pageContainer.clientHeight;
-      if (scrollH > clientH + 2) {
-        const ratio = clientH / scrollH;
-        // Strictly adhere to minimum readability font size constraint (9.0px)
-        const baseLyricsSize = Number(settings.lyricsFontSize) || 12;
-        const minFineScale = Math.max(0.55, MIN_READABLE_LYRICS_FONT_SIZE / baseLyricsSize);
-        const fineScale = Math.max(minFineScale, Math.round(scale * ratio * 0.98 * 100) / 100);
-        el.style.setProperty('--song-scale', fineScale.toString());
-      }
-    });
-
-    return () => cancelAnimationFrame(rafId);
-  }, [scale, settings.smartFit, settings.lyricsFontSize, containerRef]);
-
   const baseLyricsSize = Number(settings.lyricsFontSize) || 12;
   const baseChordsSize = Number(settings.chordsFontSize) || 12;
   const chosenLyricsFontSize = Math.round(baseLyricsSize * scale * 10) / 10;

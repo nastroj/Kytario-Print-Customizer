@@ -130,7 +130,6 @@ const PageMarginGuides = memo(function PageMarginGuides({
 
 const VirtualPage = memo(function VirtualPage({ 
   children, 
-  isPrinting,
   isScaled,
   scaledWidth,
   scaledHeight,
@@ -139,7 +138,6 @@ const VirtualPage = memo(function VirtualPage({
   id
 }: { 
   children: React.ReactNode, 
-  isPrinting: boolean,
   isScaled: boolean,
   scaledWidth: number,
   scaledHeight: number,
@@ -152,16 +150,13 @@ const VirtualPage = memo(function VirtualPage({
       id={id}
       className="mx-auto mb-6 sm:mb-10 print:mb-0 print:mx-0 shrink-0 song-page-outer-wrapper"
       style={{
-        width: isPrinting ? defaultWidth : (isScaled ? `${scaledWidth}px` : 'fit-content'),
-        height: isPrinting 
-          ? defaultHeight 
-          : (isScaled ? `${scaledHeight}px` : 'auto'),
-        minHeight: isPrinting ? defaultHeight : (isScaled ? `${scaledHeight}px` : defaultHeight),
-        maxHeight: isPrinting ? defaultHeight : undefined,
-        minWidth: isPrinting ? defaultWidth : (isScaled ? `${scaledWidth}px` : defaultWidth),
+        width: isScaled ? `${scaledWidth}px` : 'fit-content',
+        height: isScaled ? `${scaledHeight}px` : 'auto',
+        minHeight: isScaled ? `${scaledHeight}px` : defaultHeight,
+        minWidth: isScaled ? `${scaledWidth}px` : defaultWidth,
         position: 'relative',
-        contentVisibility: isPrinting ? 'visible' : 'auto',
-        containIntrinsicSize: isPrinting ? undefined : (isScaled ? `${scaledWidth}px ${scaledHeight}px` : `${defaultWidth} ${defaultHeight}`),
+        contentVisibility: 'auto',
+        containIntrinsicSize: isScaled ? `${scaledWidth}px ${scaledHeight}px` : `${defaultWidth} ${defaultHeight}`,
       }}
     >
       {children}
@@ -186,7 +181,6 @@ interface SongPagesListProps {
   isDebugMode?: boolean;
   isPrintPreviewMode?: boolean;
   showMarginGuides?: boolean;
-  isPrinting?: boolean;
 }
 
 const SongPagesList = memo(function SongPagesList({
@@ -205,7 +199,6 @@ const SongPagesList = memo(function SongPagesList({
   isDebugMode = false,
   isPrintPreviewMode = false,
   showMarginGuides = true,
-  isPrinting = false,
 }: SongPagesListProps) {
   const numColWidth = useMemo(() => {
     if (songs.length >= 100) return '2.8em';
@@ -240,7 +233,6 @@ const SongPagesList = memo(function SongPagesList({
           <VirtualPage
             key={`toc-page-${tocPage.pageIndex}`}
             id={tocPage.isFirstPage ? "toc-page" : `toc-page-${tocPage.pageIndex}`}
-            isPrinting={isPrinting}
             isScaled={isScaled}
             scaledWidth={scaledWidth}
             scaledHeight={scaledHeight}
@@ -254,9 +246,9 @@ const SongPagesList = memo(function SongPagesList({
                 height: cssHeight,
                 minHeight: cssHeight,
                 padding: `${tocMarginMmYTop}mm ${tocMarginMmX}mm ${tocMarginMmYBottom}mm ${tocMarginMmX}mm`,
-                transform: isPrinting ? 'none' : (isScaled ? `scale(${effectiveScale})` : 'none'),
+                transform: isScaled ? `scale(${effectiveScale})` : 'none',
                 transformOrigin: 'top left',
-                position: isPrinting ? 'relative' : (isScaled ? 'absolute' : 'relative'),
+                position: isScaled ? 'absolute' : 'relative',
                 top: 0,
                 left: 0,
               }}
@@ -395,7 +387,6 @@ const SongPagesList = memo(function SongPagesList({
         <VirtualPage
           key={song.id || `song-${i}`}
           id={`song-${i}`}
-          isPrinting={isPrinting}
           isScaled={isScaled}
           scaledWidth={scaledWidth}
           scaledHeight={scaledHeight}
@@ -408,9 +399,9 @@ const SongPagesList = memo(function SongPagesList({
               width: cssWidth, 
               height: cssHeight,
               padding: `${marginMmY}mm ${marginMmX}mm`,
-              transform: isPrinting ? 'none' : (isScaled ? `scale(${effectiveScale})` : 'none'),
+              transform: isScaled ? `scale(${effectiveScale})` : 'none',
               transformOrigin: 'top left',
-              position: isPrinting ? 'relative' : (isScaled ? 'absolute' : 'relative'),
+              position: isScaled ? 'absolute' : 'relative',
               top: 0,
               left: 0,
             }}
@@ -705,67 +696,6 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     };
   }, []);
 
-  // Track scroll position for "Back to Top" button
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(() => {
-          if (el) {
-            setShowScrollTop(el.scrollTop > 400);
-
-            // Determine currently active song in viewport
-            if (songs.length > 0) {
-              const containerRect = el.getBoundingClientRect();
-              const triggerY = containerRect.top + Math.min(250, containerRect.height * 0.3);
-
-              let bestIndex = -1;
-              for (let i = 0; i < songs.length; i++) {
-                const pageEl = document.getElementById(`song-${i}`);
-                if (pageEl) {
-                  const rect = pageEl.getBoundingClientRect();
-                  if (rect.top <= triggerY && rect.bottom >= triggerY) {
-                    bestIndex = i;
-                    break;
-                  }
-                }
-              }
-
-              if (bestIndex === -1) {
-                let minDiff = Infinity;
-                let closest = 0;
-                for (let i = 0; i < songs.length; i++) {
-                  const pageEl = document.getElementById(`song-${i}`);
-                  if (pageEl) {
-                    const rect = pageEl.getBoundingClientRect();
-                    const diff = Math.abs(rect.top - triggerY);
-                    if (diff < minDiff) {
-                      minDiff = diff;
-                      closest = i;
-                    }
-                  }
-                }
-                bestIndex = closest;
-              }
-
-              if (bestIndex >= 0 && bestIndex < songs.length) {
-                setActiveSongIndex(prev => (prev !== bestIndex ? bestIndex : prev));
-              }
-            }
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    el.addEventListener('scroll', handleScroll, { passive: true });
-    return () => el.removeEventListener('scroll', handleScroll);
-  }, []);
-
   // Close menus when clicking outside
   useEffect(() => {
     const handleDocumentClick = (e: MouseEvent) => {
@@ -1030,6 +960,37 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   const isScaled = Math.abs(effectiveScale - 1.0) > 0.005;
 
+  // Track scroll position for "Back to Top" button and active song index with O(1) math
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          if (el) {
+            setShowScrollTop(el.scrollTop > 400);
+
+            // Determine currently active song in viewport with high-performance O(1) page step math
+            if (songs.length > 0) {
+              const pageStep = (isScaled ? scaledHeight : (parseInt(cssHeight, 10) || 1123)) + 40;
+              const tocTotalHeight = (tocPages.length || 0) * pageStep;
+              const scrollFromSongs = Math.max(0, el.scrollTop - tocTotalHeight + pageStep * 0.3);
+              const computedIndex = Math.min(songs.length - 1, Math.max(0, Math.floor(scrollFromSongs / pageStep)));
+              setActiveSongIndex(prev => (prev !== computedIndex ? computedIndex : prev));
+            }
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [songs.length, isScaled, scaledHeight, cssHeight, tocPages.length]);
+
   const documentTitle = useMemo(() => {
     const raw = title || 'Kytario_Songbook';
     return raw.trim().replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '_');
@@ -1059,6 +1020,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   const handleDownloadPdf = useCallback(() => {
     // 1. Instantly trigger visual indicators (0ms delay) so user never sees a frozen app
     setIsPreparingPdf(true);
+    setIsPrinting(true);
     if (onDownloadStatusChange) {
       onDownloadStatusChange(true);
     }
@@ -1071,16 +1033,25 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
     if (printSafetyTimerRef.current) clearTimeout(printSafetyTimerRef.current);
 
-    // 2. Yield control via double requestAnimationFrame to ensure browser paints the blue banner immediately
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        // 3. Mount full print DOM
-        setIsPrinting(true);
+    // Dynamic wait time scaled by song count to guarantee complete layout of all pages
+    // 35 songs -> ~450ms
+    // 100 songs -> ~900ms
+    // 250 songs -> ~1900ms
+    const totalCount = songs.length;
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    const baseWait = Math.min(2400, Math.max(450, Math.round(totalCount * 7.5)));
+    const waitTime = isMobile ? Math.max(baseWait, 900) : baseWait;
 
-        // 4. Mobile/Android optimization: give Chromium layout engine adequate time (~450ms)
-        // to compute column layouts, render SVG chord diagrams, and stabilize without crashing Android PrintSpooler
-        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-        const waitTime = isMobile ? 450 : 250;
+    // 2. Yield control via double requestAnimationFrame to ensure browser paints status banner
+    // and applies CSS content-visibility un-skipping across all pages
+    requestAnimationFrame(() => {
+      requestAnimationFrame(async () => {
+        // Ensure web fonts are completely resolved before snapshotting/printing
+        if (document.fonts && document.fonts.ready) {
+          try {
+            await document.fonts.ready;
+          } catch (e) {}
+        }
 
         printTimeoutRef.current = setTimeout(() => {
           let cleanedUp = false;
@@ -1088,22 +1059,14 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             if (cleanedUp) return;
             cleanedUp = true;
             window.removeEventListener('afterprint', doCleanup);
-            window.removeEventListener('focus', onFocusAfterPrint);
             cleanupPrint();
           };
 
-          const onFocusAfterPrint = () => {
-            // Slight delay after regaining window focus when print dialog closes
-            setTimeout(doCleanup, 600);
-          };
-
           window.addEventListener('afterprint', doCleanup, { once: true });
-          setTimeout(() => {
-            window.addEventListener('focus', onFocusAfterPrint, { once: true });
-          }, 800);
 
-          // Absolute fallback safety timeout (25s) so UI is never permanently blocked
-          printSafetyTimerRef.current = setTimeout(doCleanup, 25000);
+          // Fallback safety timeout: 180s (3 minutes) instead of 25s,
+          // ensuring large 250+ page print preview generation is never aborted mid-generation
+          printSafetyTimerRef.current = setTimeout(doCleanup, 180000);
 
           try {
             window.print();
@@ -1114,7 +1077,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         }, waitTime);
       });
     });
-  }, [documentTitle, onDownloadStatusChange, cleanupPrint]);
+  }, [documentTitle, songs.length, onDownloadStatusChange, cleanupPrint]);
 
   // Global browser print event listeners (handles Direct Print, Ctrl+P, and Download as PDF)
   useEffect(() => {
@@ -1317,7 +1280,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         <div 
           ref={printableRef}
           id="songbook-printable-area"
-          className={`songbook-print-root animate-in fade-in duration-200 min-w-fit flex ${
+          className={`songbook-print-root ${isPrinting ? 'is-printing-mode' : ''} animate-in fade-in duration-200 min-w-fit flex ${
             isPrintPreviewMode && previewLayout === 'spread'
               ? 'flex-row flex-wrap justify-center gap-8'
               : 'flex-col items-center'
@@ -1339,7 +1302,6 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             isDebugMode={isDebugFeatureEnabled && isDebugOpen}
             isPrintPreviewMode={isPrintPreviewMode}
             showMarginGuides={showMarginGuides}
-            isPrinting={isPrinting}
           />
         </div>
 
@@ -1623,6 +1585,10 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         /* Page container scaling performance optimization */
         .song-page-outer-wrapper {
           will-change: width, height;
+        }
+        .songbook-print-root.is-printing-mode .song-page-outer-wrapper {
+          content-visibility: visible !important;
+          contain-intrinsic-size: none !important;
         }
         .print-page-container,
         .print-index-container {

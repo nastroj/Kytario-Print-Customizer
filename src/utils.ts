@@ -1215,7 +1215,7 @@ export function parseSongContent(content: string): SongSection[] {
   const rawLines = strContent.split('\n');
 
   let currentSection: SongSection | null = null;
-  const markerRegex = /^(?:(\d+[\.\:]|\(\d+\))|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|VERSE|SLOKA|PRE-CHORUS|INTRO|OUTRO|SOLO|CODA|MEZIHRA|PŘEDEHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]|\(R\d*\))(?:\s+|(?=\[)|(?=\{)|$)/i;
+  const markerRegex = /^((?:\d+[\.\:]|\(\d+\))|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|VERSE|SLOKA|PRE-CHORUS|INTRO|OUTRO|SOLO|CODA|MEZIHRA|PŘEDEHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]|\(R\d*\))(?:\s+|(?=\[)|(?=\{)|$)/i;
 
   for (let i = 0; i < rawLines.length; i++) {
     const line = rawLines[i].trimEnd();
@@ -1260,7 +1260,7 @@ export function parseSongContent(content: string): SongSection[] {
     // 3b. Check if line starts with a marker (e.g. "1. ", "R: ", "Chorus:")
     const match = line.match(markerRegex);
     if (match && (!currentSection || currentSection.lines.some(l => l.trim() !== ''))) {
-      let marker = match[1];
+      let marker = (match[1] || match[0] || '').trim();
       if (marker.startsWith('[') && marker.endsWith(']')) {
         marker = marker.slice(1, -1).trim();
       }
