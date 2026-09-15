@@ -23,7 +23,9 @@ import {
   Moon,
   Eye,
   AlertCircle,
-  Check
+  Check,
+  ExternalLink,
+  FileCode
 } from 'lucide-react';
 import { ChangedSettingItem, getChangedSettingsList } from './UnappliedSettingsBanner';
 import { AutoSaveIndicator, AutoSaveStatus } from './AutoSaveIndicator';
@@ -40,6 +42,8 @@ interface SidebarProps {
   onFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadPdf?: () => void;
   onOpenPrintPreview?: () => void;
+  onOpenStandaloneHtml?: () => void;
+  onDownloadStandaloneHtml?: () => void;
   isDownloadingPdf?: boolean;
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
@@ -245,6 +249,8 @@ export function Sidebar({
   onFileUpload, 
   onDownloadPdf, 
   onOpenPrintPreview,
+  onOpenStandaloneHtml,
+  onDownloadStandaloneHtml,
   isDownloadingPdf = false,
   isMobileOpen = false,
   onMobileClose,
@@ -936,6 +942,43 @@ export function Sidebar({
                 <FileDown className="w-4 h-4" />
               )}
             </button>
+
+            <button
+              type="button"
+              id={isDrawer ? "open-standalone-html-btn-mobile" : "open-standalone-html-btn"}
+              onClick={() => {
+                if (isDrawer && onMobileClose) onMobileClose();
+                if (onOpenStandaloneHtml) {
+                  onOpenStandaloneHtml();
+                }
+              }}
+              className="flex-1 py-2 flex items-center justify-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 rounded-lg border border-blue-200 dark:border-blue-900/50 shadow-2xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors cursor-pointer"
+              title="Open Clean HTML Print View in New Tab (Faster & Recommended for Mobile PDF)"
+              aria-label="Open Clean HTML Print View"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              id={isDrawer ? "download-html-btn-mobile" : "download-html-btn"}
+              onClick={() => {
+                if (isDrawer && onMobileClose) onMobileClose();
+                if (onDownloadStandaloneHtml) {
+                  onDownloadStandaloneHtml();
+                }
+              }}
+              className="flex-1 py-2 flex items-center justify-center bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+              title="Save Standalone HTML File (.html)"
+              aria-label="Save Standalone HTML File"
+            >
+              <FileCode className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Quick Mobile Tip */}
+          <div className="text-[11px] text-zinc-500 dark:text-zinc-400 text-center px-1 leading-tight select-none">
+            <span className="font-medium text-blue-600 dark:text-blue-400">Tip:</span> Tap <ExternalLink className="w-3 h-3 inline-block -mt-0.5 mx-0.5" /> (New Tab) for faster printing & guaranteed A4 landscape on mobile.
           </div>
 
           {/* Auto-Save Status Indicator */}

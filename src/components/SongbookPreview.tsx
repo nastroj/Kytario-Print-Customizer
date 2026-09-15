@@ -21,6 +21,7 @@ import {
   Eye,
   Ruler,
   Columns,
+  ExternalLink,
   X
 } from 'lucide-react';
 import { AutoSaveIndicator, AutoSaveStatus } from './AutoSaveIndicator';
@@ -34,6 +35,7 @@ interface SongbookPreviewProps {
   onRegisterPrintPreviewTrigger?: (trigger: () => void) => void;
   onPrintPreviewStateChange?: (isActive: boolean) => void;
   onDownloadStatusChange?: (isDownloading: boolean) => void;
+  onOpenStandaloneHtml?: () => void;
   isDarkMode?: boolean;
   autoSaveStatus?: AutoSaveStatus;
   lastSavedAt?: number | null;
@@ -589,6 +591,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   onRegisterPrintPreviewTrigger,
   onPrintPreviewStateChange,
   onDownloadStatusChange,
+  onOpenStandaloneHtml,
   isDarkMode = false,
   autoSaveStatus,
   lastSavedAt,
@@ -1287,6 +1290,18 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
               <Columns className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{previewLayout === 'spread' ? 'Spread' : 'Vertical'}</span>
             </button>
+
+            {onOpenStandaloneHtml && (
+              <button
+                id="preview-clean-print-tab-btn"
+                onClick={onOpenStandaloneHtml}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-blue-200 dark:border-blue-900/50 shadow-2xs transition-colors cursor-pointer bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400"
+                title="Open Clean Standalone Print Page in New Tab (Faster & Recommended for Mobile PDF)"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Clean Tab</span>
+              </button>
+            )}
 
             <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
 
