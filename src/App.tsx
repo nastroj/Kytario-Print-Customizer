@@ -7,9 +7,8 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
 import { SongbookData, PrintSettings } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon, Eye, ExternalLink, FileCode } from 'lucide-react';
+import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon, Eye } from 'lucide-react';
 import { safeParseSongbookJson } from './utils';
-import { openStandaloneSongbookInNewTab, downloadStandaloneSongbookHtml } from './utils/standaloneHtmlGenerator';
 import { APP_CONFIG } from './config';
 import { 
   saveSongbookToStorage, 
@@ -275,18 +274,6 @@ export default function App() {
       window.print();
     }
   }, []);
-
-  const handleOpenStandaloneHtml = useCallback(() => {
-    if (!songbookData || !songbookData.songs?.length) return;
-    const title = songbookData.title || songbookData.name || 'Kytario_Songbook';
-    openStandaloneSongbookInNewTab(title, songbookData.songs, settings);
-  }, [songbookData, settings]);
-
-  const handleDownloadStandaloneHtml = useCallback(() => {
-    if (!songbookData || !songbookData.songs?.length) return;
-    const title = songbookData.title || songbookData.name || 'Kytario_Songbook';
-    downloadStandaloneSongbookHtml(title, songbookData.songs, settings);
-  }, [songbookData, settings]);
 
   const handleApplySettings = (newSettings: any) => {
     if (!newSettings || typeof newSettings !== 'object' || 'nativeEvent' in newSettings) {
@@ -775,8 +762,6 @@ export default function App() {
         onFileUpload={handleFileUpload}
         onDownloadPdf={handleDownloadPdf}
         onOpenPrintPreview={handleOpenPrintPreview}
-        onOpenStandaloneHtml={handleOpenStandaloneHtml}
-        onDownloadStandaloneHtml={handleDownloadStandaloneHtml}
         isDownloadingPdf={isDownloadingPdf}
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setIsMobileSidebarOpen(false)}
@@ -871,24 +856,6 @@ export default function App() {
                 <FileDown className="w-4 h-4" />
               )}
             </button>
-
-            <button
-              onClick={handleOpenStandaloneHtml}
-              className="p-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 rounded-lg border border-blue-200 dark:border-blue-900/50 shadow-2xs transition-colors cursor-pointer"
-              title="Open Clean Standalone Print Page in New Tab (Faster & Recommended for Mobile PDF)"
-              aria-label="Open Clean Print Tab"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={handleDownloadStandaloneHtml}
-              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
-              title="Save Standalone HTML File (.html)"
-              aria-label="Save Standalone HTML"
-            >
-              <FileCode className="w-4 h-4" />
-            </button>
           </div>
         </header>
 
@@ -944,7 +911,6 @@ export default function App() {
           onRegisterPrintPreviewTrigger={handleRegisterPrintPreviewTrigger}
           onPrintPreviewStateChange={setIsPrintPreviewActive}
           onDownloadStatusChange={setIsDownloadingPdf}
-          onOpenStandaloneHtml={handleOpenStandaloneHtml}
           isDarkMode={isDarkMode}
           autoSaveStatus={autoSaveStatus}
           lastSavedAt={lastSavedAt}
