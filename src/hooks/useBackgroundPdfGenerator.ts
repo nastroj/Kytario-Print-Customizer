@@ -106,12 +106,22 @@ export function useBackgroundPdfGenerator() {
 
       return new Promise<void>((resolve, reject) => {
         try {
-          // Resolve font URLs relative to base and window origin
-          const baseUrl = (import.meta as any).env?.BASE_URL || './';
-          const fontRegularUrl = new URL(`${baseUrl}fonts/Inter-Regular.ttf`, window.location.href).href;
-          const fontBoldUrl = new URL(`${baseUrl}fonts/Inter-Bold.ttf`, window.location.href).href;
-          const fontItalicUrl = new URL(`${baseUrl}fonts/Inter-Italic.ttf`, window.location.href).href;
-          const fontBoldItalicUrl = new URL(`${baseUrl}fonts/Inter-BoldItalic.ttf`, window.location.href).href;
+          // Robustly resolve font URLs relative to the current window location
+          // This avoids issues with GitHub Pages subpaths and missing trailing slashes
+          const getAbsoluteUrl = (path: string) => {
+            const loc = window.location;
+            let basePath = loc.pathname;
+            // If the path doesn't end with a slash, strip the last segment (e.g. index.html)
+            if (!basePath.endsWith('/')) {
+              basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
+            }
+            return loc.origin + basePath + path;
+          };
+
+          const fontRegularUrl = getAbsoluteUrl('fonts/Inter-Regular.ttf');
+          const fontBoldUrl = getAbsoluteUrl('fonts/Inter-Bold.ttf');
+          const fontItalicUrl = getAbsoluteUrl('fonts/Inter-Italic.ttf');
+          const fontBoldItalicUrl = getAbsoluteUrl('fonts/Inter-BoldItalic.ttf');
 
           // Instantiate Vite web worker
           const worker = new Worker(
