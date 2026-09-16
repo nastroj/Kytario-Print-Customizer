@@ -23,7 +23,11 @@ import {
   Moon,
   Eye,
   AlertCircle,
-  Check
+  Check,
+  RectangleVertical,
+  RectangleHorizontal,
+  Columns2,
+  Columns3
 } from 'lucide-react';
 import { ChangedSettingItem, getChangedSettingsList } from './UnappliedSettingsBanner';
 import { AutoSaveIndicator, AutoSaveStatus } from './AutoSaveIndicator';
@@ -39,8 +43,10 @@ interface SidebarProps {
   onResetSongbook?: () => void;
   onFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadPdf?: () => void;
+  onPrint?: () => void;
   onOpenPrintPreview?: () => void;
   isDownloadingPdf?: boolean;
+  isPdfReady?: boolean;
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
   isUpdatingLayout?: boolean;
@@ -233,7 +239,7 @@ function TypographyItemRow({
 );
 }
 
-export function Sidebar({ 
+export const Sidebar = React.memo(function Sidebar({ 
   settings, 
   draftSettings: externalDraftSettings,
   onDraftSettingsChange,
@@ -244,8 +250,10 @@ export function Sidebar({
   onResetSongbook, 
   onFileUpload, 
   onDownloadPdf, 
+  onPrint,
   onOpenPrintPreview,
   isDownloadingPdf = false,
+  isPdfReady = false,
   isMobileOpen = false,
   onMobileClose,
   isUpdatingLayout = false,
@@ -310,6 +318,22 @@ export function Sidebar({
     }));
   };
 
+  const handleOrientationToggle = (newOrientation: 'portrait' | 'landscape') => {
+    updateDraft((prev) => ({
+      ...prev,
+      orientation: newOrientation,
+      columns: 2,
+    }));
+  };
+
+  const handlePaperFormatChange = (newFormat: 'A4' | 'A5' | 'Letter') => {
+    updateDraft((prev) => ({
+      ...prev,
+      pageFormat: newFormat,
+      columns: 2,
+    }));
+  };
+
   const handleUpdateClick = (isDrawer = false) => {
     onApplySettings(draftSettings);
     if (isDrawer && onMobileClose) {
@@ -340,16 +364,15 @@ export function Sidebar({
                 <Settings2 className="w-4 h-4 text-zinc-800 dark:text-zinc-200" />
                 Settings
               </h2>
-              {hasChanges && (
-                <span 
-                  id={`unapplied-badge-${idSuffix}`}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 dark:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30"
-                  title={`${changes.length} unapplied changes`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Unapplied ({changes.length})
-                </span>
+              {autoSaveStatus && (
+                <AutoSaveIndicator 
+                  status={autoSaveStatus} 
+                  lastSavedAt={lastSavedAt ?? null} 
+                  storageBackend={storageBackend} 
+                  compact={true}
+                />
               )}
+              
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Page layout, fonts & colors</p>
           </div>
@@ -409,6 +432,7 @@ export function Sidebar({
                     ...prev,
                     pageFormat: 'A4',
                     orientation: 'landscape',
+                    columns: 3,
                     indexSortOrder: 'alphabetical',
                     showChords: true,
                     smartFit: false,
@@ -432,7 +456,7 @@ export function Sidebar({
                   id={`pageFormat-${idSuffix}`}
                   className="w-36 rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                   value={draftSettings.pageFormat}
-                  onChange={(e) => handleSettingChange('pageFormat', e.target.value)}
+                  onChange={(e) => handlePaperFormatChange(e.target.value as any)}
                 >
                   <option value="A4">A4 (210×297)</option>
                   <option value="A5">A5 (148×210)</option>
@@ -440,20 +464,51 @@ export function Sidebar({
                 </select>
               </div>
 
-              <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
-                <label htmlFor={`orientation-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 shrink-0">
-                  Orientation
-                </label>
-                <select
-                  id={`orientation-${idSuffix}`}
-                  className="w-36 rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
-                  value={draftSettings.orientation}
-                  onChange={(e) => handleSettingChange('orientation', e.target.value)}
-                >
-                  <option value="portrait">Portrait</option>
-                  <option value="landscape">Landscape</option>
-                </select>
+              {/* Orientation Toggle: Portrait vs Landscape */}
+              <div className="p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                    Orientation
+                  </span>
+                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium capitalize">
+                    {draftSettings.orientation}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-200/70 dark:bg-zinc-900/80 rounded-lg">
+                  <button
+                    type="button"
+                    id={`orientation-portrait-btn-${idSuffix}`}
+                    onClick={() => handleOrientationToggle('portrait')}
+                    className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                      draftSettings.orientation === 'portrait'
+                        ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold shadow-2xs'
+                        : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                    }`}
+                    title="Vertical Portrait layout (standard document page)"
+                    aria-pressed={draftSettings.orientation === 'portrait'}
+                  >
+                    <RectangleVertical className="w-3.5 h-3.5 shrink-0" />
+                    <span>Portrait</span>
+                  </button>
+                  <button
+                    type="button"
+                    id={`orientation-landscape-btn-${idSuffix}`}
+                    onClick={() => handleOrientationToggle('landscape')}
+                    className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                      draftSettings.orientation === 'landscape'
+                        ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold shadow-2xs'
+                        : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                    }`}
+                    title="Horizontal Landscape layout (wide spread)"
+                    aria-pressed={draftSettings.orientation === 'landscape'}
+                  >
+                    <RectangleHorizontal className="w-3.5 h-3.5 shrink-0" />
+                    <span>Landscape</span>
+                  </button>
+                </div>
               </div>
+
+
 
               <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
                 <label htmlFor={`pageMargin-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 shrink-0">
@@ -514,6 +569,19 @@ export function Sidebar({
                 />
                 <label htmlFor={`smartFit-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none" title="Auto-scales song lyrics and chords to fit comfortably on the page">
                   Smart Auto-scale
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
+                <input
+                  type="checkbox"
+                  id={`simplifyPrintUI-${idSuffix}`}
+                  checked={draftSettings.simplifyPrintUI ?? true}
+                  onChange={(e) => handleSettingChange('simplifyPrintUI', e.target.checked)}
+                  className="rounded border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-400 w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor={`simplifyPrintUI-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none" title="Removes extraneous headers, sidebars, and UI controls during browser print">
+                  Simplify UI for Printing
                 </label>
               </div>
 
@@ -622,6 +690,7 @@ export function Sidebar({
                     tocFontSize: 12,
                     lyricsItalic: false,
                     chordsItalic: true,
+                    fontFamily: 'Inter',
                   } : {
                     titleColor: '#1c1917',
                     artistColor: '#57534e',
@@ -638,6 +707,7 @@ export function Sidebar({
                     tocFontSize: 12,
                     lyricsItalic: false,
                     chordsItalic: true,
+                    fontFamily: 'Inter',
                   };
                   updateDraft(prev => ({
                     ...prev,
@@ -645,7 +715,7 @@ export function Sidebar({
                   }));
                 }}
                 className="px-2 py-0.5 text-[11px] font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
-                title="Reset colors to default"
+                title="Reset typography and colors to default"
               >
                 Defaults
               </button>
@@ -801,8 +871,8 @@ export function Sidebar({
 
         {/* Sticky Action Footer */}
         <div className="pt-3 border-t border-black/5 dark:border-zinc-800 space-y-2 shrink-0">
-          {/* Update / Discard Buttons - Fixed directly above the 4 small action buttons */}
-          {hasChanges ? (
+          {/* Update / Discard Buttons - APPEAR ONLY IF NEEDED */}
+          {hasChanges && (
             <div className="space-y-1.5 animate-in fade-in duration-200">
               <div className="flex items-center justify-between text-[11px] text-amber-700 dark:text-amber-300 font-semibold px-0.5">
                 <span className="flex items-center gap-1.5">
@@ -839,27 +909,6 @@ export function Sidebar({
                   <span>Update</span>
                 </button>
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 opacity-50">
-              <button
-                type="button"
-                disabled
-                className="flex-1 py-2 px-3 flex items-center justify-center gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/40 text-zinc-400 dark:text-zinc-600 rounded-lg text-xs font-medium cursor-not-allowed border border-black/5 dark:border-zinc-800"
-                title="No pending changes to discard"
-              >
-                <RotateCcw className="w-3.5 h-3.5 opacity-50" />
-                <span>Discard</span>
-              </button>
-              <button
-                type="button"
-                disabled
-                className="flex-1 py-2 px-3 flex items-center justify-center gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/40 text-zinc-400 dark:text-zinc-600 rounded-lg text-xs font-medium cursor-not-allowed border border-black/5 dark:border-zinc-800"
-                title="All settings are applied"
-              >
-                <Check className="w-3.5 h-3.5 opacity-60" />
-                <span>Up to date</span>
-              </button>
             </div>
           )}
 
@@ -901,7 +950,9 @@ export function Sidebar({
               id={isDrawer ? "print-songbook-btn-mobile" : "print-songbook-btn"}
               onClick={() => {
                 if (isDrawer && onMobileClose) onMobileClose();
-                if (onDownloadPdf) {
+                if (onPrint) {
+                  onPrint();
+                } else if (onDownloadPdf) {
                   onDownloadPdf();
                 } else {
                   window.print();
@@ -926,28 +977,28 @@ export function Sidebar({
                 }
               }}
               disabled={isDownloadingPdf}
-              className="flex-1 py-2 flex items-center justify-center bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 transition-colors cursor-pointer disabled:opacity-50"
-              title="Download as PDF"
-              aria-label="Download as PDF"
+              className={`flex-1 py-2 flex items-center justify-center rounded-lg border shadow-2xs transition-all cursor-pointer disabled:opacity-50 relative ${
+                isPdfReady
+                  ? 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 border-emerald-500/40 dark:border-emerald-500/40'
+                  : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 border-black/5 dark:border-zinc-700/60'
+              }`}
+              title={isPdfReady ? "PDF is ready! Click to download again instantly" : "Download as PDF"}
+              aria-label={isPdfReady ? "Download Ready PDF" : "Download as PDF"}
             >
               {isDownloadingPdf ? (
                 <Loader2 className="w-4 h-4 animate-spin text-zinc-600 dark:text-zinc-300" />
               ) : (
-                <FileDown className="w-4 h-4" />
+                <div className="relative flex items-center justify-center">
+                  <FileDown className={`w-4 h-4 ${isPdfReady ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
+                  {isPdfReady && (
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 ring-1 ring-white dark:ring-zinc-900" />
+                    </span>
+                  )}
+                </div>
               )}
             </button>
           </div>
-
-          {/* Auto-Save Status Indicator */}
-          {autoSaveStatus && (
-            <div className="flex items-center justify-center pt-1.5">
-              <AutoSaveIndicator 
-                status={autoSaveStatus} 
-                lastSavedAt={lastSavedAt ?? null} 
-                storageBackend={storageBackend} 
-              />
-            </div>
-          )}
 
         </div>
       </div>
@@ -1058,14 +1109,16 @@ export function Sidebar({
             </button>
             <button
               onClick={() => {
-                if (onDownloadPdf) {
+                if (onPrint) {
+                  onPrint();
+                } else if (onDownloadPdf) {
                   onDownloadPdf();
                 } else {
                   window.print();
                 }
               }}
               className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
-              title="Direct Print"
+              title="Direct Print (open browser print dialog)"
               aria-label="Direct Print"
             >
               <Printer className="w-4 h-4" />
@@ -1079,14 +1132,25 @@ export function Sidebar({
                 }
               }}
               disabled={isDownloadingPdf}
-              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-              title="Download as PDF"
-              aria-label="Download as PDF"
+              className={`p-2 rounded-lg border shadow-2xs transition-all cursor-pointer disabled:opacity-50 relative ${
+                isPdfReady
+                  ? 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 border-emerald-500/40 dark:border-emerald-500/40'
+                  : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 border-black/5 dark:border-zinc-700/60'
+              }`}
+              title={isPdfReady ? "PDF is ready! Click to download again instantly" : "Download as PDF"}
+              aria-label={isPdfReady ? "Download Ready PDF" : "Download as PDF"}
             >
               {isDownloadingPdf ? (
                 <Loader2 className="w-4 h-4 animate-spin text-zinc-600 dark:text-zinc-300" />
               ) : (
-                <FileDown className="w-4 h-4" />
+                <div className="relative flex items-center justify-center">
+                  <FileDown className={`w-4 h-4 ${isPdfReady ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
+                  {isPdfReady && (
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 ring-1 ring-white dark:ring-zinc-900" />
+                    </span>
+                  )}
+                </div>
               )}
             </button>
 
@@ -1112,4 +1176,4 @@ export function Sidebar({
       </aside>
     </>
   );
-}
+});

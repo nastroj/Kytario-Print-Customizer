@@ -17,6 +17,8 @@ import {
   clearSavedSongbookStorage 
 } from './utils/storage';
 import { AutoSaveIndicator, AutoSaveStatus } from './components/AutoSaveIndicator';
+import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
+import { BackgroundPdfProgressModal } from './components/BackgroundPdfProgressModal';
 
 const defaultSettings: PrintSettings = {
   pageFormat: 'A4',
@@ -43,6 +45,8 @@ const defaultSettings: PrintSettings = {
   chordsItalic: true,
   maxFontSizePx: 32,
   indexSortOrder: 'alphabetical',
+  fontFamily: 'Inter',
+  simplifyPrintUI: true,
 };
 
 const defaultDarkSettings: PrintSettings = {
@@ -70,6 +74,8 @@ const defaultDarkSettings: PrintSettings = {
   chordsItalic: true,
   maxFontSizePx: 32,
   indexSortOrder: 'alphabetical',
+  fontFamily: 'Inter',
+  simplifyPrintUI: true,
 };
 
 export default function App() {
@@ -108,7 +114,7 @@ export default function App() {
       setToast(null);
     }, 3500);
   }, []);
-  const [loadingStatus, setLoadingStatus] = useState<{ title: string; subtitle?: string }>({
+  const [loadingStatus, setLoadingStatus] = useState<{ title: string; subtitle?: string; progress?: number }>({
     title: 'Loading songbook...',
     subtitle: 'Processing songs and Table of Contents...',
   });
@@ -123,39 +129,18 @@ export default function App() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
-  const [settings, setSettings] = useState<PrintSettings>(() => {
-    const saved = localStorage.getItem('kytario-print-settings-v2');
-    const baseDefaults = isDarkMode ? defaultDarkSettings : defaultSettings;
+  
+  const getInitialSettings = (isDark: boolean) => {
+    const key = isDark ? 'kytario-print-settings-v2_dark' : 'kytario-print-settings-v2_light';
+    let saved = localStorage.getItem(key);
+    if (!saved) {
+       saved = localStorage.getItem('kytario-print-settings-v2');
+    }
+    const baseDefaults = isDark ? defaultDarkSettings : defaultSettings;
     
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        
-        // If the user hasn't explicitly customized colors, or if we want to ensure 
-        // the correct theme colors are applied when switching modes externally,
-        // we should probably just use the baseDefaults for colors if they match 
-        // the *other* theme's defaults.
-        // For simplicity, we can just spread the parsed settings over the base defaults.
-        // However, if the parsed settings contain explicit color values that were just the 
-        // light-theme defaults, they will overwrite the dark-theme defaults.
-        // Let's check if the saved titleColor matches the wrong theme's default titleColor.
-        const isWrongThemeSaved = 
-          (isDarkMode && parsed.titleColor === defaultSettings.titleColor) ||
-          (!isDarkMode && parsed.titleColor === defaultDarkSettings.titleColor);
-          
-        if (isWrongThemeSaved) {
-          // Overwrite the saved colors with the correct theme's defaults
-          parsed.titleColor = baseDefaults.titleColor;
-          parsed.artistColor = baseDefaults.artistColor;
-          parsed.lyricsColor = baseDefaults.lyricsColor;
-          parsed.chordsColor = baseDefaults.chordsColor;
-          parsed.markerColor = baseDefaults.markerColor;
-          parsed.tocColor = baseDefaults.tocColor;
-          parsed.sectionLineColor = baseDefaults.sectionLineColor;
-          parsed.refrainLineColor = baseDefaults.refrainLineColor;
-        }
-
-        // Migrate legacy defaults (14px or 11px) to 45-line 12px default
         if (
           (parsed.lyricsFontSize === 14 || parsed.lyricsFontSize === 11) &&
           (parsed.chordsFontSize === 14 || parsed.chordsFontSize === 11)
@@ -163,31 +148,45 @@ export default function App() {
           parsed.lyricsFontSize = 12;
           parsed.chordsFontSize = 12;
         }
-        
-        // Migrate maxScaleMultiplier to maxFontSizePx
         if (typeof parsed.maxFontSizePx !== 'number') {
-          if (typeof parsed.maxScaleMultiplier === 'number') {
-             const baseLyricsPt = parsed.lyricsFontSize || 12;
-             parsed.maxFontSizePx = Math.round(baseLyricsPt * parsed.maxScaleMultiplier * (96 / 72));
-          } else {
-             parsed.maxFontSizePx = 32;
-          }
+          parsed.maxFontSizePx = 32;
         }
-
-        return { ...baseDefaults, ...parsed, columns: 2 };
-      } catch (e) {
-        // ignore
-      }
+        const restoredOrientation = parsed.orientation || baseDefaults.orientation || 'landscape';
+        const restoredColumns = typeof parsed.columns === 'number' ? Math.max(1, Math.min(4, parsed.columns)) : 2;
+        return { ...baseDefaults, ...parsed, columns: restoredColumns };
+      } catch (e) {}
     }
     return baseDefaults;
+  };
+  
+  const getInitialDraftSettings = (isDark: boolean, currentSettings: PrintSettings) => {
+    const key = isDark ? 'kytario-draft-settings_dark' : 'kytario-draft-settings_light';
+    let saved = localStorage.getItem(key);
+    if (!saved) {
+       saved = localStorage.getItem('kytario-draft-settings');
+    }
+    if (saved) {
+       try {
+         return { ...currentSettings, ...JSON.parse(saved) };
+       } catch(e) {}
+    }
+    return currentSettings;
+  };
+
+  const lightSettingsRef = useRef<PrintSettings>(getInitialSettings(false));
+  const darkSettingsRef = useRef<PrintSettings>(getInitialSettings(true));
+  const lightDraftRef = useRef<PrintSettings | null>(getInitialDraftSettings(false, lightSettingsRef.current));
+  const darkDraftRef = useRef<PrintSettings | null>(getInitialDraftSettings(true, darkSettingsRef.current));
+
+  const [settings, setSettings] = useState<PrintSettings>(() => {
+    return isDarkMode ? darkSettingsRef.current : lightSettingsRef.current;
+  });
+  
+  const [draftSettings, setDraftSettings] = useState<PrintSettings>(() => {
+    return isDarkMode ? (darkDraftRef.current || darkSettingsRef.current) : (lightDraftRef.current || lightSettingsRef.current);
   });
 
-  const [draftSettings, setDraftSettings] = useState<PrintSettings>(() => settings);
-
-  // Synchronize draft settings when active settings change externally
-  useEffect(() => {
-    setDraftSettings(settings);
-  }, [settings]);
+  
 
   const unappliedChanges = useMemo(() => {
     return getChangedSettingsList(draftSettings, settings);
@@ -229,28 +228,92 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
-  const handleToggleDarkMode = () => {
+  
+  useEffect(() => {
+    if (isDarkMode) {
+      darkSettingsRef.current = settings;
+    } else {
+      lightSettingsRef.current = settings;
+    }
+  }, [settings, isDarkMode]);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      darkDraftRef.current = draftSettings;
+    } else {
+      lightDraftRef.current = draftSettings;
+    }
+  }, [draftSettings, isDarkMode]);
+
+  const handleToggleDarkMode = useCallback(() => {
+    if (isDarkMode) {
+      darkSettingsRef.current = settings;
+      darkDraftRef.current = draftSettings;
+    } else {
+      lightSettingsRef.current = settings;
+      lightDraftRef.current = draftSettings;
+    }
+
     const nextMode = !isDarkMode;
     setIsDarkMode(nextMode);
-    const defaults = nextMode ? defaultDarkSettings : defaultSettings;
-    const nextSettings: PrintSettings = {
-      ...settings,
-      titleColor: defaults.titleColor,
-      artistColor: defaults.artistColor,
-      lyricsColor: defaults.lyricsColor,
-      chordsColor: defaults.chordsColor,
-      tocColor: defaults.tocColor,
-      markerColor: defaults.markerColor,
-      sectionLineColor: defaults.sectionLineColor,
-      refrainLineColor: defaults.refrainLineColor,
-    };
+    
+    const nextSettings = nextMode ? darkSettingsRef.current : lightSettingsRef.current;
+    const nextDraft = nextMode ? (darkDraftRef.current || darkSettingsRef.current) : (lightDraftRef.current || lightSettingsRef.current);
+    
     setSettings(nextSettings);
-    setDraftSettings(nextSettings);
-  };
+    setDraftSettings(nextDraft);
+  }, [isDarkMode, settings, draftSettings]);
+
 
   const printTriggerRef = useRef<(() => void) | null>(null);
   const printPreviewTriggerRef = useRef<(() => void) | null>(null);
   const updateTimersRef = useRef<{ applyTimer?: ReturnType<typeof setTimeout>; finishTimer?: ReturnType<typeof setTimeout> }>({});
+
+  // Background Web Worker PDF Generation Engine
+  const {
+    isGenerating: isGeneratingWorkerPdf,
+    progress: workerPdfProgress,
+    error: workerPdfError,
+    lastGenerated: workerPdfLastGenerated,
+    cachedPdf: workerCachedPdf,
+    generatePdf: generateWorkerPdf,
+    downloadCachedPdf: downloadWorkerCachedPdf,
+    invalidateCachedPdf: invalidateWorkerCachedPdf,
+    cancelPdfGeneration: cancelWorkerPdf,
+    clearError: clearWorkerPdfError,
+    clearLastGenerated: clearWorkerPdfLastGenerated,
+  } = useBackgroundPdfGenerator();
+
+  // Compute a stable fingerprint of the songbook data & applied settings
+  const computeFingerprint = useCallback((data: SongbookData | null, appliedSettings: PrintSettings): string => {
+    if (!data) return '';
+    return JSON.stringify({
+      title: data.title,
+      songCount: data.songs?.length,
+      songIds: data.songs?.map((s) => s.id || s.title),
+      appliedSettings,
+    });
+  }, []);
+
+  const currentFingerprint = useMemo(() => {
+    return computeFingerprint(songbookData, settings);
+  }, [songbookData, settings, computeFingerprint]);
+
+  // Invalidate cache if songbookData changes or applied settings change
+  useEffect(() => {
+    if (workerCachedPdf && workerCachedPdf.fingerprint !== currentFingerprint) {
+      invalidateWorkerCachedPdf();
+    }
+  }, [currentFingerprint, workerCachedPdf, invalidateWorkerCachedPdf]);
+
+  // PDF is ready for instant download when we have a valid cached PDF matching the current songbook + settings,
+  // and there are no unapplied draft settings pending
+  const isPdfReady = Boolean(
+    workerCachedPdf &&
+    !isGeneratingWorkerPdf &&
+    !hasUnappliedSettings &&
+    workerCachedPdf.fingerprint === currentFingerprint
+  );
 
   const handleRegisterPrintTrigger = useCallback((trigger: () => void) => {
     printTriggerRef.current = trigger;
@@ -266,8 +329,8 @@ export default function App() {
     }
   }, []);
 
-  const handleDownloadPdf = useCallback(() => {
-    setIsDownloadingPdf(true);
+  // Direct Print dialog (browser window.print)
+  const handlePrint = useCallback(() => {
     if (printTriggerRef.current) {
       printTriggerRef.current();
     } else {
@@ -275,14 +338,46 @@ export default function App() {
     }
   }, []);
 
+  // Background Web Worker PDF Download (or instant cached re-download)
+  const handleDownloadPdf = useCallback(async (forceRegenerate: boolean = false) => {
+    if (!songbookData) return;
+
+    // If PDF is already ready and no forced regeneration requested, download cached blob instantly
+    if (!forceRegenerate && isPdfReady && downloadWorkerCachedPdf()) {
+      showToast(`Downloading ready PDF (${workerCachedPdf?.filename || 'Songbook'})`, 'success');
+      return;
+    }
+
+    // Otherwise, generate fresh PDF via Web Worker with current state fingerprint
+    try {
+      await generateWorkerPdf(songbookData, settings, currentFingerprint);
+    } catch (err: any) {
+      showToast(err?.message || 'Background PDF generation failed', 'error');
+    }
+  }, [
+    songbookData,
+    settings,
+    isPdfReady,
+    downloadWorkerCachedPdf,
+    workerCachedPdf,
+    generateWorkerPdf,
+    currentFingerprint,
+    showToast,
+  ]);
+
   const handleApplySettings = (newSettings: any) => {
     if (!newSettings || typeof newSettings !== 'object' || 'nativeEvent' in newSettings) {
       return;
     }
+    const orientation = newSettings.orientation || (isDarkMode ? defaultDarkSettings.orientation : defaultSettings.orientation);
+    const resolvedColumns = typeof newSettings.columns === 'number'
+      ? Math.max(1, Math.min(4, newSettings.columns))
+      : (orientation === 'landscape' ? 3 : 2);
+
     const safeSettings: PrintSettings = {
-      ...defaultSettings,
+      ...(isDarkMode ? defaultDarkSettings : defaultSettings),
       ...newSettings,
-      columns: 2,
+      columns: resolvedColumns,
     };
 
     // Clear any existing update timers
@@ -326,22 +421,23 @@ export default function App() {
           setSongbookData(restored.songbookData);
         }
 
-        if (restored.settings) {
-          const mergedSettings: PrintSettings = {
-            ...(isDarkMode ? defaultDarkSettings : defaultSettings),
-            ...restored.settings,
-            columns: 2,
-          };
-          setSettings(mergedSettings);
-
-          if (restored.draftSettings) {
-            const mergedDraft: PrintSettings = {
-              ...mergedSettings,
-              ...restored.draftSettings,
-              columns: 2,
-            };
-            setDraftSettings(mergedDraft);
-          }
+        
+        if (restored.lightSettings) {
+          lightSettingsRef.current = { ...defaultSettings, ...restored.lightSettings };
+        }
+        if (restored.darkSettings) {
+          darkSettingsRef.current = { ...defaultDarkSettings, ...restored.darkSettings };
+        }
+        if (restored.lightDraft) {
+          lightDraftRef.current = { ...lightSettingsRef.current, ...restored.lightDraft };
+        }
+        if (restored.darkDraft) {
+          darkDraftRef.current = { ...darkSettingsRef.current, ...restored.darkDraft };
+        }
+        
+        if (restored.lightSettings || restored.darkSettings) {
+          setSettings(isDarkMode ? darkSettingsRef.current : lightSettingsRef.current);
+          setDraftSettings(isDarkMode ? (darkDraftRef.current || darkSettingsRef.current) : (lightDraftRef.current || lightSettingsRef.current));
         }
 
         if (restored.lastSavedAt) {
@@ -373,7 +469,7 @@ export default function App() {
 
       await Promise.all([
         saveSongbookToStorage(songbookData),
-        saveSettingsToStorage(settings, hasUnappliedSettings ? draftSettings : null),
+        saveSettingsToStorage(isDarkMode, settings, hasUnappliedSettings ? draftSettings : null),
       ]);
 
       isDirtyRef.current = false;
@@ -383,7 +479,7 @@ export default function App() {
       console.error('Auto-save error:', err);
       setAutoSaveStatus('error');
     }
-  }, [songbookData, settings, draftSettings, hasUnappliedSettings]);
+  }, [songbookData, settings, draftSettings, hasUnappliedSettings, isDarkMode]);
 
   // 3. Mark dirty & debounced auto-save on any change to songbook or settings
   useEffect(() => {
@@ -426,11 +522,11 @@ export default function App() {
           if (songbookData) {
             localStorage.setItem('kytario-saved-songbook', JSON.stringify(songbookData));
           }
-          localStorage.setItem('kytario-print-settings-v2', JSON.stringify(settings));
+          localStorage.setItem(isDarkMode ? 'kytario-print-settings-v2_dark' : 'kytario-print-settings-v2_light', JSON.stringify(settings));
           if (hasUnappliedSettings) {
-            localStorage.setItem('kytario-draft-settings', JSON.stringify(draftSettings));
+            localStorage.setItem(isDarkMode ? 'kytario-draft-settings_dark' : 'kytario-draft-settings_light', JSON.stringify(draftSettings));
           } else {
-            localStorage.removeItem('kytario-draft-settings');
+            localStorage.removeItem(isDarkMode ? 'kytario-draft-settings_dark' : 'kytario-draft-settings_light');
           }
           localStorage.setItem('kytario-last-saved-time', String(Date.now()));
         } catch (e) {}
@@ -451,15 +547,17 @@ export default function App() {
       window.removeEventListener('beforeunload', handleEmergencySave);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [songbookData, settings, draftSettings, hasUnappliedSettings, autoSaveStatus, triggerAutoSave]);
+  }, [songbookData, settings, draftSettings, hasUnappliedSettings, autoSaveStatus, triggerAutoSave, isDarkMode]);
 
+  
   const processJsonString = (rawString: string, fileName?: string) => {
     setErrorMessage(null);
     setRecoveryNotice(null);
     setIsLoadingJson(true);
     setLoadingStatus({
-      title: 'Reading & parsing JSON...',
-      subtitle: fileName ? `Extracting songs from ${fileName}...` : 'Validating songbook structure and chords...',
+      title: 'Reading JSON file...',
+      subtitle: fileName ? `Extracting songs from ${fileName}...` : 'Analyzing structure...',
+      progress: 0
     });
 
     // Short timeout allows the browser to render the loading spinner before computational work
@@ -467,29 +565,57 @@ export default function App() {
       try {
         const { data, isRepaired, recoveredCount } = safeParseSongbookJson(rawString);
         const songs = data.songs || data.items || [];
+        
         if (songs.length === 0) {
           throw new Error('No songs found in the provided JSON.');
         }
 
-        setLoadingStatus({
-          title: 'Preparing songbook preview...',
-          subtitle: `Formatting ${songs.length} song${songs.length === 1 ? '' : 's'} and Table of Contents...`,
-        });
+        // Simulate progress for a more professional feel
+        let currentSong = 0;
+        const totalSongs = songs.length;
+        const steps = Math.min(10, totalSongs); // Max 10 update steps
+        const chunkSize = Math.max(1, Math.ceil(totalSongs / steps));
+        
+        const updateProgress = () => {
+          currentSong = Math.min(currentSong + chunkSize, totalSongs);
+          const percent = Math.round((currentSong / totalSongs) * 100);
+          
+          setLoadingStatus({
+            title: 'Processing songs...',
+            subtitle: `Formatting song ${currentSong} of ${totalSongs}...`,
+            progress: percent
+          });
+          
+          if (currentSong < totalSongs) {
+            requestAnimationFrame(() => setTimeout(updateProgress, 30));
+          } else {
+            // Done simulating, set data and render
+            setLoadingStatus({
+              title: 'Preparing preview...',
+              subtitle: 'Rendering layouts...',
+              progress: 100
+            });
+            
+            setTimeout(() => {
+              setSongbookData(data);
+              if (isRepaired) {
+                setRecoveryNotice(`Successfully parsed and recovered ${recoveredCount} songs from formatted/truncated JSON data.`);
+              }
+              
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  setIsLoadingJson(false);
+                  const songCount = songs.length;
+                  const bookTitle = data.title || fileName || 'Songbook';
+                  showToast(`Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`);
+                }, 400);
+              });
+            }, 50);
+          }
+        };
+        
+        updateProgress();
 
-        setSongbookData(data);
-        if (isRepaired) {
-          setRecoveryNotice(`Successfully parsed and recovered ${recoveredCount} songs from formatted/truncated JSON data.`);
-        }
-
-        // Keep spinner visible smoothly while the preview and song pages render
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            setIsLoadingJson(false);
-            const songCount = songs.length;
-            const bookTitle = data.title || fileName || 'Songbook';
-            showToast(`Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`);
-          }, 350);
-        });
       } catch (err: any) {
         console.error('JSON parse error:', err);
         setIsLoadingJson(false);
@@ -497,8 +623,9 @@ export default function App() {
           err.message || 'Could not parse JSON. Please check that it is valid Kytario songbook data.'
         );
       }
-    }, 40);
+    }, 100);
   };
+
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -579,11 +706,12 @@ export default function App() {
       <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-3 sm:p-6 relative">
         {/* Full-screen Loading Spinner Overlay while parsing and preparing songbook */}
         <ProgressBar
-          active={isLoadingJson}
-          statusText={loadingStatus.title}
-          subText={loadingStatus.subtitle}
-          variant="overlay"
-        />
+        active={isLoadingJson}
+        statusText={loadingStatus.title}
+        subText={loadingStatus.subtitle}
+        progress={loadingStatus.progress}
+        variant="overlay"
+      />
 
         <div className="max-w-xl w-full bg-white rounded-2xl shadow-lg border border-black/5 p-5 sm:p-8 space-y-5 sm:space-y-6">
           <div className="text-center space-y-2">
@@ -746,6 +874,7 @@ export default function App() {
         active={isLoadingJson}
         statusText={loadingStatus.title}
         subText={loadingStatus.subtitle}
+        progress={loadingStatus.progress}
         variant="overlay"
       />
 
@@ -760,9 +889,11 @@ export default function App() {
         onApplySettings={handleApplySettings}
         onResetSongbook={() => setIsConfirmResetOpen(true)}
         onFileUpload={handleFileUpload}
-        onDownloadPdf={handleDownloadPdf}
+        onDownloadPdf={() => handleDownloadPdf()}
+        onPrint={handlePrint}
         onOpenPrintPreview={handleOpenPrintPreview}
-        isDownloadingPdf={isDownloadingPdf}
+        isDownloadingPdf={isDownloadingPdf || isGeneratingWorkerPdf}
+        isPdfReady={isPdfReady}
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setIsMobileSidebarOpen(false)}
         isCollapsed={isDesktopSidebarCollapsed}
@@ -835,7 +966,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={handleDownloadPdf}
+              onClick={handlePrint}
               className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
               title="Direct Print (open browser print dialog)"
               aria-label="Direct Print"
@@ -844,16 +975,28 @@ export default function App() {
             </button>
 
             <button
-              onClick={handleDownloadPdf}
-              disabled={isDownloadingPdf}
-              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-              title="Download as PDF"
-              aria-label="Download as PDF"
+              id="mobile-header-download-pdf-btn"
+              onClick={() => handleDownloadPdf()}
+              disabled={isDownloadingPdf || isGeneratingWorkerPdf}
+              className={`p-2 rounded-lg border shadow-2xs transition-all cursor-pointer disabled:opacity-50 relative ${
+                isPdfReady
+                  ? 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 border-emerald-500/40 dark:border-emerald-500/40'
+                  : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 border-black/5 dark:border-zinc-700/60'
+              }`}
+              title={isPdfReady ? "PDF is ready! Click to download again instantly" : "Download as PDF (Client-Side Web Worker)"}
+              aria-label={isPdfReady ? "Download Ready PDF" : "Download as PDF"}
             >
-              {isDownloadingPdf ? (
+              {isDownloadingPdf || isGeneratingWorkerPdf ? (
                 <Loader2 className="w-4 h-4 animate-spin text-zinc-600 dark:text-zinc-300" />
               ) : (
-                <FileDown className="w-4 h-4" />
+                <div className="relative flex items-center justify-center">
+                  <FileDown className={`w-4 h-4 ${isPdfReady ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
+                  {isPdfReady && (
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 ring-1 ring-white dark:ring-zinc-900" />
+                    </span>
+                  )}
+                </div>
               )}
             </button>
           </div>
@@ -919,6 +1062,20 @@ export default function App() {
             setIsMobileSidebarOpen(true);
             setIsDesktopSidebarCollapsed(false);
           }}
+        />
+
+        {/* Background Web Worker PDF Generation Status Modal */}
+        <BackgroundPdfProgressModal
+          isGenerating={isGeneratingWorkerPdf}
+          progress={workerPdfProgress}
+          error={workerPdfError}
+          lastGenerated={workerPdfLastGenerated}
+          isPdfReady={isPdfReady}
+          onDownloadAgain={() => handleDownloadPdf(false)}
+          onRegenerate={() => handleDownloadPdf(true)}
+          onCancel={cancelWorkerPdf}
+          onClearError={clearWorkerPdfError}
+          onClearLastGenerated={clearWorkerPdfLastGenerated}
         />
 
         {/* Offline Indicator */}

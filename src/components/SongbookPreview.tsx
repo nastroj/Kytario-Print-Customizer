@@ -310,7 +310,7 @@ const SongPagesList = memo(function SongPagesList({
               <div 
                 className="flex-1 min-h-0 flex toc-columns-body overflow-hidden"
                 style={{ 
-                  gap: tocPage.columns === 3 ? '1.75rem' : '2.5rem',
+                  gap: tocPage.columns === 1 ? '0rem' : tocPage.columns >= 3 ? '1.75rem' : '2.5rem',
                   color: getDisplayColor(settings.tocColor || settings.lyricsColor, effectiveDarkMode),
                   fontSize: `${safeTocSize}px`,
                 }}
@@ -881,7 +881,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
     const mmToPx = 3.779528;
     const isLandscape = settings.orientation === 'landscape';
-    const tocColumns = isLandscape ? 3 : 2;
+    const tocColumns = isLandscape 
+      ? Math.max(2, Math.min(4, settings.columns || 3)) 
+      : Math.min(2, Math.max(1, settings.columns || 2));
     const tocMarginMmX = settings.pageMargin ?? 5;
     const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.1);
     const tocMarginMmYBottom = Math.max(3, Math.round((settings.pageMargin ?? 5) * 0.75));
@@ -1008,34 +1010,29 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
     styleEl.textContent = `
       @page {
-        size: ${width} ${height};
-        size: ${orientation};
         size: ${formatName} ${orientation};
+        size: ${width} ${height};
         margin: 0mm !important;
       }
       @page :first {
-        size: ${width} ${height};
-        size: ${orientation};
         size: ${formatName} ${orientation};
+        size: ${width} ${height};
         margin: 0mm !important;
       }
       @page :left {
-        size: ${width} ${height};
-        size: ${orientation};
         size: ${formatName} ${orientation};
+        size: ${width} ${height};
         margin: 0mm !important;
       }
       @page :right {
-        size: ${width} ${height};
-        size: ${orientation};
         size: ${formatName} ${orientation};
+        size: ${width} ${height};
         margin: 0mm !important;
       }
       @media print {
         @page {
-          size: ${width} ${height};
-          size: ${orientation};
           size: ${formatName} ${orientation};
+          size: ${width} ${height};
           margin: 0mm !important;
         }
       }
@@ -1242,6 +1239,8 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
               <span className="font-medium text-zinc-700 dark:text-zinc-300">{settings.pageFormat}</span>
               <span>•</span>
               <span className="capitalize">{settings.orientation}</span>
+              <span>•</span>
+              <span>{settings.columns || (settings.orientation === 'landscape' ? 3 : 2)} col(s)</span>
               <span>•</span>
               <span>{marginMmX}mm margin</span>
             </div>
@@ -1653,15 +1652,13 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         }
 
         @page {
-          size: ${cssWidth} ${cssHeight};
-          size: ${settings.orientation};
           size: ${settings.pageFormat === 'Letter' ? 'letter' : settings.pageFormat} ${settings.orientation};
+          size: ${cssWidth} ${cssHeight};
           margin: 0mm !important;
         }
         @page :first {
-          size: ${cssWidth} ${cssHeight};
-          size: ${settings.orientation};
           size: ${settings.pageFormat === 'Letter' ? 'letter' : settings.pageFormat} ${settings.orientation};
+          size: ${cssWidth} ${cssHeight};
           margin: 0mm !important;
         }
 

@@ -47,6 +47,8 @@ export interface PrintSettings {
   showSectionLines?: boolean;
   sectionLineColor?: string;
   refrainLineColor?: string;
+  fontFamily?: string;
+  simplifyPrintUI?: boolean;
 }
 
 export interface SectionDebugDetail {

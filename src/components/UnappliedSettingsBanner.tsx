@@ -25,6 +25,7 @@ export function getChangedSettingsList(
   if (draft.maxFontSizePx !== applied.maxFontSizePx) changes.push({ key: 'maxFontSizePx', label: 'Max Font Cap', section: 'layout' });
   if (draft.indexSortOrder !== applied.indexSortOrder) changes.push({ key: 'indexSortOrder', label: 'Index Sorting', section: 'layout' });
   if (draft.showSectionLines !== applied.showSectionLines) changes.push({ key: 'showSectionLines', label: 'Section Lines', section: 'layout' });
+  if (draft.simplifyPrintUI !== applied.simplifyPrintUI) changes.push({ key: 'simplifyPrintUI', label: 'Simplified Print UI', section: 'layout' });
 
   // Typography & Colors section
   if (draft.titleFontSize !== applied.titleFontSize) changes.push({ key: 'titleFontSize', label: 'Title Size', section: 'typography' });

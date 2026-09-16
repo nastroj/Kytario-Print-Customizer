@@ -197,27 +197,28 @@ export async function saveSongbookToStorage(data: SongbookData | null): Promise<
  * Auto-Save: Persist print settings and in-progress draft settings
  */
 export async function saveSettingsToStorage(
+  isDarkMode: boolean,
   settings: PrintSettings,
   draftSettings?: PrintSettings | null
 ): Promise<boolean> {
   const timestamp = Date.now();
 
   // 1. Save settings to IndexedDB
-  await idbSet('settings', settings);
+  await idbSet(isDarkMode ? 'settings_dark' : 'settings_light', settings);
   if (draftSettings) {
-    await idbSet('draftSettings', draftSettings);
+    await idbSet(isDarkMode ? 'draftSettings_dark' : 'draftSettings_light', draftSettings);
   } else {
-    await idbDelete('draftSettings');
+    await idbDelete(isDarkMode ? 'draftSettings_dark' : 'draftSettings_light');
   }
   await idbSet('lastSavedAt', timestamp);
 
   // 2. Save settings to localStorage
   try {
-    safeLocalStorageSet(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    safeLocalStorageSet(isDarkMode ? STORAGE_KEYS.SETTINGS + '_dark' : STORAGE_KEYS.SETTINGS + '_light', JSON.stringify(settings));
     if (draftSettings) {
-      safeLocalStorageSet(STORAGE_KEYS.DRAFT_SETTINGS, JSON.stringify(draftSettings));
+      safeLocalStorageSet(isDarkMode ? STORAGE_KEYS.DRAFT_SETTINGS + '_dark' : STORAGE_KEYS.DRAFT_SETTINGS + '_light', JSON.stringify(draftSettings));
     } else {
-      localStorage.removeItem(STORAGE_KEYS.DRAFT_SETTINGS);
+      localStorage.removeItem(isDarkMode ? STORAGE_KEYS.DRAFT_SETTINGS + '_dark' : STORAGE_KEYS.DRAFT_SETTINGS + '_light');
     }
     safeLocalStorageSet(STORAGE_KEYS.LAST_SAVED, String(timestamp));
   } catch (e) {}
@@ -227,8 +228,10 @@ export async function saveSettingsToStorage(
 
 export interface RestoredAppState {
   songbookData: SongbookData | null;
-  settings: PrintSettings | null;
-  draftSettings: PrintSettings | null;
+  lightSettings: PrintSettings | null;
+  darkSettings: PrintSettings | null;
+  lightDraft: PrintSettings | null;
+  darkDraft: PrintSettings | null;
   lastSavedAt: number | null;
   backend: 'indexeddb' | 'localstorage' | 'none';
 }
@@ -236,36 +239,52 @@ export interface RestoredAppState {
 /**
  * Restore complete application state from IndexedDB or legacy localStorage
  */
+
 export async function loadAppStateFromStorage(): Promise<RestoredAppState> {
   let restoredSongbook: SongbookData | null = null;
-  let restoredSettings: PrintSettings | null = null;
-  let restoredDraftSettings: PrintSettings | null = null;
+  let restoredLightSettings: PrintSettings | null = null;
+  let restoredDarkSettings: PrintSettings | null = null;
+  let restoredLightDraft: PrintSettings | null = null;
+  let restoredDarkDraft: PrintSettings | null = null;
   let restoredTimestamp: number | null = null;
   let backend: 'indexeddb' | 'localstorage' | 'none' = 'none';
 
   // 1. Try IndexedDB first
   try {
-    const [idbSongbook, idbSettings, idbDraft, idbTime] = await Promise.all([
+    const [idbSongbook, idbLight, idbDark, idbLightDraft, idbDarkDraft, idbTime, idbLegacySettings, idbLegacyDraft] = await Promise.all([
       idbGet<SongbookData>('songbook'),
-      idbGet<PrintSettings>('settings'),
-      idbGet<PrintSettings>('draftSettings'),
+      idbGet<PrintSettings>('settings_light'),
+      idbGet<PrintSettings>('settings_dark'),
+      idbGet<PrintSettings>('draftSettings_light'),
+      idbGet<PrintSettings>('draftSettings_dark'),
       idbGet<number>('lastSavedAt'),
+      idbGet<PrintSettings>('settings'), // Fallbacks
+      idbGet<PrintSettings>('draftSettings')
     ]);
 
     if (idbSongbook && typeof idbSongbook === 'object') {
       restoredSongbook = idbSongbook;
       backend = 'indexeddb';
     }
-    if (idbSettings && typeof idbSettings === 'object') {
-      restoredSettings = idbSettings;
-      backend = 'indexeddb';
+    
+    // settings
+    if (idbLight && typeof idbLight === 'object') { restoredLightSettings = idbLight; backend = 'indexeddb'; }
+    if (idbDark && typeof idbDark === 'object') { restoredDarkSettings = idbDark; backend = 'indexeddb'; }
+    if (!idbLight && !idbDark && idbLegacySettings && typeof idbLegacySettings === 'object') {
+       restoredLightSettings = idbLegacySettings;
+       restoredDarkSettings = idbLegacySettings;
+       backend = 'indexeddb';
     }
-    if (idbDraft && typeof idbDraft === 'object') {
-      restoredDraftSettings = idbDraft;
+    
+    // draft
+    if (idbLightDraft && typeof idbLightDraft === 'object') restoredLightDraft = idbLightDraft;
+    if (idbDarkDraft && typeof idbDarkDraft === 'object') restoredDarkDraft = idbDarkDraft;
+    if (!idbLightDraft && !idbDarkDraft && idbLegacyDraft && typeof idbLegacyDraft === 'object') {
+       restoredLightDraft = idbLegacyDraft;
+       restoredDarkDraft = idbLegacyDraft;
     }
-    if (typeof idbTime === 'number') {
-      restoredTimestamp = idbTime;
-    }
+
+    if (typeof idbTime === 'number') restoredTimestamp = idbTime;
   } catch (e) {
     console.warn('Error reading from IndexedDB:', e);
   }
@@ -279,40 +298,50 @@ export async function loadAppStateFromStorage(): Promise<RestoredAppState> {
         if (parsed && typeof parsed === 'object' && (Array.isArray(parsed.songs) || Array.isArray(parsed.items))) {
           restoredSongbook = parsed;
           backend = 'localstorage';
-          // Migrate to IndexedDB in background
           idbSet('songbook', parsed);
-        }
-      }
-    } catch (e) {
-      console.warn('Failed parsing songbook from localStorage:', e);
-    }
-  }
-
-  if (!restoredSettings) {
-    try {
-      const savedLsSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-      if (savedLsSettings) {
-        const parsed = JSON.parse(savedLsSettings);
-        if (parsed && typeof parsed === 'object') {
-          restoredSettings = parsed;
-          if (backend === 'none') backend = 'localstorage';
-          // Migrate to IndexedDB in background
-          idbSet('settings', parsed);
         }
       }
     } catch (e) {}
   }
 
-  if (!restoredDraftSettings) {
+  if (!restoredLightSettings && !restoredDarkSettings) {
     try {
-      const savedLsDraft = localStorage.getItem(STORAGE_KEYS.DRAFT_SETTINGS);
-      if (savedLsDraft) {
-        const parsed = JSON.parse(savedLsDraft);
-        if (parsed && typeof parsed === 'object') {
-          restoredDraftSettings = parsed;
-          idbSet('draftSettings', parsed);
-        }
+      const savedLight = localStorage.getItem(STORAGE_KEYS.SETTINGS + '_light');
+      const savedDark = localStorage.getItem(STORAGE_KEYS.SETTINGS + '_dark');
+      const savedLegacy = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+      
+      if (savedLight) { restoredLightSettings = JSON.parse(savedLight); backend = 'localstorage'; }
+      if (savedDark) { restoredDarkSettings = JSON.parse(savedDark); backend = 'localstorage'; }
+      
+      if (!savedLight && !savedDark && savedLegacy) {
+         const parsed = JSON.parse(savedLegacy);
+         restoredLightSettings = parsed;
+         restoredDarkSettings = parsed;
+         backend = 'localstorage';
       }
+      
+      if (restoredLightSettings) idbSet('settings_light', restoredLightSettings);
+      if (restoredDarkSettings) idbSet('settings_dark', restoredDarkSettings);
+    } catch (e) {}
+  }
+
+  if (!restoredLightDraft && !restoredDarkDraft) {
+    try {
+      const savedLight = localStorage.getItem(STORAGE_KEYS.DRAFT_SETTINGS + '_light');
+      const savedDark = localStorage.getItem(STORAGE_KEYS.DRAFT_SETTINGS + '_dark');
+      const savedLegacy = localStorage.getItem(STORAGE_KEYS.DRAFT_SETTINGS);
+      
+      if (savedLight) restoredLightDraft = JSON.parse(savedLight);
+      if (savedDark) restoredDarkDraft = JSON.parse(savedDark);
+      
+      if (!savedLight && !savedDark && savedLegacy) {
+         const parsed = JSON.parse(savedLegacy);
+         restoredLightDraft = parsed;
+         restoredDarkDraft = parsed;
+      }
+      
+      if (restoredLightDraft) idbSet('draftSettings_light', restoredLightDraft);
+      if (restoredDarkDraft) idbSet('draftSettings_dark', restoredDarkDraft);
     } catch (e) {}
   }
 
@@ -327,21 +356,21 @@ export async function loadAppStateFromStorage(): Promise<RestoredAppState> {
 
   return {
     songbookData: restoredSongbook,
-    settings: restoredSettings,
-    draftSettings: restoredDraftSettings,
+    lightSettings: restoredLightSettings,
+    darkSettings: restoredDarkSettings,
+    lightDraft: restoredLightDraft,
+    darkDraft: restoredDarkDraft,
     lastSavedAt: restoredTimestamp,
-    backend,
+    backend
   };
 }
 
-/**
- * Completely clear saved state from both IndexedDB and localStorage (for user Reset / Change Songbook)
- */
 export async function clearSavedSongbookStorage(): Promise<void> {
   await Promise.all([
     idbDelete('songbook'),
     idbDelete('draftSettings'),
     idbDelete('lastSavedAt'),
+    idbDelete('cachedPdf'),
   ]);
 
   try {
@@ -350,3 +379,50 @@ export async function clearSavedSongbookStorage(): Promise<void> {
     localStorage.removeItem(STORAGE_KEYS.LAST_SAVED);
   } catch (e) {}
 }
+
+/**
+ * Persist generated PDF state to IndexedDB
+ */
+export async function saveGeneratedPdfToStorage(pdfInfo: {
+  blob: Blob;
+  filename: string;
+  pageCount: number;
+  sizeFormatted: string;
+  generatedAt: number;
+  fingerprint: string;
+} | null): Promise<boolean> {
+  if (!pdfInfo) {
+    return await idbDelete('cachedPdf');
+  }
+  return await idbSet('cachedPdf', pdfInfo);
+}
+
+/**
+ * Load persisted generated PDF state from IndexedDB
+ */
+export async function loadGeneratedPdfFromStorage(): Promise<{
+  blob: Blob;
+  filename: string;
+  pageCount: number;
+  sizeFormatted: string;
+  generatedAt: number;
+  fingerprint: string;
+} | null> {
+  try {
+    const data = await idbGet<{
+      blob: Blob;
+      filename: string;
+      pageCount: number;
+      sizeFormatted: string;
+      generatedAt: number;
+      fingerprint: string;
+    }>('cachedPdf');
+    if (data && data.blob instanceof Blob) {
+      return data;
+    }
+  } catch (e) {
+    console.warn('Failed to load cached PDF from IndexedDB:', e);
+  }
+  return null;
+}
+

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useMemo, memo } from 'react';
 import { Song, PrintSettings, ColumnBalancePlan } from '../types';
 import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, MIN_READABLE_LYRICS_FONT_SIZE, SongSection, ParsedLine } from '../utils';
+import { getFontFamilyStack } from '../fonts';
 
 interface UseSmartFitParams {
   sections: SongSection[];
@@ -166,6 +167,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
     '--marker-color': settings.markerColor,
     '--section-line-color': settings.sectionLineColor || defaultLineCol,
     '--refrain-line-color': settings.refrainLineColor || settings.chordsColor || defaultRefrainLineCol,
+    '--songbook-font-family': getFontFamilyStack(settings.fontFamily),
     '--title-size': `${settings.titleFontSize}px`,
     '--artist-size': `${settings.artistFontSize}px`,
     '--lyrics-size': `${settings.lyricsFontSize}px`,
@@ -176,6 +178,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
     '--marker-width': markerColWidth,
     '--line-margin': '5px',
     '--section-padding-left': '0.20rem',
+    fontFamily: 'var(--songbook-font-family)',
   } as React.CSSProperties;
 
   const renderSongLine = (lineData: ParsedLine, i: number, firstNonEmptyIndex: number, secMarker: string) => {
@@ -242,7 +245,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
                     className={`select-text ${isSectionRef ? 'song-marker font-semibold' : `leading-none song-lyric ${isRep ? 'font-semibold' : ''}`}`}
                     style={{
                       color: isSectionRef ? 'var(--marker-color)' : undefined,
-                      fontStyle: !isSectionRef ? 'var(--lyrics-font-style)' : undefined,
+                      fontStyle: !isSectionRef && !isRep ? 'var(--lyrics-font-style)' : 'normal',
                       minHeight: isRep ? undefined : 'calc(var(--song-scale, 1) * var(--lyrics-size))',
                       lineHeight: 1,
                     }}
@@ -308,8 +311,9 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
       </div>
 
       <div 
-        className="font-sans whitespace-pre-wrap flex-1 min-h-0 song-columns-container"
+        className="whitespace-pre-wrap flex-1 min-h-0 song-columns-container"
         style={{
+          fontFamily: 'var(--songbook-font-family)',
           columnCount: colCount,
           columnGap: colCount > 1 ? '1.5rem' : '0',
           columnFill: 'balance',

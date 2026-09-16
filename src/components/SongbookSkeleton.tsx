@@ -23,7 +23,10 @@ export const SongbookSkeleton: React.FC<SongbookSkeletonProps> = ({
   pageCount = 2,
 }) => {
   const isLandscape = settings.orientation === 'landscape';
-  const tocColumns = isLandscape ? 3 : 2;
+  const tocColumns = isLandscape 
+    ? Math.max(2, Math.min(4, settings.columns || 3)) 
+    : Math.min(2, Math.max(1, settings.columns || 2));
+  const songCols = Math.max(1, settings.columns || (isLandscape ? 3 : 2));
 
   return (
     <div 
@@ -125,9 +128,10 @@ export const SongbookSkeleton: React.FC<SongbookSkeletonProps> = ({
               </div>
             </div>
 
-            {/* 2-Column Song Verses & Chords Skeleton */}
+            {/* Multi-Column Song Verses & Chords Skeleton */}
             <div 
-              className="flex-1 grid grid-cols-2 gap-x-6 gap-y-4 animate-pulse"
+              className="flex-1 grid gap-x-6 gap-y-4 animate-pulse"
+              style={{ gridTemplateColumns: `repeat(${songCols}, minmax(0, 1fr))` }}
             >
               {/* Column 1 */}
               <div className="space-y-3.5">
