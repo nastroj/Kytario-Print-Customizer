@@ -748,8 +748,9 @@ export function computeSmartFitScale(
     showChords?: boolean;
     smartFit?: boolean;
     pageMargin?: number;
-    maxFontSizePx?: number;
+maxFontSizePx?: number;
     showSectionLines?: boolean;
+    showSectionSeparators?: boolean;
   },
   hasTitle: boolean = true,
   hasArtist: boolean = false
@@ -810,8 +811,13 @@ export function computeSmartFitScale(
     const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * 0.54)));
 
     let maxWrapLines = 1;
-    const sectionHeights = sections.map(sec => {
+const sectionHeights = sections.map((sec, idx) => {
       let secH = 0;
+      
+      if (settings.showSectionSeparators && idx > 0) {
+        secH += 12 * Math.min(1.2, s);
+      }
+
       if (sec.marker && (!sec.parsedLines?.length || sec.parsedLines.every(l => l.isEmpty))) {
         secH += Math.round(lSize + 6);
       }
@@ -902,6 +908,7 @@ export function computeSmartColumnBalance(
     chordsFontSize?: number;
     showChords?: boolean;
     pageMargin?: number;
+    showSectionSeparators?: boolean;
   },
   availColH: number,
   scale: number

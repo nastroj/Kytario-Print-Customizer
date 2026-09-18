@@ -546,6 +546,38 @@ export const Sidebar = React.memo(function Sidebar({
                 </select>
               </div>
 
+              {draftSettings.indexSortOrder === 'alphabetical' && (
+                <>
+                  <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
+                    <input
+                      type="checkbox"
+                      id={`tocAlphabeticalGrouping-${idSuffix}`}
+                      checked={draftSettings.tocAlphabeticalGrouping || false}
+                      onChange={(e) => handleSettingChange('tocAlphabeticalGrouping', e.target.checked)}
+                      className="rounded border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-400 w-4 h-4 cursor-pointer"
+                    />
+                    <label htmlFor={`tocAlphabeticalGrouping-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none" title="Group songs by starting letter in the Table of Contents">
+                      Group by First Letter
+                    </label>
+                  </div>
+
+                  {draftSettings.tocAlphabeticalGrouping && (
+                    <div className="flex items-center gap-2 p-2 pl-4 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
+                      <input
+                        type="checkbox"
+                        id={`tocGroupDividers-${idSuffix}`}
+                        checked={draftSettings.tocGroupDividers ?? true}
+                        onChange={(e) => handleSettingChange('tocGroupDividers', e.target.checked)}
+                        className="rounded border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-400 w-4 h-4 cursor-pointer"
+                      />
+                      <label htmlFor={`tocGroupDividers-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none" title="Show horizontal dividers between alphabetical groups in the Table of Contents">
+                        Letter Group Dividers
+                      </label>
+                    </div>
+                  )}
+                </>
+              )}
+
               <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
                 <input
                   type="checkbox"
@@ -653,6 +685,19 @@ export const Sidebar = React.memo(function Sidebar({
                 />
                 <label htmlFor={`showSectionLines-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none" title="Displays vertical guide lines next to each song section (like on Kytario.com)">
                   Section Lines
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
+                <input
+                  type="checkbox"
+                  id={`showSectionSeparators-${idSuffix}`}
+                  checked={draftSettings.showSectionSeparators ?? false}
+                  onChange={(e) => handleSettingChange('showSectionSeparators', e.target.checked)}
+                  className="rounded border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-400 w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor={`showSectionSeparators-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none" title="Displays thin horizontal lines between song sections">
+                  Section Separators
                 </label>
               </div>
             </div>

@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, RGB } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
+import QRCode from 'qrcode';
 import { SongbookData, PrintSettings, Song } from '../types';
 import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, SongSection } from '../utils';
 
@@ -93,6 +94,61 @@ function getPageDimensions(format = 'A4', orientation = 'portrait'): { width: nu
   }
 
   return isLandscape ? { width: h, height: w } : { width: w, height: h };
+}
+
+function balanceColumns<T extends { groupLetter?: string }>(items: T[], numCols: number): T[][] {
+  if (numCols <= 1 || items.length <= 1) {
+    return [items];
+  }
+
+  const total = items.length;
+  const base = Math.floor(total / numCols);
+  const remainder = total % numCols;
+
+  const counts = Array.from({ length: numCols }, (_, c) => base + (c < remainder ? 1 : 0));
+
+  for (let c = 0; c < numCols - 1; c++) {
+    if (counts[c] > 1) {
+      let colStartIndex = 0;
+      for (let i = 0; i < c; i++) {
+        colStartIndex += counts[i];
+      }
+      const lastItemIndex = colStartIndex + counts[c] - 1;
+      const lastItem = items[lastItemIndex];
+      
+      if (lastItem && lastItem.groupLetter && lastItemIndex + 1 < items.length) {
+        counts[c]--;
+        counts[c + 1]++;
+      }
+    }
+  }
+
+  const columns: T[][] = [];
+  let offset = 0;
+  for (let c = 0; c < numCols; c++) {
+    const colCount = counts[c];
+    columns.push(items.slice(offset, offset + colCount));
+    offset += colCount;
+  }
+
+  return columns;
+}
+
+function getColumnHeight<T extends { groupLetter?: string }>(
+  colItems: T[],
+  showDividers: boolean,
+  singleItemHeight: number,
+  dividerTotalHeight: number
+): number {
+  let h = 0;
+  for (let i = 0; i < colItems.length; i++) {
+    const item = colItems[i];
+    if (showDividers && item.groupLetter && i > 0) {
+      h += dividerTotalHeight;
+    }
+    h += singleItemHeight;
+  }
+  return h;
 }
 
 // Fetch helper with fallback and validation to ensure valid font binary (not HTML 404)
@@ -234,20 +290,47 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     // ----------------------------------------------------
     // 3. Table of Contents (Matching SongbookPreview.tsx TOC)
     // ----------------------------------------------------
-    const tocItems = songs.map((s, idx) => ({
+let tocItems: Array<{
+      song?: Song;
+      originalIndex: number;
+      title: string;
+      artist?: string;
+      groupLetter?: string;
+    }> = songs.map((s, idx) => ({
       song: s,
       originalIndex: idx,
       title: s.title || `Song ${idx + 1}`,
-      artist: s.artist || s.author || '',
+      artist: s.artist || s.author || ''
     }));
 
     if (settings.indexSortOrder === 'alphabetical') {
-      tocItems.sort((a, b) => a.title.localeCompare(b.title, 'cs'));
+      const getSortKey = (t: string) => t.trim().replace(/^["'„“\(\[\{]+/, '');
+      tocItems.sort((a, b) => getSortKey(a.title).localeCompare(getSortKey(b.title), 'cs'));
+      
+      if (settings.tocAlphabeticalGrouping) {
+        let currentLetter = '';
+        for (const item of tocItems) {
+          const cleanTitle = getSortKey(item.title);
+          const upper = cleanTitle.toUpperCase();
+          const isCh = upper.startsWith('CH');
+          const firstChar = upper.charAt(0) || '#';
+          const map: Record<string, string> = {
+            'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ý': 'Y', 'Ů': 'U',
+            'Ä': 'A', 'Ö': 'O', 'Ü': 'U', 'Ë': 'E'
+          };
+          let letter = isCh ? 'CH' : (map[firstChar] || firstChar);
+          letter = isCh ? 'CH' : (/^[A-Z0-9ČĎŇŘŠŤŽ]$/i.test(letter) ? letter : '#');
+          if (letter !== currentLetter) {
+            currentLetter = letter;
+            item.groupLetter = currentLetter;
+          }
+        }
+      }
     }
 
     const tocMarginMmX = settings.pageMargin ?? 5;
-    const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.1);
-    const tocMarginMmYBottom = Math.max(3, Math.round((settings.pageMargin ?? 5) * 0.75));
+    const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.2);
+    const tocMarginMmYBottom = Math.round((settings.pageMargin ?? 5) * 1.2);
     const tocMarginPtX = tocMarginMmX * mmToPt;
     const tocMarginPtTop = tocMarginMmYTop * mmToPt;
     const tocMarginPtBottom = tocMarginMmYBottom * mmToPt;
@@ -257,42 +340,81 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     const safeTitleSize = Number(settings.titleFontSize) || 16;
     const safeTocSize = Number(settings.tocFontSize) || (Number(settings.lyricsFontSize) * 0.95) || 12;
 
-    const tocTitlePt = (safeTitleSize * 1.15) * ptPerPx;
-    const tocTitleSubPt = (safeTitleSize * 0.85) * ptPerPx;
+    const tocTitlePt = Math.round(safeTitleSize * 1.15) * ptPerPx;
+    const tocTitleSubPt = Math.round(safeTitleSize * 0.85) * ptPerPx;
     const tocItemPt = safeTocSize * ptPerPx;
-    // itemLineHeight in preview: Math.ceil(safeTocSize * 1.28) + 5
-    const tocLineHeight = (Math.ceil(safeTocSize * 1.28) + 5) * ptPerPx;
 
-    const tocCols = isLandscape 
-      ? Math.max(2, Math.min(4, settings.columns || 3)) 
-      : Math.min(2, Math.max(1, settings.columns || 2));
-    const tocColGap = (tocCols === 1 ? 0 : tocCols >= 3 ? 28 : 40) * ptPerPx; // 1.75rem or 2.5rem
+    const rowLineHeight = 1.35;
+    const rowLineHeightPx = Math.ceil(safeTocSize * rowLineHeight);
+    const singleItemHeightPx = rowLineHeightPx + 3 + 1;
+    const singleItemHeightPt = singleItemHeightPx * ptPerPx;
+    const dividerTotalHeightPt = 7 * ptPerPx;
+    const tocLineHeight = singleItemHeightPt;
+
+    const tocCols = isLandscape ? 3 : 2;
+    const tocColGap = (tocCols >= 3 ? 28 : 36) * ptPerPx;
     const tocColWidth = (tocPrintableWidth - (tocCols - 1) * tocColGap) / tocCols;
 
-    const headerH1 = tocTitlePt + (16 * ptPerPx) + (14 * ptPerPx);
-    const rowsPerCol1 = Math.max(1, Math.floor((tocPrintableHeight - headerH1) / tocLineHeight));
-    const itemsPage1 = rowsPerCol1 * tocCols;
+    const hasLetterGrouping = settings.indexSortOrder === 'alphabetical' && !!settings.tocAlphabeticalGrouping;
+    const showDividers = hasLetterGrouping && (settings.tocGroupDividers !== false);
 
-    const headerHSub = tocTitleSubPt + (12 * ptPerPx) + (10 * ptPerPx);
-    const rowsPerColSub = Math.max(1, Math.floor((tocPrintableHeight - headerHSub) / tocLineHeight));
-    const itemsPerSub = rowsPerColSub * tocCols;
+    const headerH1Pt = (Math.ceil(Math.round(safeTitleSize * 1.15) * 1.2) + 30) * ptPerPx;
+    const headerHSubPt = (Math.ceil(Math.round(safeTitleSize * 0.85) * 1.2) + 32) * ptPerPx;
+    const bottomSafetyBufferPt = 16 * ptPerPx;
 
-    let tocPagesCount = 1;
-    if (tocItems.length > itemsPage1) {
-      const remaining = tocItems.length - itemsPage1;
-      tocPagesCount = 1 + Math.ceil(remaining / itemsPerSub);
+    const availableHeightP1Pt = Math.max(80 * ptPerPx, tocPrintableHeight - headerH1Pt - bottomSafetyBufferPt);
+    const availableHeightSubPt = Math.max(80 * ptPerPx, tocPrintableHeight - headerHSubPt - bottomSafetyBufferPt);
+
+    const tocPagesData: Array<{
+      items: typeof tocItems;
+      isFirst: boolean;
+      pageIndex: number;
+    }> = [];
+
+    let tocOffset = 0;
+    let tocPageNum = 1;
+
+    while (tocOffset < tocItems.length) {
+      const isFirst = tocPageNum === 1;
+      const availH = isFirst ? availableHeightP1Pt : availableHeightSubPt;
+      const remaining = tocItems.length - tocOffset;
+      const maxPossible = Math.min(remaining, Math.ceil(availH / singleItemHeightPt) * tocCols);
+      let K = maxPossible;
+
+      while (K > 1) {
+        const candidateItems = tocItems.slice(tocOffset, tocOffset + K);
+        const cols = balanceColumns(candidateItems, tocCols);
+        const maxColH = Math.max(...cols.map(c => getColumnHeight(c, showDividers, singleItemHeightPt, dividerTotalHeightPt)));
+
+        if (maxColH <= availH) {
+          if (tocOffset + K < tocItems.length && candidateItems[candidateItems.length - 1].groupLetter && K > 1) {
+            K--;
+            continue;
+          }
+          break;
+        }
+        K--;
+      }
+
+      tocPagesData.push({
+        items: tocItems.slice(tocOffset, tocOffset + K),
+        isFirst,
+        pageIndex: tocPageNum,
+      });
+
+      tocOffset += K;
+      tocPageNum++;
     }
 
+    const tocPagesCount = tocPagesData.length;
+
     // Render TOC Pages
-    let tocCursor = 0;
-    for (let p = 1; p <= tocPagesCount; p++) {
-      const isFirst = p === 1;
+    for (let p = 0; p < tocPagesData.length; p++) {
+      const tocPageInfo = tocPagesData[p];
+      const isFirst = tocPageInfo.isFirst;
+      const pageIndex = tocPageInfo.pageIndex;
       const page = doc.addPage([pageWidth, pageHeight]);
       let currentY = pageHeight - tocMarginPtTop;
-
-      const pageCapacity = isFirst ? itemsPage1 : itemsPerSub;
-      const pageItems = tocItems.slice(tocCursor, tocCursor + pageCapacity);
-      tocCursor += pageCapacity;
 
       // Header Centered (matching preview)
       if (isFirst) {
@@ -317,7 +439,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           color: colSubtle,
         });
 
-        currentY -= headerH1;
+        currentY -= headerH1Pt;
       } else {
         const titleUpper = `${bookTitle.toUpperCase()} (POKRAČOVÁNÍ)`;
         const titleW = boldFont.widthOfTextAtSize(titleUpper, tocTitleSubPt);
@@ -329,7 +451,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           color: colTitle,
         });
 
-        const subText = `Obsah • Strana ${p} z ${tocPagesCount}`;
+        const subText = `Obsah • Strana ${pageIndex} z ${tocPagesCount}`;
         const subPt = 9 * ptPerPx;
         const subW = regularFont.widthOfTextAtSize(subText, subPt);
         page.drawText(subText, {
@@ -340,35 +462,64 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           color: colSubtle,
         });
 
-        currentY -= headerHSub;
+        currentY -= headerHSubPt;
       }
 
-      // Distribute pageItems across tocCols
-      const itemsPerCol = Math.max(1, Math.ceil(pageItems.length / tocCols));
+      // Distribute pageItems across tocCols with proper column balancing
+      const columnsData = balanceColumns(tocPageInfo.items, tocCols);
+      const hasLetterGrouping = settings.indexSortOrder === 'alphabetical' && !!settings.tocAlphabeticalGrouping;
+      const letterColPt = hasLetterGrouping ? 1.85 * tocItemPt : 0;
       const numColWidth = (songs.length >= 100 ? 2.8 : songs.length >= 10 ? 2.1 : 1.5) * tocItemPt;
+      const colPadLeft = 2 * ptPerPx;
 
       for (let c = 0; c < tocCols; c++) {
-        const colStart = c * itemsPerCol;
-        const colItems = pageItems.slice(colStart, colStart + itemsPerCol);
+        const colItems = columnsData[c] || [];
         const colX = tocMarginPtX + c * (tocColWidth + tocColGap);
         let rowY = currentY;
+        for (let itemIdx = 0; itemIdx < colItems.length; itemIdx++) {
+          const item = colItems[itemIdx];
 
-        for (const item of colItems) {
-          // Song Number right aligned
+          if (showDividers && item.groupLetter && itemIdx > 0) {
+            const divPad = 3.5 * ptPerPx;
+            rowY -= divPad;
+            page.drawLine({
+              start: { x: colX + colPadLeft, y: rowY },
+              end: { x: colX + tocColWidth - (2 * ptPerPx), y: rowY },
+              thickness: 0.5,
+              color: colSectionLine,
+              opacity: 0.35,
+            });
+            rowY -= divPad;
+          }
+
+          if (hasLetterGrouping && item.groupLetter) {
+            // Draw group letter in its dedicated letter slot with safe left clearance
+            page.drawText(item.groupLetter, {
+              x: colX + colPadLeft,
+              y: rowY - tocItemPt,
+              size: tocItemPt * 1.05,
+              font: boldFont,
+              color: colTitle,
+            });
+          }
+
+          // Song Number right aligned within its column block (after letter slot)
+          const numStartX = colX + colPadLeft + letterColPt;
           const numStr = `${item.originalIndex + 1}.`;
           const numW = boldFont.widthOfTextAtSize(numStr, tocItemPt);
           page.drawText(numStr, {
-            x: colX + numColWidth - numW - (3 * ptPerPx),
+            x: numStartX + numColWidth - numW - (3 * ptPerPx),
             y: rowY - tocItemPt,
             size: tocItemPt,
             font: boldFont,
             color: colTitle,
           });
 
-          // Song Title & Artist
+          // Song Title & Artist (after number block)
+          const titleStartX = numStartX + numColWidth;
           const titleStr = item.title;
           const artistStr = item.artist ? ` - ${item.artist}` : '';
-          const maxTextW = tocColWidth - numColWidth - (4 * ptPerPx);
+          const maxTextW = tocColWidth - (titleStartX - colX) - (4 * ptPerPx);
 
           let displayTitle = titleStr;
           let titleW = boldFont.widthOfTextAtSize(displayTitle, tocItemPt);
@@ -398,7 +549,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
 
           // Draw Title
           page.drawText(displayTitle, {
-            x: colX + numColWidth,
+            x: titleStartX,
             y: rowY - tocItemPt,
             size: tocItemPt,
             font: boldFont,
@@ -408,7 +559,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           // Draw Artist
           if (displayArtist) {
             page.drawText(displayArtist, {
-              x: colX + numColWidth + titleW,
+              x: titleStartX + titleW,
               y: rowY - tocItemPt,
               size: artistPt,
               font: regularFont,
@@ -459,9 +610,14 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       const page = doc.addPage([pageWidth, pageHeight]);
       let currentY = pageHeight - marginPtY;
 
-      // 4A. Song Number Badge (top-left: 26px x 26px dark rounded box)
+      // Outer edge logic: even pages left, odd pages right
+      // doc.getPageCount() returns the 1-based total pages including this newly added page
+      const physicalPageNum = doc.getPageCount();
+      const isEvenPage = physicalPageNum % 2 === 0;
+
+      // 4A. Song Number Badge (26px x 26px dark rounded box)
       const badgeSize = 26 * ptPerPx;
-      const badgeX = marginPtX;
+      const badgeX = isEvenPage ? marginPtX : (pageWidth - marginPtX - badgeSize);
       const badgeY = currentY - badgeSize;
       const badgeR = 5 * ptPerPx; // rounded-lg radius matching preview
       const badgePath = `M ${badgeX + badgeR} ${badgeY} ` +
@@ -601,9 +757,11 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         const currentLineColor = isRefrain ? colRefrainLine : colSectionLine;
 
         // Break before column if requested by balancing plan
+        let didBreakColumn = false;
         if (plan?.breakBeforeColumn && currentCol < colCount - 1) {
           currentCol++;
           colY = colStartY;
+          didBreakColumn = true;
         }
 
         // Calculate approximate section height
@@ -625,7 +783,28 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         if (plan?.avoidBreakInside && (colY - secEstimatedH < marginPtY) && currentCol < colCount - 1) {
           currentCol++;
           colY = colStartY;
+          didBreakColumn = true;
         }
+
+        // --- ADD SEPARATOR ---
+        if (settings.showSectionSeparators && secIdx > 0 && !didBreakColumn) {
+          const sepColorHex = settings.separatorLineColor || '#a1a1aa';
+          const sepColorRgb = hexToPdfRgb(sepColorHex, '#a1a1aa');
+          
+          const colBaseX = marginPtX + currentCol * (colWidth + colGap);
+          
+          // Draw the separator line
+          page.drawLine({
+            start: { x: colBaseX, y: colY - (3 * ptPerPx) },
+            end: { x: colBaseX + colWidth, y: colY - (3 * ptPerPx) },
+            thickness: 0.5,
+            color: sepColorRgb,
+            opacity: 0.6
+          });
+          
+          colY -= (12 * ptPerPx); // Consume space
+        }
+        // ---------------------
 
         const firstNonEmptyIndex = section.parsedLines.findIndex((l) => !l.isEmpty);
         let secSegmentStartY = colY;
@@ -822,6 +1001,115 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       }
     }
 
+    
+      // ----------------------------------------------------------------------
+      // BACK COVER PAGE
+      // ----------------------------------------------------------------------
+      postProgress({
+        percent: 95,
+        phase: 'finalizing',
+        message: 'Generuji zadní stranu...',
+        totalSongs
+      });
+      const backPage = doc.addPage([pageWidth, pageHeight]);
+
+      const displayUrl = songbookData.shortUrl || songbookData.url || 'kytario.com';
+      const qrTarget = songbookData.url || 'https://kytario.com';
+
+      // Title
+      const bTitle = songbookData.title || 'Songbook';
+      const maxTitleW = pageWidth - marginPtX * 2;
+      const titlePt = 48; // Big title
+      let effectiveTitlePt = titlePt;
+      let titleW = boldFont.widthOfTextAtSize(bTitle.toUpperCase(), effectiveTitlePt);
+      while (titleW > maxTitleW && effectiveTitlePt > 12) {
+        effectiveTitlePt -= 2;
+        titleW = boldFont.widthOfTextAtSize(bTitle.toUpperCase(), effectiveTitlePt);
+      }
+      
+      const titleY = pageHeight - marginPtY - 100;
+      backPage.drawText(bTitle.toUpperCase(), {
+        x: (pageWidth - titleW) / 2,
+        y: titleY,
+        size: effectiveTitlePt,
+        font: boldFont,
+        color: colTitle,
+      });
+
+      // URL
+      const urlPt = 16;
+      const urlW = regularFont.widthOfTextAtSize(displayUrl, urlPt);
+      const urlY = titleY - effectiveTitlePt - 20;
+      backPage.drawText(displayUrl, {
+        x: (pageWidth - urlW) / 2,
+        y: urlY,
+        size: urlPt,
+        font: regularFont,
+        color: colTitle,
+      });
+
+      // QR Code
+      const qrData = QRCode.create(qrTarget, { errorCorrectionLevel: 'M' });
+      const qrSize = qrData.modules.size;
+      const qrMatrix = qrData.modules.data;
+      
+      const qrPrintSize = 160; // total width/height of QR in points
+      const moduleSize = qrPrintSize / qrSize;
+      const qrX = (pageWidth - qrPrintSize) / 2;
+      const qrY = urlY - 40 - qrPrintSize; // top-left Y of QR
+
+      for (let r = 0; r < qrSize; r++) {
+        for (let c = 0; c < qrSize; c++) {
+          if (qrMatrix[r * qrSize + c]) {
+            backPage.drawRectangle({
+              x: qrX + c * moduleSize,
+              y: qrY + (qrSize - 1 - r) * moduleSize, // pdf-lib has origin at bottom-left
+              width: moduleSize,
+              height: moduleSize,
+              color: colTitle, // dark color
+            });
+          }
+        }
+      }
+
+      // Footers
+      const footer1 = "Tento zpěvník používá německou notaci - tóny C-C#-D-D#-E-F-F#-G-G#-A-B-H.";
+      const footer2 = "Tón B odpovídá tónu A# nebo Hb.";
+      const footer3 = "Vytvořeno s ♥ pomocí kytario.com | Vytvoř si zpěvník, sdílej ho a hraj.";
+      const footer4 = "Posouvejte text živě společně, transponuj do libovolné tóniny nebo exportuj do PDF - zdarma pro tebe i tvé přátele. :)";
+      
+      const footerPt = 10;
+      
+      const drawCenteredText = (text, y) => {
+        const w = regularFont.widthOfTextAtSize(text, footerPt);
+        backPage.drawText(text, {
+          x: (pageWidth - w) / 2,
+          y,
+          size: footerPt,
+          font: regularFont,
+          color: colArtist,
+        });
+      };
+
+      let footerY = marginPtY + 60;
+      drawCenteredText(footer4, footerY);
+      footerY += 14;
+      drawCenteredText(footer3, footerY);
+      
+      footerY += 24;
+      // line separator
+      backPage.drawLine({
+        start: { x: marginPtX, y: footerY - 12 },
+        end: { x: pageWidth - marginPtX, y: footerY - 12 },
+        thickness: 0.5,
+        color: colSectionLine,
+      });
+
+      footerY += 10;
+      drawCenteredText(footer2, footerY);
+      footerY += 14;
+      drawCenteredText(footer1, footerY);
+
     postProgress({
       percent: 95,
       phase: 'finalizing',
@@ -830,6 +1118,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     });
 
     // 5. Save and return PDF bytes
+
     const pdfBytes = await doc.save();
     const cleanBookTitle = bookTitle.trim().replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '_');
     const filename = `${cleanBookTitle || 'Kytario_Songbook'}.pdf`;

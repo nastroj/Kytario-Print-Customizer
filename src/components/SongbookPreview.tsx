@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, memo, useCallback } from 'react';
 import { SongbookData, PrintSettings, Song } from '../types';
 import { SongDisplay } from './SongDisplay';
+import { BackCoverPage } from './BackCoverPage';
 import { SongbookSkeleton } from './SongbookSkeleton';
 import { SongFitDebugHud } from './SongFitDebugHud';
 import { getDisplayColor, computeSongFitDebug } from '../utils';
@@ -47,14 +48,74 @@ const ZOOM_STEPS = [0.25, 0.35, 0.5, 0.65, 0.75, 0.9, 1.0, 1.15, 1.25, 1.5, 1.75
 interface TocPage {
   pageIndex: number;
   totalPages: number;
-  items: Array<{
-    song: Song;
-    originalIndex: number;
+items: Array<{
+    song?: Song;
+    originalIndex?: number;
     title: string;
-    artist: string;
+    artist?: string;
+    groupLetter?: string;
   }>;
   isFirstPage: boolean;
   columns: number;
+}
+
+function balanceColumns<T extends { groupLetter?: string }>(items: T[], numCols: number): T[][] {
+  if (numCols <= 1 || items.length <= 1) {
+    return [items];
+  }
+
+  const total = items.length;
+  const base = Math.floor(total / numCols);
+  const remainder = total % numCols;
+
+  // Initial balanced target counts across columns
+  const counts = Array.from({ length: numCols }, (_, c) => base + (c < remainder ? 1 : 0));
+
+  // If a column ends with a group header (an orphan header where subsequent items in that group are in the next column),
+  // move that single item to start the next column, avoiding stranded/clipped group headers at column bottoms
+  for (let c = 0; c < numCols - 1; c++) {
+    if (counts[c] > 1) {
+      let colStartIndex = 0;
+      for (let i = 0; i < c; i++) {
+        colStartIndex += counts[i];
+      }
+      const lastItemIndex = colStartIndex + counts[c] - 1;
+      const lastItem = items[lastItemIndex];
+      
+      if (lastItem && lastItem.groupLetter && lastItemIndex + 1 < items.length) {
+        counts[c]--;
+        counts[c + 1]++;
+      }
+    }
+  }
+
+  // Slice items into balanced columns
+  const columns: T[][] = [];
+  let offset = 0;
+  for (let c = 0; c < numCols; c++) {
+    const colCount = counts[c];
+    columns.push(items.slice(offset, offset + colCount));
+    offset += colCount;
+  }
+
+  return columns;
+}
+
+function getColumnHeight<T extends { groupLetter?: string }>(
+  colItems: T[],
+  showDividers: boolean,
+  singleItemHeight: number,
+  dividerTotalHeight: number
+): number {
+  let h = 0;
+  for (let i = 0; i < colItems.length; i++) {
+    const item = colItems[i];
+    if (showDividers && item.groupLetter && i > 0) {
+      h += dividerTotalHeight;
+    }
+    h += singleItemHeight;
+  }
+  return h;
 }
 
 // On-Screen Print Margin Guides & Physical Sheet Crop Marks Overlay
@@ -166,6 +227,8 @@ const VirtualPage = memo(function VirtualPage({
 
 // Dedicated Memoized Song Pages List
 interface SongPagesListProps {
+  url?: string;
+  shortUrl?: string;
   songs: Song[];
   title: string;
   settings: PrintSettings;
@@ -184,6 +247,8 @@ interface SongPagesListProps {
 }
 
 const SongPagesList = memo(function SongPagesList({
+  url,
+  shortUrl,
   songs,
   title,
   settings,
@@ -206,14 +271,24 @@ const SongPagesList = memo(function SongPagesList({
     return '1.5em';
   }, [songs.length]);
 
+  const hasLetterGrouping = settings.indexSortOrder === 'alphabetical' && !!settings.tocAlphabeticalGrouping;
+  const showDividers = hasLetterGrouping && (settings.tocGroupDividers !== false);
+  const letterColWidth = hasLetterGrouping ? '1.85em' : '0em';
+
   const marginMmX = settings.pageMargin ?? 5;
   const marginMmY = Math.round((settings.pageMargin ?? 5) * 1.2);
   const tocMarginMmX = settings.pageMargin ?? 5;
-  const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.1);
-  const tocMarginMmYBottom = Math.max(3, Math.round((settings.pageMargin ?? 5) * 0.75));
+  const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.2);
+  const tocMarginMmYBottom = Math.round((settings.pageMargin ?? 5) * 1.2);
   const effectiveDarkMode = isDarkMode;
   const safeTocSize = Number(settings.tocFontSize) || (Number(settings.lyricsFontSize) * 0.95) || 12;
   const safeTitleSize = Number(settings.titleFontSize) || 16;
+
+  // Exact row metrics matching pagination algorithm
+  const rowLineHeight = 1.35;
+  const rowLineHeightPx = Math.ceil(safeTocSize * rowLineHeight);
+  const rowPaddingYPx = 1.5;
+  const rowMarginBottomPx = 1;
 
   const pageContainerClass = isPrintPreviewMode
     ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-black/10 dark:border-zinc-800 shadow-[0_8px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] ring-1 ring-black/5 dark:ring-white/5 print:bg-white print:text-black print:border-none print:shadow-none print:ring-0'
@@ -223,11 +298,7 @@ const SongPagesList = memo(function SongPagesList({
     <>
       {/* INDEX / TABLE OF CONTENTS PAGES (PAGINATED) */}
       {tocPages.map((tocPage) => {
-        const itemsPerCol = Math.max(1, Math.ceil(tocPage.items.length / tocPage.columns));
-        const columnsData = Array.from({ length: tocPage.columns }, (_, c) => {
-          const start = c * itemsPerCol;
-          return tocPage.items.slice(start, start + itemsPerCol);
-        });
+        const columnsData = balanceColumns(tocPage.items, tocPage.columns);
 
         return (
           <VirtualPage
@@ -245,6 +316,8 @@ const SongPagesList = memo(function SongPagesList({
                 width: cssWidth, 
                 height: cssHeight,
                 minHeight: cssHeight,
+                maxHeight: cssHeight,
+                boxSizing: 'border-box',
                 padding: `${tocMarginMmYTop}mm ${tocMarginMmX}mm ${tocMarginMmYBottom}mm ${tocMarginMmX}mm`,
                 transform: isScaled ? `scale(${effectiveScale})` : 'none',
                 transformOrigin: 'top left',
@@ -267,18 +340,21 @@ const SongPagesList = memo(function SongPagesList({
 
               {/* Page Header */}
               {tocPage.isFirstPage ? (
-                <div className="mb-3 sm:mb-3.5 text-center shrink-0">
+                <div className="text-center shrink-0" style={{ marginBottom: '12px' }}>
                   <h1 
                     className="font-bold uppercase tracking-tight toc-title-header truncate px-2"
                     style={{ 
                       color: getDisplayColor(settings.titleColor, effectiveDarkMode), 
-                      fontSize: `${safeTitleSize * 1.15}px`,
+                      fontSize: `${Math.round(safeTitleSize * 1.15)}px`,
                       lineHeight: 1.2
                     }}
                   >
                     {title}
                   </h1>
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none">
+                  <p 
+                    className="text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
+                    style={{ marginTop: '2px', lineHeight: '16px' }}
+                  >
                     <span>Obsah{tocPages.length > 1 ? ` • Strana 1 z ${tocPages.length}` : ''}</span>
                     <span className="print:hidden normal-case font-normal text-[11px] text-zinc-400 dark:text-zinc-500">
                       • tap to jump
@@ -286,18 +362,24 @@ const SongPagesList = memo(function SongPagesList({
                   </p>
                 </div>
               ) : (
-                <div className="mb-2.5 text-center border-b border-black/5 dark:border-zinc-800 pb-1 shrink-0">
+                <div 
+                  className="text-center border-b border-black/5 dark:border-zinc-800 shrink-0"
+                  style={{ marginBottom: '10px', paddingBottom: '4px' }}
+                >
                   <h2 
                     className="font-bold uppercase tracking-tight toc-title-header truncate px-2"
                     style={{ 
                       color: getDisplayColor(settings.titleColor, effectiveDarkMode), 
-                      fontSize: `${safeTitleSize * 0.85}px`,
+                      fontSize: `${Math.round(safeTitleSize * 0.85)}px`,
                       lineHeight: 1.2
                     }}
                   >
                     {title} <span className="text-zinc-400 dark:text-zinc-500 font-normal text-xs normal-case">(pokračování)</span>
                   </h2>
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none">
+                  <p 
+                    className="text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
+                    style={{ marginTop: '2px', lineHeight: '16px' }}
+                  >
                     <span>Obsah • Strana {tocPage.pageIndex} z {tocPages.length}</span>
                     <span className="print:hidden normal-case font-normal text-[11px] text-zinc-400 dark:text-zinc-500">
                       • tap to jump
@@ -306,11 +388,12 @@ const SongPagesList = memo(function SongPagesList({
                 </div>
               )}
               
-              {/* Columns of Song Titles */}
+              {/* Columns of Song Titles (CSS Grid for balanced, unclipped columns) */}
               <div 
-                className="flex-1 min-h-0 flex toc-columns-body overflow-hidden"
+                className="flex-1 min-h-0 grid toc-columns-body overflow-hidden"
                 style={{ 
-                  gap: tocPage.columns === 1 ? '0rem' : tocPage.columns >= 3 ? '1.75rem' : '2.5rem',
+                  gridTemplateColumns: `repeat(${tocPage.columns}, minmax(0, 1fr))`,
+                  columnGap: tocPage.columns >= 3 ? '1.75rem' : '2.25rem',
                   color: getDisplayColor(settings.tocColor || settings.lyricsColor, effectiveDarkMode),
                   fontSize: `${safeTocSize}px`,
                 }}
@@ -318,18 +401,28 @@ const SongPagesList = memo(function SongPagesList({
                 {columnsData.map((colItems, colIdx) => (
                   <div 
                     key={colIdx} 
-                    className="flex-1 min-w-0 flex flex-col overflow-hidden"
-                    style={{ 
-                      maxWidth: `${100 / tocPage.columns}%` 
-                    }}
+                    className="min-w-0 flex flex-col"
                   >
-                    {colItems.map((item) => {
-                      const fullTitle = `${item.originalIndex + 1}. ${item.title}${item.artist ? ` - ${item.artist}` : ''}`;
+                    {colItems.map((item, itemIdx) => {
+                      const fullTitle = `${item.originalIndex! + 1}. ${item.title}${item.artist ? ` - ${item.artist}` : ''}`;
                       return (
                         <div 
                           key={item.originalIndex} 
-                          className="mb-0.5 max-w-full overflow-hidden shrink-0"
+                          className="shrink-0 max-w-full"
+                          style={{ marginBottom: `${rowMarginBottomPx}px` }}
                         >
+                          {showDividers && item.groupLetter && itemIdx > 0 && (
+                            <div 
+                              className="border-t w-full select-none"
+                              style={{ 
+                                height: '1px',
+                                marginTop: '3px',
+                                marginBottom: '3px',
+                                borderColor: getDisplayColor(settings.sectionLineColor || '#a1a1aa', effectiveDarkMode),
+                                opacity: 0.35
+                              }} 
+                            />
+                          )}
                           <a 
                             href={`#song-${item.originalIndex}`} 
                             onClick={(e) => {
@@ -338,13 +431,29 @@ const SongPagesList = memo(function SongPagesList({
                               onScrollToSong(`song-${item.originalIndex}`);
                             }}
                             title={fullTitle}
-                            className="flex items-baseline w-full max-w-full group cursor-pointer transition-colors hover:opacity-85 touch-manipulation py-0.5 active:opacity-60"
+                            className="flex items-baseline w-full max-w-full group cursor-pointer transition-colors hover:opacity-85 touch-manipulation active:opacity-60"
                             style={{ 
                               color: 'inherit', 
                               textDecoration: 'none',
-                              lineHeight: 1.28
+                              paddingTop: `${rowPaddingYPx}px`,
+                              paddingBottom: `${rowPaddingYPx}px`,
+                              lineHeight: `${rowLineHeightPx}px`,
                             }}
                           >
+                            {hasLetterGrouping && (
+                              <span 
+                                className="shrink-0 font-bold select-none text-left toc-group-letter"
+                                style={{ 
+                                  width: letterColWidth,
+                                  minWidth: letterColWidth,
+                                  color: getDisplayColor(settings.titleColor, effectiveDarkMode),
+                                  opacity: 0.9,
+                                  fontSize: '1.05em'
+                                }}
+                              >
+                                {item.groupLetter || ''}
+                              </span>
+                            )}
                             <span 
                               className="shrink-0 text-right tabular-nums font-semibold pr-2 select-none toc-song-number"
                               style={{ 
@@ -353,7 +462,7 @@ const SongPagesList = memo(function SongPagesList({
                                 opacity: 0.8
                               }}
                             >
-                              {item.originalIndex + 1}.
+                              {item.originalIndex! + 1}.
                             </span>
                             <span className="truncate flex-1 min-w-0">
                               <span className="font-medium group-hover:underline toc-song-title">{item.title}</span>
@@ -422,7 +531,53 @@ const SongPagesList = memo(function SongPagesList({
         </VirtualPage>
       ))}
 
+      
+      {/* Back Cover Page */}
+      {songs.length > 0 && (
+        <VirtualPage
+          key="back-cover"
+          width={cssWidth}
+          height={cssHeight}
+          isScaled={isScaled}
+          scaledWidth={scaledWidth}
+          scaledHeight={scaledHeight}
+          marginMmY={marginMmY}
+          marginMmX={marginMmX}
+        >
+          <div 
+            className="w-full h-full bg-white dark:bg-zinc-900 overflow-hidden relative shadow-md ring-1 ring-black/5 dark:ring-white/10 print:shadow-none print:ring-0"
+            style={{ 
+              width: cssWidth, 
+              height: cssHeight,
+              transform: isScaled ? `scale(${effectiveScale})` : 'none',
+              transformOrigin: 'top left',
+              position: isScaled ? 'absolute' : 'relative',
+              top: 0,
+              left: 0,
+            }}
+          >
+            {isPrintPreviewMode && showMarginGuides && (
+              <PageMarginGuides 
+                marginMmX={marginMmX} 
+                marginMmY={marginMmY} 
+                pageFormat={settings.pageFormat} 
+                orientation={settings.orientation}
+                pageLabel="Back Cover"
+              />
+            )}
+            <BackCoverPage 
+              title={title} 
+              url={url} 
+              shortUrl={shortUrl} 
+              settings={settings} 
+              isDarkMode={effectiveDarkMode} 
+            />
+          </div>
+        </VirtualPage>
+      )}
+
       {songs.length === 0 && (
+
         <div 
           className="mx-auto flex justify-center shrink-0 mb-6 sm:mb-10 print:hidden"
           style={{ 
@@ -868,7 +1023,13 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   // Calculate dynamic pagination for Table of Contents (Memoized for high performance)
   const tocPages = useMemo(() => {
-    const items = songs.map((song, i) => ({
+let items: Array<{
+      song?: Song;
+      originalIndex?: number;
+      title: string;
+      artist?: string;
+      groupLetter?: string;
+    }> = songs.map((song, i) => ({
       song,
       originalIndex: i,
       title: song.title || song.name || 'Unknown Title',
@@ -876,74 +1037,109 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     }));
 
     if (settings.indexSortOrder === 'alphabetical') {
-      items.sort((a, b) => a.title.localeCompare(b.title));
+      const getSortKey = (t: string) => t.trim().replace(/^["'„“\(\[\{]+/, '');
+      items.sort((a, b) => getSortKey(a.title).localeCompare(getSortKey(b.title), 'cs'));
+      
+      if (settings.tocAlphabeticalGrouping) {
+        let currentLetter = '';
+        for (const item of items) {
+          const cleanTitle = getSortKey(item.title);
+          const upper = cleanTitle.toUpperCase();
+          const isCh = upper.startsWith('CH');
+          const firstChar = upper.charAt(0) || '#';
+          const map: Record<string, string> = {
+            'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ý': 'Y', 'Ů': 'U',
+            'Ä': 'A', 'Ö': 'O', 'Ü': 'U', 'Ë': 'E'
+          };
+          let letter = isCh ? 'CH' : (map[firstChar] || firstChar);
+          letter = isCh ? 'CH' : (/^[A-Z0-9ČĎŇŘŠŤŽ]$/i.test(letter) ? letter : '#');
+          if (letter !== currentLetter) {
+            currentLetter = letter;
+            item.groupLetter = currentLetter;
+          }
+        }
+      }
     }
 
     const mmToPx = 3.779528;
     const isLandscape = settings.orientation === 'landscape';
-    const tocColumns = isLandscape 
-      ? Math.max(2, Math.min(4, settings.columns || 3)) 
-      : Math.min(2, Math.max(1, settings.columns || 2));
+    const tocColumns = isLandscape ? 3 : 2;
     const tocMarginMmX = settings.pageMargin ?? 5;
-    const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.1);
-    const tocMarginMmYBottom = Math.max(3, Math.round((settings.pageMargin ?? 5) * 0.75));
+    const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.2);
+    const tocMarginMmYBottom = Math.round((settings.pageMargin ?? 5) * 1.2);
     const paddingTotalY = (tocMarginMmYTop + tocMarginMmYBottom) * mmToPx;
     
     const safeTocSize = Number(settings.tocFontSize) || (Number(settings.lyricsFontSize) * 0.95) || 12;
     const safeTitleSize = Number(settings.titleFontSize) || 16;
 
-    // Exact height occupied by 1 item line:
-    // lineHeight (1.28) + padding py-0.5 (4px) + margin mb-0.5 (2px)
-    const itemLineHeight = Math.ceil(safeTocSize * 1.28) + 5;
+    // Explicit row metrics in pixels (guaranteed 1:1 match with rendered DOM elements)
+    const rowLineHeight = 1.35;
+    const rowLineHeightPx = Math.ceil(safeTocSize * rowLineHeight);
+    const rowPaddingYPx = 1.5;
+    const rowMarginBottomPx = 1;
+    const singleItemHeight = rowLineHeightPx + (rowPaddingYPx * 2) + rowMarginBottomPx;
+
+    const showDividers = (settings.indexSortOrder === 'alphabetical') && !!settings.tocAlphabeticalGrouping && (settings.tocGroupDividers !== false);
+    const dividerTotalHeight = 7; // 1px border + 3px marginTop + 3px marginBottom
+
+    // Page 1 Header exact height: title (fontSize * 1.15 * 1.2) + margin/lineHeight (18px) + marginBottom (12px)
+    const headerHeightP1 = Math.ceil(Math.round(safeTitleSize * 1.15) * 1.2) + 30;
     
-    // Safety buffer (4px) to prevent sub-pixel rounding overflow while keeping bottom margin compact
-    const bottomBuffer = 4;
+    // Subsequent Pages Header exact height: title (fontSize * 0.85 * 1.2) + subtitle (18px) + paddingBottom (4px) + marginBottom (10px)
+    const headerHeightSubsequent = Math.ceil(Math.round(safeTitleSize * 0.85) * 1.2) + 32;
 
-    // Header on Page 1 (Title + subtitle + margins + spacing)
-    const headerHeightP1 = Math.ceil(safeTitleSize * 1.15 * 1.2) + 30;
-    const availableContentHeightP1 = Math.max(80, basePxHeight - paddingTotalY - headerHeightP1 - bottomBuffer);
-    const rowsPerColP1 = Math.max(3, Math.floor(availableContentHeightP1 / itemLineHeight));
-    const itemsPerPage1 = Math.max(1, rowsPerColP1 * tocColumns);
+    // Generous bottom safety buffer (16px) to guarantee zero downward overflow under any OS/font rendering
+    const bottomSafetyBuffer = 16;
 
-    // Header on Subsequent Pages
-    const headerHeightSubsequent = Math.ceil(safeTitleSize * 0.85 * 1.2) + 33;
-    const availableContentHeightSubsequent = Math.max(80, basePxHeight - paddingTotalY - headerHeightSubsequent - bottomBuffer);
-    const rowsPerColSubsequent = Math.max(3, Math.floor(availableContentHeightSubsequent / itemLineHeight));
-    const itemsPerPageSubsequent = Math.max(1, rowsPerColSubsequent * tocColumns);
+    const availableContentHeightP1 = Math.max(80, basePxHeight - paddingTotalY - headerHeightP1 - bottomSafetyBuffer);
+    const availableContentHeightSubsequent = Math.max(80, basePxHeight - paddingTotalY - headerHeightSubsequent - bottomSafetyBuffer);
 
     const pages: TocPage[] = [];
     const totalItems = items.length;
 
-    if (totalItems > 0) {
-      const count1 = Math.max(1, isNaN(itemsPerPage1) ? 20 : itemsPerPage1);
+    let offset = 0;
+    let pageNum = 1;
+
+    while (offset < totalItems) {
+      const isFirst = pageNum === 1;
+      const availH = isFirst ? availableContentHeightP1 : availableContentHeightSubsequent;
+      const remaining = totalItems - offset;
+
+      // Start testing from theoretical max down to 1
+      const maxPossible = Math.min(remaining, Math.ceil(availH / singleItemHeight) * tocColumns);
+      let K = maxPossible;
+
+      while (K > 1) {
+        const candidateItems = items.slice(offset, offset + K);
+        const cols = balanceColumns(candidateItems, tocColumns);
+        const maxColH = Math.max(...cols.map(c => getColumnHeight(c, showDividers, singleItemHeight, dividerTotalHeight)));
+
+        if (maxColH <= availH) {
+          // Prevent leaving an orphan group header as the very last item of this page if more items follow
+          if (offset + K < totalItems && candidateItems[candidateItems.length - 1].groupLetter && K > 1) {
+            K--;
+            continue;
+          }
+          break;
+        }
+        K--;
+      }
+
       pages.push({
-        pageIndex: 1,
+        pageIndex: pageNum,
         totalPages: 1,
-        items: items.slice(0, count1),
-        isFirstPage: true,
+        items: items.slice(offset, offset + K),
+        isFirstPage: isFirst,
         columns: tocColumns,
       });
 
-      let offset = count1;
-      let pageNum = 2;
-      const countSub = Math.max(1, isNaN(itemsPerPageSubsequent) ? 20 : itemsPerPageSubsequent);
+      offset += K;
+      pageNum++;
+    }
 
-      while (offset < totalItems) {
-        pages.push({
-          pageIndex: pageNum,
-          totalPages: 1,
-          items: items.slice(offset, offset + countSub),
-          isFirstPage: false,
-          columns: tocColumns,
-        });
-        offset += countSub;
-        pageNum++;
-      }
-
-      const totalPages = pages.length;
-      for (let i = 0; i < totalPages; i++) {
-        pages[i].totalPages = totalPages;
-      }
+    const totalPages = pages.length;
+    for (let i = 0; i < totalPages; i++) {
+      pages[i].totalPages = totalPages;
     }
 
     return pages;
@@ -1218,8 +1414,8 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   const marginMmX = settings.pageMargin ?? 5;
   const marginMmY = Math.round((settings.pageMargin ?? 5) * 1.2);
   const tocMarginMmX = settings.pageMargin ?? 5;
-  const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.1);
-  const tocMarginMmYBottom = Math.max(3, Math.round((settings.pageMargin ?? 5) * 0.75));
+  const tocMarginMmYTop = Math.round((settings.pageMargin ?? 5) * 1.2);
+  const tocMarginMmYBottom = Math.round((settings.pageMargin ?? 5) * 1.2);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative print:h-auto print:min-h-0 print:overflow-visible print:block print:static">
@@ -1345,6 +1541,8 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           <SongPagesList 
             songs={songs}
             title={title}
+            url={data.url}
+            shortUrl={data.shortUrl}
             settings={settings}
             tocPages={tocPages}
             cssWidth={cssWidth}

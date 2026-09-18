@@ -15,6 +15,8 @@ export interface Song {
 export interface SongbookData {
   title?: string;
   name?: string;
+  url?: string;
+  shortUrl?: string;
   songs?: Song[];
   items?: Song[];
   songbookSongs?: { song: Song }[];
@@ -43,8 +45,12 @@ export interface PrintSettings {
   maxAutoFontSize?: number;
   maxFontSizePx?: number;
   indexSortOrder: 'original' | 'alphabetical';
+  tocAlphabeticalGrouping?: boolean;
+  tocGroupDividers?: boolean;
   pageMargin?: number; // Margin in mm (default: 5)
   showSectionLines?: boolean;
+  showSectionSeparators?: boolean;
+  separatorLineColor?: string;
   sectionLineColor?: string;
   refrainLineColor?: string;
   fontFamily?: string;

@@ -50,9 +50,11 @@ export function useSmartFit({
     settings.showChords,
     settings.pageMargin,
     settings.maxFontSizePx,
+    settings.showSectionSeparators,
     hasTitle,
     hasArtist,
   ]);
+
 
   // Compute available column height for smart balancing
   const availColH = useMemo(() => {
@@ -77,11 +79,11 @@ export function useSmartFit({
     const titleBlockH = (hasTitle ? titleSize * 1.25 : 0) + (hasArtist ? artistSize * 1.25 : 0) + 18;
     return Math.max(100, totalPxHeight - paddingY - titleBlockH - 24);
   }, [settings.orientation, settings.pageFormat, settings.pageMargin, settings.titleFontSize, settings.artistFontSize, hasTitle, hasArtist]);
-
   // Smart Column Balancing: prevents lone lines / orphans at top of new column
   const columnPlan = useMemo(() => {
     return computeSmartColumnBalance(sections, settings, availColH, scale);
-  }, [sections, settings, availColH, scale]);
+  }, [sections, settings, availColH, scale, settings.showSectionSeparators]);
+
 
   const baseLyricsSize = Number(settings.lyricsFontSize) || 12;
   const baseChordsSize = Number(settings.chordsFontSize) || 12;
@@ -280,7 +282,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
   return (
     <div ref={containerRef} style={dynamicStyles} className="relative flex-1 flex flex-col h-full">
       <div 
-        className="absolute top-0 left-0 bg-zinc-800 text-white font-bold rounded-sm flex items-center justify-center print:border print:border-black select-none"
+        className={`absolute top-0 ${index % 2 !== 0 ? 'right-0 print:!right-0 print:!left-auto' : 'left-0 print:!left-0 print:!right-auto'} bg-zinc-800 text-white font-bold rounded-[5px] flex items-center justify-center print:border print:border-black select-none`}
         style={{ width: '26px', height: '26px', fontSize: '12px' }}
       >
         {index + 1}
@@ -288,7 +290,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
 
       {isDebugMode && debugStats && (
         <div 
-          className="absolute top-0 right-0 bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 rounded px-2 py-0.5 text-[11px] font-mono select-none print:hidden flex items-center gap-1.5 z-10"
+          className="absolute bottom-0 right-0 bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 rounded px-2 py-0.5 text-[11px] font-mono select-none print:hidden flex items-center gap-1.5 z-10"
           title={`Total Lines: ${debugStats.totalLines} (raw: ${debugStats.rawLines}), Font: ${debugStats.chosenSize}px (Scale: ${debugStats.scale}x)`}
         >
           <span className="font-bold">{debugStats.totalLines} lines</span>
@@ -364,11 +366,22 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
             : (settings.sectionLineColor || defaultLineCol);
 
           return (
-            <div 
-              key={vIndex} 
-              className={`relative mb-3.5 sm:mb-4 song-section ${shouldAvoidBreak ? 'break-inside-avoid' : ''} ${breakBeforeColumn ? 'break-before-column' : ''} ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''}`}
-              style={{ 
-                pageBreakInside: shouldAvoidBreak ? 'avoid' : 'auto',
+            <React.Fragment key={vIndex}>
+              {vIndex > 0 && settings.showSectionSeparators && !breakBeforeColumn && (
+                <div 
+                  className="w-full mb-3 sm:mb-3.5 print:mb-3 opacity-60" 
+                  style={{ 
+                    borderTop: `1px solid ${settings.separatorLineColor || '#a1a1aa'}`,
+                    pageBreakAfter: 'avoid',
+                    breakAfter: 'avoid',
+                    WebkitColumnBreakAfter: 'avoid'
+                  }} 
+                />
+              )}
+              <div 
+                className={`relative mb-3.5 sm:mb-4 song-section ${shouldAvoidBreak ? 'break-inside-avoid' : ''} ${breakBeforeColumn ? 'break-before-column' : ''} ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''}`}
+                style={{ 
+                  pageBreakInside: shouldAvoidBreak ? 'avoid' : 'auto',
                 breakInside: shouldAvoidBreak ? 'avoid' : 'auto',
                 ...(breakBeforeColumn ? {
                   breakBefore: 'column',
@@ -417,12 +430,13 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
                   {/* Tail guard: keeps last 2 lines together to prevent lone line orphan at top of new column */}
                   <div className="song-orphan-guard-tail break-inside-avoid" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     {tailLines.map(({ line, index }) => renderSongLine(line, index, firstNonEmptyIndex, sec.marker))}
-                  </div>
+</div>
                 </>
               ) : (
                 sec.parsedLines.map((lineData, i) => renderSongLine(lineData, i, firstNonEmptyIndex, sec.marker))
               )}
             </div>
+            </React.Fragment>
           );
         })}
       </div>

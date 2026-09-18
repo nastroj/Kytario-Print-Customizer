@@ -22,9 +22,12 @@ export function getChangedSettingsList(
   if (draft.columns !== applied.columns) changes.push({ key: 'columns', label: 'Columns', section: 'layout' });
   if (draft.showChords !== applied.showChords) changes.push({ key: 'showChords', label: 'Chords Visibility', section: 'layout' });
   if (draft.smartFit !== applied.smartFit) changes.push({ key: 'smartFit', label: 'Auto-fit Scaling', section: 'layout' });
-  if (draft.maxFontSizePx !== applied.maxFontSizePx) changes.push({ key: 'maxFontSizePx', label: 'Max Font Cap', section: 'layout' });
+if (draft.maxFontSizePx !== applied.maxFontSizePx) changes.push({ key: 'maxFontSizePx', label: 'Max Font Cap', section: 'layout' });
   if (draft.indexSortOrder !== applied.indexSortOrder) changes.push({ key: 'indexSortOrder', label: 'Index Sorting', section: 'layout' });
+  if (draft.tocAlphabeticalGrouping !== applied.tocAlphabeticalGrouping) changes.push({ key: 'tocAlphabeticalGrouping', label: 'TOC Grouping', section: 'layout' });
+  if (draft.tocGroupDividers !== applied.tocGroupDividers) changes.push({ key: 'tocGroupDividers', label: 'Letter Group Dividers', section: 'layout' });
   if (draft.showSectionLines !== applied.showSectionLines) changes.push({ key: 'showSectionLines', label: 'Section Lines', section: 'layout' });
+  if (draft.showSectionSeparators !== applied.showSectionSeparators) changes.push({ key: 'showSectionSeparators', label: 'Section Separators', section: 'layout' });
   if (draft.simplifyPrintUI !== applied.simplifyPrintUI) changes.push({ key: 'simplifyPrintUI', label: 'Simplified Print UI', section: 'layout' });
 
   // Typography & Colors section
@@ -42,6 +45,7 @@ export function getChangedSettingsList(
   if (draft.tocColor !== applied.tocColor) changes.push({ key: 'tocColor', label: 'ToC Color', section: 'typography' });
   if (draft.markerColor !== applied.markerColor) changes.push({ key: 'markerColor', label: 'Marker Color', section: 'typography' });
   if (draft.sectionLineColor !== applied.sectionLineColor) changes.push({ key: 'sectionLineColor', label: 'Section Line Color', section: 'typography' });
+  if (draft.separatorLineColor !== applied.separatorLineColor) changes.push({ key: 'separatorLineColor', label: 'Separator Line Color', section: 'typography' });
   if (draft.refrainLineColor !== applied.refrainLineColor) changes.push({ key: 'refrainLineColor', label: 'Refrain Line Color', section: 'typography' });
 
   return changes;

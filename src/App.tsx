@@ -33,7 +33,9 @@ const defaultSettings: PrintSettings = {
   tocColor: '#1c1917', // zinc-900
   sectionLineColor: '#a1a1aa', // zinc-400 (matches Kytario gray)
   refrainLineColor: '#2563eb', // blue-600 (matches Kytario blue)
+  separatorLineColor: '#e4e4e7', // zinc-200
   showSectionLines: true,
+  showSectionSeparators: false,
   titleFontSize: 16,
   artistFontSize: 16,
   lyricsFontSize: 12,
@@ -45,6 +47,8 @@ const defaultSettings: PrintSettings = {
   chordsItalic: true,
   maxFontSizePx: 32,
   indexSortOrder: 'alphabetical',
+  tocAlphabeticalGrouping: true,
+  tocGroupDividers: true,
   fontFamily: 'Inter',
   simplifyPrintUI: true,
 };
@@ -62,7 +66,9 @@ const defaultDarkSettings: PrintSettings = {
   tocColor: '#f4f4f5', // zinc-100
   sectionLineColor: '#52525b', // zinc-600
   refrainLineColor: '#60a5fa', // blue-400
+  separatorLineColor: '#3f3f46', // zinc-700
   showSectionLines: true,
+  showSectionSeparators: false,
   titleFontSize: 16,
   artistFontSize: 16,
   lyricsFontSize: 12,
@@ -74,6 +80,8 @@ const defaultDarkSettings: PrintSettings = {
   chordsItalic: true,
   maxFontSizePx: 32,
   indexSortOrder: 'alphabetical',
+  tocAlphabeticalGrouping: true,
+  tocGroupDividers: true,
   fontFamily: 'Inter',
   simplifyPrintUI: true,
 };

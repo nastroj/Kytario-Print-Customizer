@@ -1,114 +1,165 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.1.0
+**Version:** 1.2.0  
+**License:** MIT  
+**Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
-A powerful, customizable web application built with React and Tailwind CSS that allows you to process, format, and prepare Kytario songbook JSON data for publication-grade, pixel-perfect printing.
+A modern, high-precision web application built with React, TypeScript, and Tailwind CSS designed to process, customize, and format Kytario songbook JSON data into publication-grade, print-ready pages and downloadable vector PDFs.
 
-## 🌟 Features
+---
 
-- **Background Native PDF Generation (New in v1.1.0):**
-  - **Client-Side PDF Engine:** Uses `pdf-lib` and `@pdf-lib/fontkit` inside a dedicated Web Worker to generate beautiful vector PDFs entirely in the browser.
-  - **Non-Blocking UI:** Generates massive songbooks in the background without freezing the application interface, complete with a clean, dynamic progress modal.
-  - **Embedded Custom Fonts:** Automatically fetches and embeds optimized `.ttf` font files (Plus Jakarta Sans, Playfair Display) so the exported PDF is highly exact and crisp.
+## 🌟 What's New in v1.2.0
 
-- **Theme-Aware Persistent Settings (New in v1.1.0):**
-  - **Independent Profiles:** The app now remembers completely separate configuration profiles for Light Mode and Dark Mode. Switch themes and instantly get your colors and fonts restored precisely as you left them for that specific mode.
+- **Zero-Overflow Table of Contents (ToC) Engine:**
+  - **Dynamic Column-Height Balancing:** Upgraded ToC pagination with exact sub-pixel row calculation (line heights, row padding, and group divider margins). Columns are dynamically measured so no items overflow off the bottom of the page.
+  - **Identical Preview & PDF Worker Parity:** The browser preview and background Web Worker (`pdfWorker.ts`) use the exact same pagination mathematical model, ensuring what you see on screen perfectly matches the generated PDF document.
+  - **Clean Margin & Safety Clearance:** Symmetrical top and bottom print margins combined with a dedicated safety buffer to prevent downward clipping across different screen resolutions and OS font renderers.
+- **GitHub Pages Deployment Pipeline:**
+  - Configured automated GitHub Actions workflow (`.github/workflows/deploy.yml`) supporting direct builds and deployments to GitHub Pages with dynamic repository `BASE_PATH` resolution.
+- **Updated Application Versioning:**
+  - Version bump to **1.2.0** across `package.json`, `src/config.ts`, and in-app header badges.
 
-- **Robust Multi-Pass JSON Parser (New in v1.1.0):**
-  - Parses malformed, truncated, or unescaped Kytario JSON files with a multi-pass pipeline.
-  - Visual, fluid progress bars showing exact parsing phases ("Extracting X of Y songs...") instead of static loading spinners.
+---
 
-- **Robust Auto-Save & State Persistence:**
-  - **IndexedDB Engine:** Seamlessly saves full songbooks and print settings into browser IndexedDB, eliminating browser storage quota limits for large collections.
-  - **Local Storage Fallback & Auto-Migration:** Automatically detects and migrates legacy songbooks from `localStorage` into IndexedDB.
-  - **Draft Settings Protection:** Preserves in-progress tweaks and unapplied sidebar drafts across browser refreshes.
+## 🚀 Key Features
 
-- **SmartFit Auto-Scaling Algorithm:**
-  - Automatically calculates the optimal font size and layout scale for every single song to perfectly fill page space without awkward mid-song page breaks.
-  - Configurable maximum font size caps (in pixels) to avoid oversized lyrics on short songs.
+### 📄 Background Native PDF Generation
+- **Client-Side PDF Engine:** Generates vector PDFs entirely in the browser using `pdf-lib` and `@pdf-lib/fontkit` inside a dedicated Web Worker.
+- **Non-Blocking Execution:** Export even massive 200+ song collections in the background with an animated progress modal while continuing to navigate the app.
+- **True Type Font Embedding:** Automatically fetches and embeds optimized `.ttf` font files (Plus Jakarta Sans, Playfair Display) for crisp, professional typography.
 
-- **Smart Column Balancing & Orphan Prevention:**
-  - Multi-column distribution calculates stanza breaks dynamically to avoid lone lyric lines or orphaned headers at the tops of columns.
-  - Keeps head groups and tail groups intact for a clean, publication-grade print aesthetic.
+### 📐 SmartFit Auto-Scaling & Layout Balancing
+- **Intelligent Song Scaling:** Dynamically scales font sizes and line heights per song so every song cleanly fills a single page without awkward page breaks.
+- **Orphan & Widow Prevention:** Multi-column layouts break verses and stanzas cleanly, preventing lone lyric lines or orphaned chord headers.
+- **Print Formats:** Supports **A4**, **A5**, and **US Letter** in both **Portrait** and **Landscape** orientations.
+- **Custom Margins & Columns:** Select from 1 to 4 columns and set exact physical page margins in millimeters.
 
-- **Granular Layout & Typography Controls:**
-  - Page format presets: **A4**, **A5**, and **US Letter**.
-  - Orientation: **Portrait** or **Landscape**.
-  - Customizable margins (mm), line spacing, and column count (1, 2, 3, or 4 columns).
-  - Fine-grained typography color palette: Song Title, Artist/Metadata, Lyrics, Chords, and Section Markers.
+### 📑 Dynamic Table of Contents (ToC)
+- **Alphabetical Grouping:** Group songs alphabetically by letter with optional section dividers.
+- **Multi-Column Formatting:** 2-column or 3-column directory layout with balanced distributions.
+- **Interactive Jumping:** Click any song in the Table of Contents on-screen to smoothly scroll directly to that song.
 
-- **Dynamic Table of Contents (TOC):**
-  - Automatically indexes all songs with computed page numbers and multi-column directory formatting.
+### 🎨 Theme-Aware Color & Typography Profiles
+- **Independent Profiles:** Retains distinct configuration profiles for Light Mode and Dark Mode. Switching modes restores your preferred color palette and contrast settings immediately.
+- **Custom Palette:** Independently customize Title, Artist, Lyrics, Chords, Section Markers, and Divider lines.
 
-- **Progressive Web App (PWA) & Offline Ready:**
-  - Installable directly to desktop or mobile home screens via `vite-plugin-pwa`.
-  - Offline connectivity indicator and offline asset caching.
-  - Tailored installation prompts, including step-by-step iOS Safari guidance.
+### 💾 Auto-Save & Offline PWA
+- **IndexedDB Storage:** Persists uploaded songbooks and settings locally in the browser with high capacity, auto-migrating legacy `localStorage` entries.
+- **Progressive Web App (PWA):** Fully installable on iOS, Android, and Desktop with offline caching via `vite-plugin-pwa`.
+
+---
 
 ## 🛠 Tech Stack
 
-- **Framework:** React 19 + TypeScript
-- **Styling:** Tailwind CSS v4
-- **Icons:** Lucide React
-- **Animations:** Motion
-- **Storage:** IndexedDB API + LocalStorage
-- **PDF Generation:** `pdf-lib` + `@pdf-lib/fontkit` via Web Workers
-- **PWA:** `vite-plugin-pwa`
-- **Tooling:** Vite 6
+| Technology | Purpose |
+| :--- | :--- |
+| **React 19 + TypeScript** | Frontend framework & type safety |
+| **Tailwind CSS v4** | Modern utility-first styling |
+| **Vite 6** | High-performance build tool and dev server |
+| **pdf-lib & fontkit** | Client-side vector PDF generation in Web Worker |
+| **vite-plugin-pwa** | PWA service worker & asset caching |
+| **IndexedDB API** | Client-side persistent songbook database |
+| **Lucide React** | Clean, accessible icon set |
+| **Motion** | Fluid animations and drawer transitions |
 
-## 🚀 Getting Started
+---
+
+## 💻 Getting Started
 
 ### Prerequisites
-
-- Node.js (v18 or higher)
+- Node.js (v18 or higher, v22 recommended)
 - npm or yarn
 
-### Installation
+### Installation & Local Development
 
-1. Clone the repository and install dependencies:
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/nastroj/Kytario-Print-Customizer.git
+   cd Kytario-Print-Customizer
+   ```
+
+2. **Install dependencies:**
    ```bash
    npm install
    ```
 
-2. Start the development server:
+3. **Start the local development server:**
    ```bash
    npm run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
+   The application will be running at [http://localhost:3000](http://localhost:3000).
 
-3. Type-check and build for production:
+4. **Verify TypeScript & build:**
    ```bash
    npm run lint
    npm run build
    ```
 
-## 📖 Usage Guide
+---
 
-1. **Import Songbook:** Drag and drop your Kytario `.json` export file into the upload zone, or click to browse.
-2. **Customize Layout:**
-   - Adjust page format (A4, A5, Letter) and orientation in the sidebar.
-   - Fine-tune font sizes, line margins, and page margins (in mm).
-   - Customize color themes for lyrics, chords, and section headers. (Settings are unique to Light/Dark modes!)
-3. **Review & Apply:** Changes are tracked in real-time. Click **Apply Settings** in the floating action bar to re-render the book with the new parameters.
-4. **Auto-Save:** All imported songbooks and settings are automatically persisted locally via IndexedDB.
-5. **Download Native PDF:** Click the **Download PDF** button to generate a crisp, vector-based PDF file directly in your browser using the background Web Worker engine.
+## 🌐 GitHub Sync & GitHub Pages Deployment
 
-## 📝 Release Notes
+The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) ready for GitHub Pages.
+
+### 1. Push changes to GitHub
+
+```bash
+# Initialize git if needed
+git init
+git remote add origin https://github.com/nastroj/Kytario-Print-Customizer.git
+
+# Stage, commit, and push
+git add .
+git commit -m "chore: release v1.2.0 - ToC overflow fixes, sync GitHub Pages workflow, update README"
+git branch -M main
+git push -u origin main
+```
+
+### 2. Enable GitHub Pages in Repository Settings
+
+1. In your GitHub repository, open **Settings** > **Pages**.
+2. Under **Build and deployment** > **Source**, select **GitHub Actions**.
+3. Once pushed to `main` (or `master`), the **Deploy to GitHub Pages** action will automatically run and publish your app at:
+   ```
+   https://<username>.github.io/Kytario-Print-Customizer/
+   ```
+
+---
+
+## 📖 How to Use
+
+1. **Import:** Drag and drop your Kytario songbook `.json` export file into the upload zone, or click to browse.
+2. **Customize:** Open the sidebar to choose page format, orientation, font scales, margin sizes, and color themes.
+3. **Apply & Preview:** Click **Apply Settings** in the floating action dock to update the layout. Toggle between continuous scroll and two-page spread views.
+4. **Print / Download:**
+   - Click **Download PDF** for an instant high-quality vector PDF compiled by the background Web Worker.
+   - Or click **Print** for browser native print dialog with paper margins pre-configured.
+
+---
+
+## 📝 Release History
+
+### v1.2.0
+- Fixed Table of Contents (ToC) bottom margin overflow in both preview and PDF engine using column height calculations.
+- Synchronized Web Worker PDF generation with on-screen DOM metrics.
+- Configured automated GitHub Pages deployment workflow with dynamic base path support.
+- Updated documentation and version tracking.
+
+### v1.1.3
+- Minor layout and responsive polish.
+- Debug HUD toggle options in global app configuration.
 
 ### v1.1.0
-- **Native PDF Engine:** Replaced basic browser-print mechanisms with a high-fidelity `pdf-lib` Web Worker.
-- **Theme-Aware Profiles:** Light and Dark modes now maintain entirely separate persistence states.
-- **Enhanced Loaders:** Multi-pass JSON rescue pipelines with beautiful, real-time progress indicators.
-- **UI Polish:** Removed distracting badges and standardized glassmorphic modals.
+- Background native PDF engine using `pdf-lib` and `@pdf-lib/fontkit`.
+- Theme-aware persistent settings profiles for Light and Dark modes.
+- Multi-pass JSON rescue parser with visual progress indicators.
 
 ### v1.0.6
-- **Auto-Save Engine:** Added periodic, debounced, and lifecycle-driven state persistence to IndexedDB.
-- **Draft Session Restoration:** Preserves unapplied configuration drafts across page reloads.
+- Periodic and debounced auto-save engine to IndexedDB.
+- Unapplied draft settings preservation across page reloads.
 
-### v1.0.5
-- **Sticky Actions Footer:** Re-architected sidebar with a fixed bottom action dock.
-- **Chord-Only Formatting Fix:** Fixed vertical spacing on repetition lines containing chords without accompanying lyrics.
+---
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+This project is open-source and licensed under the [MIT License](LICENSE).
