@@ -1,0 +1,184 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", "inter Fallback", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* Sleek Modern Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(161, 161, 170, 0.35);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(161, 161, 170, 0.6);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 122, 0.4);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(113, 113, 122, 0.7);
+}
+
+@keyframes indeterminate-bar {
+  0% {
+    left: -35%;
+    width: 35%;
+  }
+  50% {
+    left: 30%;
+    width: 50%;
+  }
+  100% {
+    left: 100%;
+    width: 35%;
+  }
+}
+
+.animate-indeterminate-bar {
+  animation: indeterminate-bar 1.4s ease-in-out infinite;
+}
+
+/* Smart Column Balancing & Orphan Prevention */
+.song-columns-container {
+  column-fill: balance;
+  -webkit-column-fill: balance;
+  orphans: 2;
+  widows: 2;
+}
+
+.song-section {
+  orphans: 2;
+  widows: 2;
+}
+
+.song-section-with-line {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.break-before-column {
+  break-before: column;
+  -webkit-column-break-before: always;
+  page-break-before: always;
+}
+
+.song-orphan-guard-head,
+.song-orphan-guard-tail {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  column-break-inside: avoid;
+}
+
+.song-section-separator {
+  break-after: avoid;
+  page-break-after: avoid;
+  -webkit-column-break-after: avoid;
+}
+
+.song-column > .song-section-block:first-child .song-section-separator,
+.song-columns-container > .song-section-block:first-child .song-section-separator {
+  display: none !important;
+}
+
+/* Table of Contents Container & Column Balancing Protection */
+.print-index-container {
+  box-sizing: border-box;
+  padding: 8mm;
+  margin: 0;
+}
+
+.toc-columns-body {
+  column-fill: auto;
+  -webkit-column-fill: auto;
+  align-content: start;
+  align-items: start;
+}
+
+@media print {
+  .song-page-outer-wrapper {
+    content-visibility: visible !important;
+    contain: none !important;
+    contain-intrinsic-size: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  .song-page-outer-wrapper:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+  .print-page-container {
+    content-visibility: visible !important;
+    contain: none !important;
+    transform: none !important;
+    position: relative !important;
+  }
+  .print-index-container {
+    content-visibility: visible !important;
+    contain: none !important;
+    transform: none !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 8mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    overflow: hidden !important;
+  }
+  .toc-columns-body {
+    column-fill: auto !important;
+    -webkit-column-fill: auto !important;
+    align-content: start !important;
+    align-items: start !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .song-columns-container {
+    column-fill: balance !important;
+    -webkit-column-fill: balance !important;
+    orphans: 2 !important;
+    widows: 2 !important;
+  }
+  .break-before-column {
+    break-before: column !important;
+    -webkit-column-break-before: always !important;
+    page-break-before: always !important;
+  }
+  .song-orphan-guard-head,
+  .song-orphan-guard-tail {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    -webkit-column-break-inside: avoid !important;
+    column-break-inside: avoid !important;
+  }
+  .song-section-with-line {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-decoration-break: clone !important;
+    -webkit-box-decoration-break: clone !important;
+  }
+  .song-section-separator {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+}
+
+
