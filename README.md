@@ -1,6 +1,6 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.3.1  
+**Version:** 1.4.0
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
@@ -10,10 +10,10 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 
 ## 🌟 What's New in v1.4.0
 
-- Cleaned up the default sidebar configuration so a fresh session opens with the current, validated layout settings.
-- Removed leftover separator-related behavior and aligned the shared layout logic with the final minimal print design.
-- Improved repo hygiene for GitHub Pages deployment and release readiness.
-- Finalized the project for syncing to GitHub and publishing from the `main` branch.
+- Aligned the default sidebar configuration with the validated print layout.
+- Removed leftover separator behavior from the shared layout logic.
+- Synchronized application, package, lockfile, and documentation versions at `1.4.0`.
+- Confirmed the GitHub Pages workflow builds with Node.js 22 and deploys from `main`.
 
 ---
 
@@ -100,13 +100,9 @@ The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml
 ### 1. Push changes to GitHub
 
 ```bash
-# Initialize git if needed
-git init
-git remote add origin https://github.com/nastroj/Kytario-Print-Customizer.git
-
-# Stage, commit, and push
+# Stage, commit, and push the release
 git add .
-git commit -m "chore: release v1.2.0 - ToC overflow fixes, sync GitHub Pages workflow, update README"
+git commit -m "chore: release v1.4.0"
 git branch -M main
 git push -u origin main
 ```
@@ -134,6 +130,15 @@ git push -u origin main
 ---
 
 ## 📝 Release History
+
+### v1.4.0
+- Aligned release metadata across `package.json`, `package-lock.json`, the application configuration, and README.
+- Refreshed the default print customizer layout and removed obsolete separator behavior.
+- Verified the TypeScript check and production build before release.
+- Prepared the GitHub Pages workflow for deployment from `main`.
+
+### v1.3.1
+- Refined the print customizer layout and release configuration.
 
 ### v1.2.0
 - Fixed Table of Contents (ToC) bottom margin overflow in both preview and PDF engine using column height calculations.
