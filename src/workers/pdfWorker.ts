@@ -2,7 +2,7 @@ import { PDFDocument, rgb, RGB } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import QRCode from 'qrcode';
 import { SongbookData, PrintSettings, Song } from '../types';
-import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, computeSmartFitLineMargin, SongSection, resolveCoverUrl, getPageMargins, getOptimalColumnCount } from '../utils';
+import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, computeSmartFitLineMargin, computeSmartFitSectionMargin, SongSection, resolveCoverUrl, getPageMargins, getOptimalColumnCount } from '../utils';
 
 export interface GeneratePdfPayload {
   songbookData: SongbookData;
@@ -1381,7 +1381,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       const chordSpacingPt = 2 * ptPerPx;
       const pdfLineMarginPx = computeSmartFitLineMargin(sections, settings, Boolean(song.title), Boolean(song.artist), scale);
       const lineMarginBottomPt = pdfLineMarginPx * ptPerPx;
-      const sectionBottomMarginPt = 14 * ptPerPx; // mb-3.5 sm:mb-4
+      const sectionBottomMarginPt = computeSmartFitSectionMargin(sections, settings, Boolean(song.title), Boolean(song.artist), scale) * ptPerPx;
 
       const colStartY = currentY;
       let currentCol = 0;

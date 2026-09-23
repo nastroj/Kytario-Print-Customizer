@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, memo } from 'react';
 import { Song, PrintSettings, ColumnBalancePlan } from '../types';
-import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, partitionSectionsIntoColumns, computeSmartFitLineMargin, MIN_READABLE_LYRICS_FONT_SIZE, SongSection, ParsedLine, getPageMargins, getOptimalColumnCount } from '../utils';
+import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, partitionSectionsIntoColumns, computeSmartFitLineMargin, computeSmartFitSectionMargin, MIN_READABLE_LYRICS_FONT_SIZE, SongSection, ParsedLine, getPageMargins, getOptimalColumnCount } from '../utils';
 import { getFontFamilyStack } from '../fonts';
 
 interface UseSmartFitParams {
@@ -196,6 +196,10 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
     return computeSmartFitLineMargin(sections, settings, Boolean(title), Boolean(artist), computedScale);
   }, [sections, settings, computedScale, title, artist]);
 
+  const sectionMargin = useMemo(() => {
+    return computeSmartFitSectionMargin(sections, settings, Boolean(title), Boolean(artist), computedScale);
+  }, [sections, settings, computedScale, title, artist]);
+
   const dynamicStyles = {
     '--title-color': settings.titleColor,
     '--artist-color': settings.artistColor,
@@ -214,6 +218,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
     '--song-scale': computedScale.toString(),
     '--marker-width': markerColWidth,
     '--line-margin': `${lineMargin}px`,
+    '--section-margin': `${sectionMargin}px`,
     '--section-padding-left': '0.20rem',
     fontFamily: 'var(--songbook-font-family)',
   } as React.CSSProperties;
@@ -415,8 +420,9 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
                   className="song-section-block"
                 >
                   <div 
-                    className={`relative mb-3.5 sm:mb-4 song-section ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''}`}
+                    className={`relative song-section ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''}`}
                     style={{ 
+                      marginBottom: 'var(--section-margin)',
                       ...(showSectionLines ? {
                         borderLeft: `0.22em solid ${currentLineColor}`,
                         paddingLeft: 'var(--section-padding-left)',

@@ -1904,6 +1904,50 @@ export function getDisplayColor(colorHex: string, isDarkMode: boolean): string {
   return colorHex;
 }
 
+function getBalancedColumnMetrics(sectionHeights: number[], columnCount: number): { height: number; sectionCount: number } {
+  const total = sectionHeights.reduce((sum, height) => sum + height, 0);
+  if (columnCount <= 1 || sectionHeights.length <= 1) {
+    return {
+      height: sectionHeights.length === 1 && columnCount > 1 ? Math.ceil(total / columnCount) : total,
+      sectionCount: sectionHeights.length,
+    };
+  }
+
+  const targetHeight = total / columnCount;
+  const columnHeights: number[] = [];
+  const columnSectionCounts: number[] = [];
+  let offset = 0;
+
+  for (let column = 0; column < columnCount - 1; column++) {
+    const remainingColumns = columnCount - column - 1;
+    let runningHeight = 0;
+    let bestCut = offset + 1;
+    let bestDistance = Infinity;
+
+    for (let cut = offset; cut < sectionHeights.length - remainingColumns; cut++) {
+      runningHeight += sectionHeights[cut];
+      const distance = Math.abs(runningHeight - targetHeight);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestCut = cut + 1;
+      }
+    }
+
+    columnHeights.push(sectionHeights.slice(offset, bestCut).reduce((sum, height) => sum + height, 0));
+    columnSectionCounts.push(bestCut - offset);
+    offset = bestCut;
+  }
+
+  columnHeights.push(sectionHeights.slice(offset).reduce((sum, height) => sum + height, 0));
+  columnSectionCounts.push(sectionHeights.length - offset);
+
+  const tallestColumnIndex = columnHeights.indexOf(Math.max(...columnHeights));
+  return {
+    height: columnHeights[tallestColumnIndex],
+    sectionCount: columnSectionCounts[tallestColumnIndex],
+  };
+}
+
 /**
  * Computes enhanced line margin / vertical spacing when smartFit auto-scale is enabled
  * and the song easily fits on the page (leaving spare vertical space).
@@ -1994,12 +2038,85 @@ export function computeSmartFitLineMargin(
     return secH + Math.max(14, Math.round(16 * Math.min(1.3, scale)));
   });
 
-  const total = sectionHeights.reduce((a, b) => a + b, 0);
-  const spareRatio = Math.max(0, (availColH - total) / availColH);
+  const { height: maxColumnHeight } = getBalancedColumnMetrics(sectionHeights, colCount);
+  const spareRatio = Math.max(0, (availColH - maxColumnHeight) / availColH);
   if (spareRatio > 0.04) {
-    const bonus = Math.min(10, Math.round(spareRatio * 18));
+    const bonus = Math.min(3, Math.round(spareRatio * 18));
     return 5 + bonus;
   }
   return 5;
+}
+
+/**
+ * Computes enhanced spacing between song sections when smartFit has spare page height.
+ */
+export function computeSmartFitSectionMargin(
+  sections: SongSection[],
+  settings: Parameters<typeof computeSmartFitLineMargin>[1],
+  hasTitle: boolean = true,
+  hasArtist: boolean = false,
+  scale: number = 1.0
+): number {
+  if (!settings.smartFit || !sections?.length) return 16;
+
+  const isLand = settings.orientation === 'landscape';
+  const mmToPx = 3.779528;
+  let totalPxWidth = 210 * mmToPx;
+  let totalPxHeight = 297 * mmToPx;
+
+  if (settings.pageFormat === 'A5') {
+    totalPxWidth = (isLand ? 210 : 148) * mmToPx;
+    totalPxHeight = (isLand ? 148 : 210) * mmToPx;
+  } else if (settings.pageFormat === 'Letter') {
+    totalPxWidth = (isLand ? 11 : 8.5) * 96;
+    totalPxHeight = (isLand ? 8.5 : 11) * 96;
+  } else {
+    totalPxWidth = (isLand ? 297 : 210) * mmToPx;
+    totalPxHeight = (isLand ? 210 : 297) * mmToPx;
+  }
+
+  const margins = getPageMargins(settings);
+  const paddingY = (margins.top + margins.bottom) * mmToPx;
+  const paddingX = (margins.left + margins.right) * mmToPx;
+  const usableW = Math.max(200, totalPxWidth - paddingX);
+  const usableH = Math.max(200, totalPxHeight - paddingY);
+  const baseLyricsSize = Number(settings.lyricsFontSize) || 12;
+  const baseChordsSize = Number(settings.chordsFontSize) || 12;
+  const titleBlockH = (hasTitle ? (Number(settings.titleFontSize) || 16) * 1.25 : 0) +
+    (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 18;
+  const availColH = Math.max(100, usableH - titleBlockH - 24);
+  const colCount = getOptimalColumnCount(sections, settings);
+  const colWidth = (usableW - (colCount > 1 ? 24 : 0) * (colCount - 1)) / colCount;
+  const hasMarkers = sections.some(s => !!s.marker?.trim());
+  const maxMarkerLen = sections.reduce((max, section) => {
+    return Math.max(max, section.marker?.replace(/[\[\]]/g, '').trim().length || 0);
+  }, 0);
+  const markerColEm = maxMarkerLen <= 2 ? 1.85 : maxMarkerLen <= 4 ? 2.2 : Math.max(2.2, maxMarkerLen * 0.6 + 0.4);
+  const sectionLineIndentEm = settings.showSectionLines !== false ? 0.6 : 0;
+  const effectiveColW = Math.max(80, colWidth - (baseLyricsSize * ((hasMarkers ? markerColEm : 0) + sectionLineIndentEm)));
+  const charsPerCol = Math.max(16, Math.floor(effectiveColW / ((baseLyricsSize * scale) * 0.54)));
+  const showChords = settings.showChords ?? true;
+  const sectionHeights = sections.map((section) => {
+    const sectionHeight = section.parsedLines.reduce(
+      (sectionTotal, line) => sectionTotal + estimateLineHeight(
+        line,
+        scale,
+        baseLyricsSize * scale,
+        baseChordsSize * scale,
+        charsPerCol,
+        showChords
+      ),
+      0
+    );
+    return sectionHeight + Math.max(14, Math.round(16 * Math.min(1.3, scale)));
+  });
+
+  const { height: maxColumnHeight, sectionCount: maxColumnSectionCount } = getBalancedColumnMetrics(sectionHeights, colCount);
+  const spareHeight = Math.max(0, availColH - maxColumnHeight);
+  const interSectionGaps = Math.max(0, maxColumnSectionCount - 1);
+  if (interSectionGaps === 0) return 16;
+
+  const extraMarginPerGap = Math.floor(spareHeight / interSectionGaps);
+  return 16 + Math.min(16, Math.max(0, extraMarginPerGap));
 }
 

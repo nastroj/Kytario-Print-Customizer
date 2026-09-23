@@ -1,6 +1,6 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.4.0
+**Version:** 1.4.1
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
@@ -8,12 +8,13 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 
 ---
 
-## 🌟 What's New in v1.4.0
+## What's New In v1.4.1
 
-- Aligned the default sidebar configuration with the validated print layout.
-- Removed leftover separator behavior from the shared layout logic.
-- Synchronized application, package, lockfile, and documentation versions at `1.4.0`.
-- Confirmed the GitHub Pages workflow builds with Node.js 22 and deploys from `main`.
+- Improved SmartFit spacing between song sections when a page has spare vertical room.
+- Calculated spare space from the tallest balanced column instead of the combined song height.
+- Distributed available pixels across visible section gaps, up to a 32px maximum margin.
+- Kept the on-screen preview and background PDF renderer on the same spacing calculation.
+- Synchronized application, package, lockfile, and documentation versions at `1.4.1`.
 
 ---
 
@@ -22,7 +23,7 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 ### 📄 Background Native PDF Generation
 - **Client-Side PDF Engine:** Generates vector PDFs entirely in the browser using `pdf-lib` and `@pdf-lib/fontkit` inside a dedicated Web Worker.
 - **Non-Blocking Execution:** Export even massive 200+ song collections in the background with an animated progress modal while continuing to navigate the app.
-- **True Type Font Embedding:** Automatically fetches and embeds optimized `.ttf` font files (Plus Jakarta Sans, Playfair Display) for crisp, professional typography.
+- **True Type Font Embedding:** Automatically fetches and embeds optimized `.ttf` font files for crisp, professional typography.
 
 ### 📐 SmartFit Auto-Scaling & Layout Balancing
 - **Intelligent Song Scaling:** Dynamically scales font sizes and line heights per song so every song cleanly fills a single page without awkward page breaks.
@@ -102,7 +103,7 @@ The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml
 ```bash
 # Stage, commit, and push the release
 git add .
-git commit -m "chore: release v1.4.0"
+git commit -m "chore: release v1.4.1"
 git branch -M main
 git push -u origin main
 ```
@@ -131,20 +132,20 @@ git push -u origin main
 
 ## 📝 Release History
 
-### v1.4.0
-- Aligned release metadata across `package.json`, `package-lock.json`, the application configuration, and README.
-- Refreshed the default print customizer layout and removed obsolete separator behavior.
-- Verified the TypeScript check and production build before release.
-- Prepared the GitHub Pages workflow for deployment from `main`.
+### v1.4.1
+- Improved SmartFit section spacing based on actual spare height in balanced columns.
+- Increased section margins from the 16px baseline up to 32px when the page can accommodate them.
+- Synchronized spacing between the preview and background PDF generation.
+- Verified `npm run lint` and `npm run build`.
 
 ### v1.3.1
 - Refined the print customizer layout and release configuration.
 
-### v1.2.0
-- Fixed Table of Contents (ToC) bottom margin overflow in both preview and PDF engine using column height calculations.
-- Synchronized Web Worker PDF generation with on-screen DOM metrics.
-- Configured automated GitHub Pages deployment workflow with dynamic base path support.
-- Updated documentation and version tracking.
+### v1.4.0
+- Aligned release metadata across `package.json`, `package-lock.json`, the application config, and README.
+- Refreshed the default print customizer layout and removed obsolete separator behavior.
+- Verified the TypeScript check and production build before release.
+- Prepared the GitHub Pages workflow for deployment from `main`.
 
 ### v1.1.3
 - Minor layout and responsive polish.
