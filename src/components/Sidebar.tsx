@@ -279,7 +279,7 @@ export const Sidebar = React.memo(function Sidebar({
                 />
               )}
             </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Page layout, fonts & colors</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Kytario Print Customizer v{APP_CONFIG.APP_VERSION}</p>
           </div>
           <div className="flex items-center gap-1.5">
             {onToggleDarkMode && (

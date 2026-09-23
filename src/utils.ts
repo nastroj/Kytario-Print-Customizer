@@ -1187,7 +1187,7 @@ export function computeSmartFitScale(
   const baseChordsSize = Number(settings.chordsFontSize) || 12;
 
   const titleBlockH = (hasTitle ? (Number(settings.titleFontSize) || 16) * 1.25 : 0) + 
-                     (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 18;
+                     (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 16;
   const availColH = Math.max(100, usableH - titleBlockH - 24);
 
   const colCount = getOptimalColumnCount(sections, settings);
@@ -1565,7 +1565,7 @@ export function computeSongFitDebug(
   const baseLyricsSize = Number(settings.lyricsFontSize) || 12;
   const baseChordsSize = Number(settings.chordsFontSize) || 12;
 
-  const titleBlockH = (title ? titleSize * 1.25 : 0) + (artist ? artistSize * 1.25 : 0) + 18;
+  const titleBlockH = (title ? titleSize * 1.25 : 0) + (artist ? artistSize * 1.25 : 0) + 16;
   const availColH = Math.max(100, usableH - titleBlockH - 24);
 
   const colCount = getOptimalColumnCount(sections, settings);
@@ -2004,7 +2004,7 @@ export function computeSmartFitLineMargin(
   const baseChordsSize = Number(settings.chordsFontSize) || 12;
 
   const titleBlockH = (hasTitle ? (Number(settings.titleFontSize) || 16) * 1.25 : 0) + 
-                     (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 18;
+                     (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 16;
   const availColH = Math.max(100, usableH - titleBlockH - 24);
 
   const colCount = getOptimalColumnCount(sections, settings);
@@ -2083,7 +2083,7 @@ export function computeSmartFitSectionMargin(
   const baseLyricsSize = Number(settings.lyricsFontSize) || 12;
   const baseChordsSize = Number(settings.chordsFontSize) || 12;
   const titleBlockH = (hasTitle ? (Number(settings.titleFontSize) || 16) * 1.25 : 0) +
-    (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 18;
+    (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 16;
   const availColH = Math.max(100, usableH - titleBlockH - 24);
   const colCount = getOptimalColumnCount(sections, settings);
   const colWidth = (usableW - (colCount > 1 ? 24 : 0) * (colCount - 1)) / colCount;

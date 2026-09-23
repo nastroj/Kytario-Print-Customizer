@@ -1313,7 +1313,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           });
         }
 
-        currentY -= Math.max(titlePt, artistPt) + (22 * ptPerPx); // mb-5 sm:mb-6 in preview
+        currentY -= Math.max(titlePt, artistPt) + (16 * ptPerPx); // mb-4 on desktop/print preview
       } else {
         // Wrap title and artist on two centered lines
         const titleX = songMarginPtLeft + (printableWidth - Math.min(printableWidth - 20, wTitle)) / 2;

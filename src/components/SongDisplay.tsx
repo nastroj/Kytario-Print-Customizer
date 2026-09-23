@@ -84,7 +84,7 @@ export function useSmartFit({
     const paddingY = (margins.top + margins.bottom) * mmToPx;
     const titleSize = Number(settings.titleFontSize) || 16;
     const artistSize = Number(settings.artistFontSize) || 16;
-    const titleBlockH = (hasTitle ? titleSize * 1.25 : 0) + (hasArtist ? artistSize * 1.25 : 0) + 18;
+    const titleBlockH = (hasTitle ? titleSize * 1.25 : 0) + (hasArtist ? artistSize * 1.25 : 0) + 16;
     return Math.max(100, totalPxHeight - paddingY - titleBlockH - 24);
   }, [
     settings.orientation,
@@ -349,7 +349,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
         </div>
       )}
 
-      <div className="text-center mb-5 sm:mb-6 px-8 shrink-0 song-title-block">
+      <div className="text-center mb-5 sm:mb-4 px-8 shrink-0 song-title-block">
         <h2 
           className="font-bold leading-tight song-title-text" 
           style={{ color: 'var(--title-color)', fontSize: 'var(--title-size)' }}

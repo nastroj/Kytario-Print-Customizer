@@ -1,6 +1,6 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.4.1
+**Version:** 1.4.2
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
@@ -8,13 +8,11 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 
 ---
 
-## What's New In v1.4.1
+## What's New In v1.4.2
 
-- Improved SmartFit spacing between song sections when a page has spare vertical room.
-- Calculated spare space from the tallest balanced column instead of the combined song height.
-- Distributed available pixels across visible section gaps, up to a 32px maximum margin.
-- Kept the on-screen preview and background PDF renderer on the same spacing calculation.
-- Synchronized application, package, lockfile, and documentation versions at `1.4.1`.
+- Reduced desktop title-block spacing from 24px to 16px to save page space while preserving readability.
+- Synchronized title spacing and SmartFit height estimates between preview and PDF output.
+- Synchronized application, package, lockfile, and documentation versions at `1.4.2`.
 
 ---
 
@@ -61,64 +59,6 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 
 ---
 
-## 💻 Getting Started
-
-### Prerequisites
-- Node.js (v18 or higher, v22 recommended)
-- npm or yarn
-
-### Installation & Local Development
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/nastroj/Kytario-Print-Customizer.git
-   cd Kytario-Print-Customizer
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Start the local development server:**
-   ```bash
-   npm run dev
-   ```
-   The application will be running at [http://localhost:3000](http://localhost:3000).
-
-4. **Verify TypeScript & build:**
-   ```bash
-   npm run lint
-   npm run build
-   ```
-
----
-
-## 🌐 GitHub Sync & GitHub Pages Deployment
-
-The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) ready for GitHub Pages.
-
-### 1. Push changes to GitHub
-
-```bash
-# Stage, commit, and push the release
-git add .
-git commit -m "chore: release v1.4.1"
-git branch -M main
-git push -u origin main
-```
-
-### 2. Enable GitHub Pages in Repository Settings
-
-1. In your GitHub repository, open **Settings** > **Pages**.
-2. Under **Build and deployment** > **Source**, select **GitHub Actions**.
-3. Once pushed to `main` (or `master`), the **Deploy to GitHub Pages** action will automatically run and publish your app at:
-   ```
-   https://<username>.github.io/Kytario-Print-Customizer/
-   ```
-
----
-
 ## 📖 How to Use
 
 1. **Import:** Drag and drop your Kytario songbook `.json` export file into the upload zone, or click to browse.
@@ -127,38 +67,6 @@ git push -u origin main
 4. **Print / Download:**
    - Click **Download PDF** for an instant high-quality vector PDF compiled by the background Web Worker.
    - Or click **Print** for browser native print dialog with paper margins pre-configured.
-
----
-
-## 📝 Release History
-
-### v1.4.1
-- Improved SmartFit section spacing based on actual spare height in balanced columns.
-- Increased section margins from the 16px baseline up to 32px when the page can accommodate them.
-- Synchronized spacing between the preview and background PDF generation.
-- Verified `npm run lint` and `npm run build`.
-
-### v1.3.1
-- Refined the print customizer layout and release configuration.
-
-### v1.4.0
-- Aligned release metadata across `package.json`, `package-lock.json`, the application config, and README.
-- Refreshed the default print customizer layout and removed obsolete separator behavior.
-- Verified the TypeScript check and production build before release.
-- Prepared the GitHub Pages workflow for deployment from `main`.
-
-### v1.1.3
-- Minor layout and responsive polish.
-- Debug HUD toggle options in global app configuration.
-
-### v1.1.0
-- Background native PDF engine using `pdf-lib` and `@pdf-lib/fontkit`.
-- Theme-aware persistent settings profiles for Light and Dark modes.
-- Multi-pass JSON rescue parser with visual progress indicators.
-
-### v1.0.6
-- Periodic and debounced auto-save engine to IndexedDB.
-- Unapplied draft settings preservation across page reloads.
 
 ---
 
