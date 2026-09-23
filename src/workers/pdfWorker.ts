@@ -2,7 +2,7 @@ import { PDFDocument, rgb, RGB } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import QRCode from 'qrcode';
 import { SongbookData, PrintSettings, Song } from '../types';
-import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, computeSmartFitLineMargin, computeSmartFitSectionMargin, SongSection, resolveCoverUrl, getPageMargins, getOptimalColumnCount } from '../utils';
+import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, computeSmartFitLineMargin, SongSection, resolveCoverUrl, getPageMargins, getOptimalColumnCount } from '../utils';
 
 export interface GeneratePdfPayload {
   songbookData: SongbookData;
@@ -1313,7 +1313,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           });
         }
 
-        currentY -= Math.max(titlePt, artistPt) + (16 * ptPerPx); // mb-4 on desktop/print preview
+        currentY -= Math.max(titlePt, artistPt) + (22 * ptPerPx); // mb-5 sm:mb-6 in preview
       } else {
         // Wrap title and artist on two centered lines
         const titleX = songMarginPtLeft + (printableWidth - Math.min(printableWidth - 20, wTitle)) / 2;
@@ -1381,7 +1381,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       const chordSpacingPt = 2 * ptPerPx;
       const pdfLineMarginPx = computeSmartFitLineMargin(sections, settings, Boolean(song.title), Boolean(song.artist), scale);
       const lineMarginBottomPt = pdfLineMarginPx * ptPerPx;
-      const sectionBottomMarginPt = computeSmartFitSectionMargin(sections, settings, Boolean(song.title), Boolean(song.artist), scale) * ptPerPx;
+      const sectionBottomMarginPt = 14 * ptPerPx; // mb-3.5 sm:mb-4
 
       const colStartY = currentY;
       let currentCol = 0;
@@ -1432,6 +1432,40 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
 
         const firstNonEmptyIndex = section.parsedLines.findIndex((l) => !l.isEmpty);
         let secSegmentStartY = colY;
+
+        // Render standalone marker if section has no non-empty lines
+        if (section.marker && firstNonEmptyIndex === -1 && hasAnyMarkers) {
+          const reqLineH = lyricHeightPt + lineMarginBottomPt;
+          if (colY - reqLineH < songMarginPtBottom && currentCol < colCount - 1) {
+            if (showSectionLines && secSegmentStartY > colY) {
+              const borderColX = songMarginPtLeft + currentCol * (colWidth + colGap) + (sectionBorderW / 2);
+              page.drawLine({
+                start: { x: borderColX, y: secSegmentStartY },
+                end: { x: borderColX, y: colY },
+                thickness: sectionBorderW,
+                color: currentLineColor,
+              });
+            }
+            currentCol++;
+            colY = colStartY;
+            secSegmentStartY = colY;
+          }
+          const colBaseX = songMarginPtLeft + currentCol * (colWidth + colGap);
+          const lineStartX = colBaseX + sectionLeftInset;
+          const cleanMarker = section.marker.replace(/^\[(.*)\]$/, '$1').trim();
+          const markerW = regularFont.widthOfTextAtSize(cleanMarker, markerPt);
+          const markerDrawX = lineStartX + markerWidthPt - markerW - (4 * ptPerPx);
+          const lyricBaseY = colY - lyricsPt;
+
+          page.drawText(cleanMarker, {
+            x: Math.max(lineStartX, markerDrawX),
+            y: lyricBaseY,
+            size: markerPt,
+            font: regularFont,
+            color: colMarker,
+          });
+          colY -= reqLineH;
+        }
 
         // Render each line in section
         for (let lIdx = 0; lIdx < section.parsedLines.length; lIdx++) {
@@ -1547,8 +1581,8 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
               const isLastChunk = j === lineData.chunks.length - 1;
               const hasChord = Boolean(chunk.chord);
               const chordStr = chunk.chord || '';
-              const textStr = chunk.text || '';
               const isSectionRef = chunk.isSectionRef;
+              const textStr = isSectionRef ? (chunk.text || '').replace(/^\[(.*)\]$/, '$1').trim() : (chunk.text || '');
 
               // Compute widths: chords receive a small right padding unless it is the last chunk
               const chordW = hasChord
@@ -1591,8 +1625,8 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
             let curX = chunksOriginX;
 
             for (const chunk of lineData.chunks) {
-              const textStr = chunk.text || '';
               const isSectionRef = chunk.isSectionRef;
+              const textStr = isSectionRef ? (chunk.text || '').replace(/^\[(.*)\]$/, '$1').trim() : (chunk.text || '');
               if (textStr) {
                 page.drawText(textStr, {
                   x: curX,

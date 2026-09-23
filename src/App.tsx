@@ -431,6 +431,31 @@ export default function App() {
     showToast,
   ]);
 
+  const handleOpenResetModal = useCallback(() => {
+    setIsConfirmResetOpen(true);
+  }, []);
+
+  const handleCloseResetModal = useCallback(() => {
+    setIsConfirmResetOpen(false);
+  }, []);
+
+  const handleCloseMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen(false);
+  }, []);
+
+  const handleOpenMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen(true);
+  }, []);
+
+  const handleOpenSettings = useCallback(() => {
+    setIsMobileSidebarOpen(true);
+    setIsDesktopSidebarCollapsed(false);
+  }, []);
+
+  const handleSidebarDownloadPdf = useCallback(() => {
+    handleDownloadPdf();
+  }, [handleDownloadPdf]);
+
   const handleApplySettings = (newSettings: any) => {
     if (!newSettings || typeof newSettings !== 'object' || 'nativeEvent' in newSettings) {
       return;
@@ -963,15 +988,15 @@ export default function App() {
         hasUnappliedChanges={hasUnappliedSettings}
         changes={unappliedChanges}
         onApplySettings={handleApplySettings}
-        onResetSongbook={() => setIsConfirmResetOpen(true)}
+        onResetSongbook={handleOpenResetModal}
         onFileUpload={handleFileUpload}
-        onDownloadPdf={() => handleDownloadPdf()}
+        onDownloadPdf={handleSidebarDownloadPdf}
         onPrint={handlePrint}
         onOpenPrintPreview={handleOpenPrintPreview}
         isDownloadingPdf={isDownloadingPdf || isGeneratingWorkerPdf}
         isPdfReady={isPdfReady}
         isMobileOpen={isMobileSidebarOpen}
-        onMobileClose={() => setIsMobileSidebarOpen(false)}
+        onMobileClose={handleCloseMobileSidebar}
         isCollapsed={isDesktopSidebarCollapsed}
         onToggleCollapse={setIsDesktopSidebarCollapsed}
         isUpdatingLayout={isUpdatingLayout}
@@ -988,7 +1013,7 @@ export default function App() {
         <header className="md:hidden bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-black/5 dark:border-zinc-800 px-3 py-2 flex items-center justify-between shrink-0 print:hidden z-20 shadow-xs gap-2">
           <button
             id="mobile-open-settings-btn"
-            onClick={() => setIsMobileSidebarOpen(true)}
+            onClick={handleOpenMobileSidebar}
             className="relative p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer shrink-0"
             title={hasUnappliedSettings ? `Settings (${unappliedChanges.length} unapplied changes pending)` : "Settings"}
             aria-label="Settings"
@@ -1149,10 +1174,7 @@ export default function App() {
           autoSaveStatus={autoSaveStatus}
           lastSavedAt={lastSavedAt}
           storageBackend={storageBackend}
-          onOpenSettings={() => {
-            setIsMobileSidebarOpen(true);
-            setIsDesktopSidebarCollapsed(false);
-          }}
+          onOpenSettings={handleOpenSettings}
         />
 
         {/* Background Web Worker PDF Generation Status Modal */}

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, memo } from 'react';
 import { Song, PrintSettings, ColumnBalancePlan } from '../types';
-import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, partitionSectionsIntoColumns, computeSmartFitLineMargin, computeSmartFitSectionMargin, MIN_READABLE_LYRICS_FONT_SIZE, SongSection, ParsedLine, getPageMargins, getOptimalColumnCount } from '../utils';
+import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, partitionSectionsIntoColumns, computeSmartFitLineMargin, MIN_READABLE_LYRICS_FONT_SIZE, SongSection, ParsedLine, getPageMargins, getOptimalColumnCount } from '../utils';
 import { getFontFamilyStack } from '../fonts';
 
 interface UseSmartFitParams {
@@ -84,7 +84,7 @@ export function useSmartFit({
     const paddingY = (margins.top + margins.bottom) * mmToPx;
     const titleSize = Number(settings.titleFontSize) || 16;
     const artistSize = Number(settings.artistFontSize) || 16;
-    const titleBlockH = (hasTitle ? titleSize * 1.25 : 0) + (hasArtist ? artistSize * 1.25 : 0) + 16;
+    const titleBlockH = (hasTitle ? titleSize * 1.25 : 0) + (hasArtist ? artistSize * 1.25 : 0) + 18;
     return Math.max(100, totalPxHeight - paddingY - titleBlockH - 24);
   }, [
     settings.orientation,
@@ -196,10 +196,6 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
     return computeSmartFitLineMargin(sections, settings, Boolean(title), Boolean(artist), computedScale);
   }, [sections, settings, computedScale, title, artist]);
 
-  const sectionMargin = useMemo(() => {
-    return computeSmartFitSectionMargin(sections, settings, Boolean(title), Boolean(artist), computedScale);
-  }, [sections, settings, computedScale, title, artist]);
-
   const dynamicStyles = {
     '--title-color': settings.titleColor,
     '--artist-color': settings.artistColor,
@@ -218,7 +214,6 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
     '--song-scale': computedScale.toString(),
     '--marker-width': markerColWidth,
     '--line-margin': `${lineMargin}px`,
-    '--section-margin': `${sectionMargin}px`,
     '--section-padding-left': '0.20rem',
     fontFamily: 'var(--songbook-font-family)',
   } as React.CSSProperties;
@@ -293,7 +288,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
                     }}
                   >
                     {isSectionRef ? (
-                      chunk.text
+                      chunk.text.replace(/^\[(.*)\]$/, '$1')
                     ) : hasActualText && !isWhitespaceOnly ? (
                       chunk.text
                     ) : isWhitespaceOnly ? (
@@ -349,7 +344,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
         </div>
       )}
 
-      <div className="text-center mb-5 sm:mb-4 px-8 shrink-0 song-title-block">
+      <div className="text-center mb-5 sm:mb-6 px-8 shrink-0 song-title-block">
         <h2 
           className="font-bold leading-tight song-title-text" 
           style={{ color: 'var(--title-color)', fontSize: 'var(--title-size)' }}
@@ -420,9 +415,8 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
                   className="song-section-block"
                 >
                   <div 
-                    className={`relative song-section ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''}`}
+                    className={`relative mb-3.5 sm:mb-4 song-section ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''}`}
                     style={{ 
-                      marginBottom: 'var(--section-margin)',
                       ...(showSectionLines ? {
                         borderLeft: `0.22em solid ${currentLineColor}`,
                         paddingLeft: 'var(--section-padding-left)',

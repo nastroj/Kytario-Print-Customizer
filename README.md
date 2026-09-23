@@ -1,6 +1,6 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.4.2
+**Version:** 1.4.0
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
@@ -8,11 +8,12 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 
 ---
 
-## What's New In v1.4.2
+## 🌟 What's New in v1.4.0
 
-- Reduced desktop title-block spacing from 24px to 16px to save page space while preserving readability.
-- Synchronized title spacing and SmartFit height estimates between preview and PDF output.
-- Synchronized application, package, lockfile, and documentation versions at `1.4.2`.
+- Aligned the default sidebar configuration with the validated print layout.
+- Removed leftover separator behavior from the shared layout logic.
+- Synchronized application, package, lockfile, and documentation versions at `1.4.0`.
+- Confirmed the GitHub Pages workflow builds with Node.js 22 and deploys from `main`.
 
 ---
 
@@ -21,7 +22,7 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 ### 📄 Background Native PDF Generation
 - **Client-Side PDF Engine:** Generates vector PDFs entirely in the browser using `pdf-lib` and `@pdf-lib/fontkit` inside a dedicated Web Worker.
 - **Non-Blocking Execution:** Export even massive 200+ song collections in the background with an animated progress modal while continuing to navigate the app.
-- **True Type Font Embedding:** Automatically fetches and embeds optimized `.ttf` font files for crisp, professional typography.
+- **True Type Font Embedding:** Automatically fetches and embeds optimized `.ttf` font files (Plus Jakarta Sans, Playfair Display) for crisp, professional typography.
 
 ### 📐 SmartFit Auto-Scaling & Layout Balancing
 - **Intelligent Song Scaling:** Dynamically scales font sizes and line heights per song so every song cleanly fills a single page without awkward page breaks.
@@ -59,6 +60,64 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 
 ---
 
+## 💻 Getting Started
+
+### Prerequisites
+- Node.js (v18 or higher, v22 recommended)
+- npm or yarn
+
+### Installation & Local Development
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/nastroj/Kytario-Print-Customizer.git
+   cd Kytario-Print-Customizer
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Start the local development server:**
+   ```bash
+   npm run dev
+   ```
+   The application will be running at [http://localhost:3000](http://localhost:3000).
+
+4. **Verify TypeScript & build:**
+   ```bash
+   npm run lint
+   npm run build
+   ```
+
+---
+
+## 🌐 GitHub Sync & GitHub Pages Deployment
+
+The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) ready for GitHub Pages.
+
+### 1. Push changes to GitHub
+
+```bash
+# Stage, commit, and push the release
+git add .
+git commit -m "chore: release v1.4.0"
+git branch -M main
+git push -u origin main
+```
+
+### 2. Enable GitHub Pages in Repository Settings
+
+1. In your GitHub repository, open **Settings** > **Pages**.
+2. Under **Build and deployment** > **Source**, select **GitHub Actions**.
+3. Once pushed to `main` (or `master`), the **Deploy to GitHub Pages** action will automatically run and publish your app at:
+   ```
+   https://<username>.github.io/Kytario-Print-Customizer/
+   ```
+
+---
+
 ## 📖 How to Use
 
 1. **Import:** Drag and drop your Kytario songbook `.json` export file into the upload zone, or click to browse.
@@ -67,6 +126,38 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 4. **Print / Download:**
    - Click **Download PDF** for an instant high-quality vector PDF compiled by the background Web Worker.
    - Or click **Print** for browser native print dialog with paper margins pre-configured.
+
+---
+
+## 📝 Release History
+
+### v1.4.0
+- Aligned release metadata across `package.json`, `package-lock.json`, the application configuration, and README.
+- Refreshed the default print customizer layout and removed obsolete separator behavior.
+- Verified the TypeScript check and production build before release.
+- Prepared the GitHub Pages workflow for deployment from `main`.
+
+### v1.3.1
+- Refined the print customizer layout and release configuration.
+
+### v1.2.0
+- Fixed Table of Contents (ToC) bottom margin overflow in both preview and PDF engine using column height calculations.
+- Synchronized Web Worker PDF generation with on-screen DOM metrics.
+- Configured automated GitHub Pages deployment workflow with dynamic base path support.
+- Updated documentation and version tracking.
+
+### v1.1.3
+- Minor layout and responsive polish.
+- Debug HUD toggle options in global app configuration.
+
+### v1.1.0
+- Background native PDF engine using `pdf-lib` and `@pdf-lib/fontkit`.
+- Theme-aware persistent settings profiles for Light and Dark modes.
+- Multi-pass JSON rescue parser with visual progress indicators.
+
+### v1.0.6
+- Periodic and debounced auto-save engine to IndexedDB.
+- Unapplied draft settings preservation across page reloads.
 
 ---
 

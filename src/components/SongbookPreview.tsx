@@ -907,34 +907,25 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   });
   const [activeSongIndex, setActiveSongIndex] = useState<number>(0);
 
-  // Throttled ResizeObserver using requestIdleCallback / requestAnimationFrame to defer heavy layout checks
+  // Throttled ResizeObserver using requestAnimationFrame for immediate frame-synchronized measurement
   useLayoutEffect(() => {
     if (!containerRef.current) return;
 
-    let cleanupIdle: (() => void) | null = null;
+    let rafId: number | null = null;
+
+    const measure = () => {
+      if (!containerRef.current) return;
+      const w = containerRef.current.clientWidth;
+      const h = containerRef.current.clientHeight;
+      setContainerSize(prev => (Math.abs(prev.width - w) < 2 && Math.abs(prev.height - h) < 2 ? prev : { width: w, height: h }));
+    };
 
     const scheduleMeasure = () => {
-      if (cleanupIdle) cleanupIdle();
-
-      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        const id = (window as Window & { requestIdleCallback: any; cancelIdleCallback: any }).requestIdleCallback(() => {
-          if (containerRef.current) {
-            const w = containerRef.current.clientWidth;
-            const h = containerRef.current.clientHeight;
-            setContainerSize(prev => (Math.abs(prev.width - w) < 2 && Math.abs(prev.height - h) < 2 ? prev : { width: w, height: h }));
-          }
-        }, { timeout: 120 });
-        cleanupIdle = () => (window as Window & { cancelIdleCallback: any }).cancelIdleCallback(id);
-      } else {
-        const rafId = requestAnimationFrame(() => {
-          if (containerRef.current) {
-            const w = containerRef.current.clientWidth;
-            const h = containerRef.current.clientHeight;
-            setContainerSize(prev => (Math.abs(prev.width - w) < 2 && Math.abs(prev.height - h) < 2 ? prev : { width: w, height: h }));
-          }
-        });
-        cleanupIdle = () => cancelAnimationFrame(rafId);
-      }
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        measure();
+      });
     };
 
     scheduleMeasure();
@@ -947,7 +938,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     window.addEventListener('resize', scheduleMeasure);
 
     return () => {
-      if (cleanupIdle) cleanupIdle();
+      if (rafId !== null) cancelAnimationFrame(rafId);
       resizeObserver.disconnect();
       window.removeEventListener('resize', scheduleMeasure);
     };
