@@ -1,19 +1,30 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.4.0
+**Version:** 1.4.2  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern web app for transforming Kytario songbook JSON into clean print-ready layouts, table-of-contents pages, and downloadable PDFs.
 
+> Release status: this branch is prepared for GitHub Pages deployment. The deployment workflow is configured to build from the `main` branch and publish the generated `dist` output to GitHub Pages automatically.
+
 ---
 
-## 🌟 What's New in v1.4.0
+## What's New in v1.4.2
 
-- Aligned the default sidebar configuration with the validated print layout.
-- Removed leftover separator behavior from the shared layout logic.
-- Synchronized application, package, lockfile, and documentation versions at `1.4.0`.
-- Confirmed the GitHub Pages workflow builds with Node.js 22 and deploys from `main`.
+- Reduced desktop title-block spacing from 24px to 16px to save page space while preserving readability.
+- Synchronized title spacing and SmartFit height estimates between preview and PDF output.
+- Kept the on-screen preview and background PDF renderer synchronized.
+- Aligned the app version, package metadata, and release documentation to `1.4.2`.
+- Verified the project builds cleanly for GitHub Pages deployment.
+
+---
+
+## Deployment
+
+- GitHub Pages deployment is triggered from the `main` branch via the workflow in `.github/workflows/deploy.yml`.
+- The build runs with Node.js 22 and publishes the generated static site from the `dist` folder.
+- Push the release commit to `main` to trigger deployment automatically.
 
 ---
 
@@ -22,7 +33,7 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 ### 📄 Background Native PDF Generation
 - **Client-Side PDF Engine:** Generates vector PDFs entirely in the browser using `pdf-lib` and `@pdf-lib/fontkit` inside a dedicated Web Worker.
 - **Non-Blocking Execution:** Export even massive 200+ song collections in the background with an animated progress modal while continuing to navigate the app.
-- **True Type Font Embedding:** Automatically fetches and embeds optimized `.ttf` font files (Plus Jakarta Sans, Playfair Display) for crisp, professional typography.
+- **True Type Font Embedding:** Automatically fetches and embeds optimized `.ttf` font files for crisp, professional typography.
 
 ### 📐 SmartFit Auto-Scaling & Layout Balancing
 - **Intelligent Song Scaling:** Dynamically scales font sizes and line heights per song so every song cleanly fills a single page without awkward page breaks.
@@ -102,8 +113,7 @@ The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml
 ```bash
 # Stage, commit, and push the release
 git add .
-git commit -m "chore: release v1.4.0"
-git branch -M main
+git commit -m "chore: release v1.4.2"
 git push -u origin main
 ```
 
@@ -111,7 +121,7 @@ git push -u origin main
 
 1. In your GitHub repository, open **Settings** > **Pages**.
 2. Under **Build and deployment** > **Source**, select **GitHub Actions**.
-3. Once pushed to `main` (or `master`), the **Deploy to GitHub Pages** action will automatically run and publish your app at:
+3. Once pushed to `main`, the **Deploy to GitHub Pages** action will automatically run and publish your app at:
    ```
    https://<username>.github.io/Kytario-Print-Customizer/
    ```
@@ -130,6 +140,12 @@ git push -u origin main
 ---
 
 ## 📝 Release History
+
+### v1.4.2
+- Reduced desktop title-block spacing from 24px to 16px to save page space while preserving readability.
+- Synchronized title spacing and SmartFit height estimates between preview and PDF output.
+- Kept the on-screen preview and background PDF renderer synchronized.
+- Verified the GitHub Pages workflow and production build before release.
 
 ### v1.4.0
 - Aligned release metadata across `package.json`, `package-lock.json`, the application configuration, and README.
