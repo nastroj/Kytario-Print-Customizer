@@ -120,10 +120,10 @@ export function FrontCoverPage({
         {/* Main Title */}
         <div className="w-full max-w-4xl px-2">
           <h1
-            className={`${titleSizeClass} font-black uppercase tracking-tight leading-tight`}
-            style={{
-              color: effectiveDarkMode ? (settings.titleColor || '#f4f4f5') : (settings.titleColor || '#1c1917'),
-            }}
+            className={`${titleSizeClass} font-black uppercase tracking-tight leading-tight ${
+              effectiveDarkMode ? 'text-zinc-100' : 'text-zinc-900'
+            } print:text-black`}
+            style={settings.titleColor ? { color: settings.titleColor } : {}}
           >
             {displayTitle}
           </h1>

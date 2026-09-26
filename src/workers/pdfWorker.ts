@@ -498,7 +498,7 @@ async function renderBackCoverPage(
 
   const bTitle = (isCustom && settings.backCoverTitle?.trim())
     ? settings.backCoverTitle.trim()
-    : (settings.backCoverTitle?.trim() || 'ZADNÍ STRANA');
+    : (settings.backCoverTitle?.trim() || songbookData.title || (songbookData as any).name || 'ZPĚVNÍK');
 
   const { displayUrl, qrTarget } = resolveCoverUrl({
     isCustom,
@@ -527,6 +527,9 @@ async function renderBackCoverPage(
   const customImage = settings.backCoverCustomImage;
   const imagePosition = settings.backCoverImagePosition || 'replace-qr';
   const alignment = settings.backCoverAlignment || 'center';
+
+  // Palette matching web preview
+  const colSeparator = hexToPdfRgb(settings.separatorLineColor, '#e4e4e7');
 
   const page = doc.addPage([pageWidth, pageHeight]);
 
@@ -571,6 +574,7 @@ async function renderBackCoverPage(
         size: footerPt,
         font: regularFont,
         color: colArtist,
+        opacity: 0.75,
       });
       footY += (footerPt + 3);
     }
@@ -584,8 +588,8 @@ async function renderBackCoverPage(
       start: { x: divStartX, y: dividerY },
       end: { x: divStartX + divWidth, y: dividerY },
       thickness: 0.5,
-      color: colSectionLine,
-      opacity: 0.4,
+      color: colSeparator,
+      opacity: 0.3,
     });
   }
 
@@ -602,7 +606,9 @@ async function renderBackCoverPage(
         size: notPt,
         font: regularFont,
         color: colTitle,
+        opacity: 0.85,
       });
+      footY = Math.max(footY, notY + (notPt + 3.5)); // Track max height
       notY += (notPt + 3.5);
     }
   }
@@ -656,7 +662,8 @@ async function renderBackCoverPage(
       y: topY - subPt,
       size: subPt,
       font: regularFont,
-      color: colArtist,
+      color: colTitle,
+      opacity: 0.8,
     });
     topY -= (subPt + (isLandscape ? 8 : 10));
   }
@@ -685,7 +692,8 @@ async function renderBackCoverPage(
       y: topY - urlPt,
       size: urlPt,
       font: regularFont,
-      color: colArtist,
+      color: colTitle,
+      opacity: 0.8,
     });
     topY -= (urlPt + (isLandscape ? 16 : 24));
   }

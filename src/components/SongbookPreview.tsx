@@ -506,10 +506,13 @@ const SongPagesList = memo(function SongPagesList({
             defaultHeight={cssHeight}
           >
             <div 
-              className="w-full h-full bg-white dark:bg-zinc-900 overflow-hidden relative shadow-md ring-1 ring-black/5 dark:ring-white/10 print:shadow-none print:ring-0"
+              className={`${pageContainerClass} print-cover-container flex flex-col overflow-hidden origin-top-left relative shadow-md ring-1 ring-black/5 dark:ring-white/10 print:shadow-none print:ring-0`}
               style={{ 
                 width: cssWidth, 
                 height: cssHeight,
+                minHeight: cssHeight,
+                maxHeight: cssHeight,
+                boxSizing: 'border-box',
                 padding: `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`,
                 transform: isScaled ? `scale(${effectiveScale})` : 'none',
                 transformOrigin: 'top left',

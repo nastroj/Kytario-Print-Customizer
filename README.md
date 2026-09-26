@@ -1,6 +1,6 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.4.3  
+**Version:** 1.4.4  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
@@ -10,13 +10,12 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 
 ---
 
-## What's New in v1.4.3
+## What's New in v1.4.4
 
-- **Fixed Missing Page Numbers in PDFs**: Replaced DOM CSS background badges with resilient inline SVG badges and vector paths in the Web Worker PDF generator so page numbers are never omitted, even if browser print engines have background graphics disabled.
-- **Accurate Document Page Indexing & Book Mode Alignment**: Document page indices (`docPageIndex`) are now calculated uniformly across front cover, Table of Contents, and song pages. Alternating odd/even page badges and inner/outer margins in book mode now align with physical booklet spreads.
-- **Deep Audit of Print CSS & `@page` Directives**: Audited `@media print` rules, removed legacy padding overrides from `index.css`, and ensured `.print-page-container` maintains proper flex column layouts without page-break clip issues.
-- **GitHub Pages Synchronization**: Enhanced `vite.config.ts` with dynamic `BASE_PATH` support matching the GitHub Actions workflow (`deploy.yml`), and converted `index.html` asset tags to `%BASE_URL%` for robust repository subpath hosting.
-- **Cleaned Redundant Assets & Legacy Artifacts**: Deleted redundant lockfiles (`bun.lock`), removed duplicate SVGs (`icon.svg`, `icon-maskable.svg`), removed 110+ unused packages (heavy `@resvg/resvg-js` native binaries, unneeded server packages `express`, `@types/express`, `dotenv`, `autoprefixer`, and `class-variance-authority`), configured Rollup manual vendor chunk splitting, and aligned all version metadata.
+- **Robust Printing Config**: Enhanced `@page` and `@media print` rules in `index.html` with registration mark suppression (`marks: none`, `bleed: 0mm`), explicit margin resets, and color preservation (`color-adjust: exact`) to ensure design fidelity on all printers and PDF engines.
+- **Back Cover Synchronization**: Fixed a bug where the PDF back cover defaulted to "ZADNÍ STRANA" and lacked color; it now correctly mirrors the web preview's title fallback and active color palette.
+- **Build Optimization Audit**: Completed a comprehensive project audit for version 1.4.4, removing redundant legacy directories (`assets/`), unused lockfiles (`bun.lock`), and unreferenced dependencies (`motion`, `@google/genai`) to ensure a lean, production-grade deployment.
+- **CSS Maintenance**: Consolidated redundant print page container rules in `index.css` into a shared utility class for better consistency and easier future updates.
 
 ---
 
@@ -67,7 +66,6 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 | **vite-plugin-pwa** | PWA service worker & asset caching |
 | **IndexedDB API** | Client-side generated PDF caching |
 | **Lucide React** | Clean, accessible icon set |
-| **Motion** | Fluid animations and drawer transitions |
 
 ---
 
@@ -138,6 +136,12 @@ git push -u origin main
 ---
 
 ## 📝 Release History
+
+### v1.4.4
+- Optimized print configuration with registration mark suppression and forced color preservation across all PDF engines.
+- Fixed back cover title and color synchronization between web preview and PDF generation.
+- Conducted project-wide audit: removed legacy `assets/` directory, redundant lockfiles, and pruned unused dependencies (`motion`, `@google/genai`).
+- Refactored and consolidated print CSS utility classes in `src/index.css`.
 
 ### v1.4.3
 - Fixed missing page numbers on top of pages in generated PDFs and browser print rendering.

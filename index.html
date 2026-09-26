@@ -52,23 +52,31 @@
     <!-- Dedicated print page size & orientation style (dynamically updated by print customizer) -->
     <style id="kytario-print-page-setup">
       @page {
-        size: 297mm 210mm;
-        size: landscape;
         size: A4 landscape;
-        margin: 0mm !important;
+        size: auto landscape;
+        margin: 0 !important;
+        bleed: 0mm;
+        marks: none;
       }
       @page :first {
-        size: 297mm 210mm;
-        size: landscape;
         size: A4 landscape;
-        margin: 0mm !important;
+        size: auto landscape;
+        margin: 0 !important;
+        bleed: 0mm;
+        marks: none;
       }
       @media print {
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
         @page {
-          size: 297mm 210mm;
-          size: landscape;
           size: A4 landscape;
-          margin: 0mm !important;
+          size: auto landscape;
+          margin: 0 !important;
+          bleed: 0mm;
+          marks: none;
         }
       }
     </style>

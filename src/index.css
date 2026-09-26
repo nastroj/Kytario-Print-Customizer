@@ -123,31 +123,9 @@
     page-break-after: auto !important;
     break-after: auto !important;
   }
-  .print-page-container {
-    content-visibility: visible !important;
-    contain: none !important;
-    transform: none !important;
-    position: relative !important;
-    display: flex !important;
-    flex-direction: column !important;
-    box-sizing: border-box !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    overflow: hidden !important;
-  }
-  .print-index-container {
-    content-visibility: visible !important;
-    contain: none !important;
-    transform: none !important;
-    position: relative !important;
-    display: flex !important;
-    flex-direction: column !important;
-    box-sizing: border-box !important;
-    margin: 0 !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    overflow: hidden !important;
-  }
+  .print-page-base,
+  .print-page-container,
+  .print-index-container,
   .print-cover-container {
     content-visibility: visible !important;
     contain: none !important;
@@ -157,9 +135,20 @@
     flex-direction: column !important;
     box-sizing: border-box !important;
     margin: 0 !important;
+    padding: 0 !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .print-page-base * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    forced-color-adjust: none !important;
   }
   .song-display-root {
     display: flex !important;
