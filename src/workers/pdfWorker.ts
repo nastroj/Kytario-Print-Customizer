@@ -5,7 +5,8 @@ import { SongbookData, PrintSettings, Song } from '../types';
 import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, computeSmartFitLineMargin, SongSection, resolveCoverUrl, getPageMargins, getOptimalColumnCount } from '../utils';
 
 export interface GeneratePdfPayload {
-  songbookData: SongbookData;
+  songbookData?: SongbookData;
+  songbookDataTransferred?: Uint8Array; // Support for zero-copy transferred buffer
   settings: PrintSettings;
   fontRegularUrl: string;
   fontBoldUrl: string;
@@ -769,26 +770,64 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
   };
 
   try {
-    const { songbookData, settings, fontRegularUrl, fontBoldUrl, fontItalicUrl, fontBoldItalicUrl } = payload;
-    const rawSongs = songbookData.songs || (songbookData as any).items || (songbookData as any).songbookSongs?.map((i: any) => i.song) || [];
-    const songs: Song[] = rawSongs.map((s: any, idx: number) => ({
-      id: s.id || idx + 1,
-      title: s.title || s.name || `Song ${idx + 1}`,
-      name: s.title || s.name || `Song ${idx + 1}`,
-      author: s.author || s.artist || '',
-      artist: s.artist || s.author || '',
-      content: s.content || s.lyrics || s.text || '',
-      rating: s.rating,
-      key: s.key,
-      capo: s.capo,
-      tempo: s.tempo,
-    }));
+    const { 
+      songbookData: directData, 
+      songbookDataTransferred,
+      settings, 
+      fontRegularUrl, 
+      fontBoldUrl, 
+      fontItalicUrl, 
+      fontBoldItalicUrl 
+    } = payload;
 
+    // 0. Bottleneck Audit: Zero-Copy Serialization Recovery
+    // If data was transferred as a binary buffer, decode and parse it asynchronously
+    let songbookData: SongbookData;
+    if (songbookDataTransferred) {
+      const decoded = new TextDecoder().decode(songbookDataTransferred);
+      songbookData = JSON.parse(decoded);
+    } else if (directData) {
+      songbookData = directData;
+    } else {
+      throw new Error('No songbook data provided to worker.');
+    }
+
+    const rawSongs = songbookData.songs || (songbookData as any).items || (songbookData as any).songbookSongs?.map((i: any) => i.song) || [];
+    const totalSongs = rawSongs.length;
     const bookTitle = songbookData.title || songbookData.name || 'Zpěvník';
-    const totalSongs = songs.length;
 
     postProgress({
-      percent: 3,
+      percent: 2,
+      phase: 'fonts',
+      message: 'Processing song metadata...',
+      totalSongs,
+    });
+
+    // 0.5. Bottleneck Audit: Asynchronous Metadata Normalization
+    // Avoid blocking the worker thread for large songbooks during initial array mapping
+    const songs: Song[] = [];
+    const METADATA_CHUNK = 100;
+    for (let i = 0; i < rawSongs.length; i++) {
+      if (i > 0 && i % METADATA_CHUNK === 0) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      const s = rawSongs[i];
+      songs.push({
+        id: s.id || i + 1,
+        title: s.title || s.name || `Song ${i + 1}`,
+        name: s.title || s.name || `Song ${i + 1}`,
+        author: s.author || s.artist || '',
+        artist: s.artist || s.author || '',
+        content: s.content || s.lyrics || s.text || '',
+        rating: s.rating,
+        key: s.key,
+        capo: s.capo,
+        tempo: s.tempo,
+      });
+    }
+
+    postProgress({
+      percent: 5,
       phase: 'fonts',
       message: 'Loading embedded Unicode typography...',
       totalSongs,
@@ -987,6 +1026,11 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     const totalItems = tocItems.length;
 
     while (offset < totalItems) {
+      // Yield to the event loop every TOC page to keep worker responsive
+      if (tocPageNum > 1) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+
       const isFirst = tocPageNum === 1;
       const availH = isFirst ? availableHeightP1Pt : availableHeightSubPt;
       const remaining = totalItems - offset;
@@ -1202,7 +1246,14 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     // ----------------------------------------------------
     // 4. Song Pages (Exact parity with SongDisplay.tsx)
     // ----------------------------------------------------
+    const CHUNK_SIZE = 5;
     for (let sIdx = 0; sIdx < songs.length; sIdx++) {
+      // Yield to the event loop every few songs to keep the worker responsive to cancellation
+      // and allow progress messages to be dispatched smoothly
+      if (sIdx > 0 && sIdx % CHUNK_SIZE === 0) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+
       const song = songs[sIdx];
       const songNum = sIdx + 1;
 

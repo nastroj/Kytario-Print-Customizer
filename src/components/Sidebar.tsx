@@ -225,18 +225,18 @@ const SidebarContent = memo(function SidebarContent({
           {onResetSongbook && (
             <button
               type="button"
-              id={`sidebar-load-different-songbook-btn-${idSuffix}`}
+              id={`sidebar-switch-songbook-btn-${idSuffix}`}
               onClick={onResetSongbook}
               disabled={isLoadingJson}
               className="w-full py-2 px-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5 dark:border-zinc-700/60"
-              title="Open a different songbook JSON file"
+              title="Import a different songbook from URL, PDF, or JSON"
             >
               {isLoadingJson ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <FolderOpen className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                <RefreshCw className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
               )}
-              <span className="truncate">Change JSON</span>
+              <span className="truncate">Switch Songbook</span>
             </button>
           )}
 

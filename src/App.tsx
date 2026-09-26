@@ -7,8 +7,10 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
 import { SongbookData, PrintSettings } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Sun, Moon } from 'lucide-react';
+import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Sun, Moon, Globe, FileUp } from 'lucide-react';
 import { safeParseSongbookJson, normalizeSongbookData } from './utils';
+import { fetchSongbookFromKytario } from './utils/api';
+import { parseSongbookFromPdf } from './utils/pdfImport';
 import { APP_CONFIG } from './config';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
 import { BackgroundPdfProgressModal } from './components/BackgroundPdfProgressModal';
@@ -140,7 +142,8 @@ const defaultDarkSettings: PrintSettings = {
 export default function App() {
   const [songbookData, setSongbookData] = useState<SongbookData | null>(null);
   const [pastedJson, setPastedJson] = useState('');
-  const [activeTab, setActiveTab] = useState<'upload' | 'paste'>('upload');
+  const [kytarioUrl, setKytarioUrl] = useState('');
+  const [activeTab, setActiveTab] = useState<'upload' | 'paste' | 'url' | 'pdf'>('upload');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
@@ -558,6 +561,61 @@ export default function App() {
     processJsonString(pastedJson);
   };
 
+  const handleKytarioUrlSubmit = async () => {
+    if (!kytarioUrl.trim()) {
+      setErrorMessage('Please enter a Kytario URL first.');
+      return;
+    }
+    
+    setErrorMessage(null);
+    setRecoveryNotice(null);
+    setWarningMessage(null);
+    setIsLoadingJson(true);
+    setLoadingStatus({
+      title: 'Fetching from Kytario...',
+      subtitle: kytarioUrl,
+    });
+
+    try {
+      const rawData = await fetchSongbookFromKytario(kytarioUrl);
+      const data = normalizeSongbookData(rawData);
+      setSongbookData(data);
+      setIsLoadingJson(false);
+      const songCount = (data.songs || []).length;
+      showToast(`Successfully imported "${data.title}" from Kytario (${songCount} songs)!`);
+    } catch (err: any) {
+      console.error('Kytario import error:', err);
+      setIsLoadingJson(false);
+      setErrorMessage(err.message || 'Failed to import from Kytario.');
+    }
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setErrorMessage(null);
+    setIsLoadingJson(true);
+    setLoadingStatus({
+      title: 'Parsing PDF...',
+      subtitle: `Extracting text and chords from ${file.name}...`,
+    });
+
+    try {
+      const rawData = await parseSongbookFromPdf(file);
+      const data = normalizeSongbookData(rawData);
+      setSongbookData(data);
+      setIsLoadingJson(false);
+      const songCount = (data.songs || []).length;
+      showToast(`Successfully parsed PDF "${file.name}" (${songCount} songs recovered)!`);
+    } catch (err: any) {
+      console.error('PDF parse error:', err);
+      setIsLoadingJson(false);
+      setErrorMessage(err.message || 'Failed to parse PDF. Ensure it is a standard Kytario PDF.');
+    }
+    e.target.value = '';
+  };
+
   const resetSongbook = () => {
     setSongbookData(null);
     setPastedJson('');
@@ -600,29 +658,49 @@ export default function App() {
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-black/5">
+          <div className="flex border-b border-black/5 overflow-x-auto no-scrollbar">
             <button
-              id="upload-tab-btn"
               onClick={() => { setActiveTab('upload'); setErrorMessage(null); }}
-              className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold border-b-2 flex items-center justify-center gap-2 transition-colors ${
+              className={`flex-1 min-w-[80px] py-2.5 text-[11px] sm:text-xs font-semibold border-b-2 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
                 activeTab === 'upload'
                   ? 'border-zinc-900 text-zinc-900'
                   : 'border-transparent text-zinc-400 hover:text-zinc-700'
               }`}
             >
-              <Upload className="w-4 h-4" />
-              Upload File
+              <Upload className="w-3.5 h-3.5" />
+              JSON File
             </button>
             <button
-              id="paste-tab-btn"
+              onClick={() => { setActiveTab('url'); setErrorMessage(null); }}
+              className={`flex-1 min-w-[80px] py-2.5 text-[11px] sm:text-xs font-semibold border-b-2 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
+                activeTab === 'url'
+                  ? 'border-zinc-900 text-zinc-900'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-700'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5" />
+              Kytario URL
+            </button>
+            <button
+              onClick={() => { setActiveTab('pdf'); setErrorMessage(null); }}
+              className={`flex-1 min-w-[80px] py-2.5 text-[11px] sm:text-xs font-semibold border-b-2 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
+                activeTab === 'pdf'
+                  ? 'border-zinc-900 text-zinc-900'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-700'
+              }`}
+            >
+              <FileUp className="w-3.5 h-3.5" />
+              PDF Import
+            </button>
+            <button
               onClick={() => { setActiveTab('paste'); setErrorMessage(null); }}
-              className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold border-b-2 flex items-center justify-center gap-2 transition-colors ${
+              className={`flex-1 min-w-[80px] py-2.5 text-[11px] sm:text-xs font-semibold border-b-2 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
                 activeTab === 'paste'
                   ? 'border-zinc-900 text-zinc-900'
                   : 'border-transparent text-zinc-400 hover:text-zinc-700'
               }`}
             >
-              <Clipboard className="w-4 h-4" />
+              <Clipboard className="w-3.5 h-3.5" />
               Paste JSON
             </button>
           </div>
@@ -634,7 +712,7 @@ export default function App() {
             </div>
           )}
 
-          {activeTab === 'upload' ? (
+          {activeTab === 'upload' && (
             <div
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
@@ -697,7 +775,75 @@ export default function App() {
                 </label>
               </div>
             </div>
-          ) : (
+          )}
+
+          {activeTab === 'url' && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-700 uppercase tracking-wider ml-1">Kytario Songbook Link</label>
+                <input
+                  type="text"
+                  value={kytarioUrl}
+                  onChange={(e) => setKytarioUrl(e.target.value)}
+                  placeholder="https://kytario.com/bodg"
+                  disabled={isLoadingJson}
+                  className="w-full rounded-lg border border-black/10 p-3 text-sm focus:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-800 bg-zinc-50 disabled:opacity-60"
+                />
+              </div>
+              <button
+                onClick={handleKytarioUrlSubmit}
+                disabled={isLoadingJson}
+                className={`w-full text-white text-xs sm:text-sm font-medium py-2.5 sm:py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm ${
+                  isLoadingJson
+                    ? 'bg-zinc-800 pointer-events-none'
+                    : 'bg-zinc-900 hover:bg-zinc-800 cursor-pointer'
+                }`}
+              >
+                {isLoadingJson ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <Globe className="w-4 h-4" />
+                )}
+                <span>{isLoadingJson ? 'Fetching Data...' : 'Import from Kytario'}</span>
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'pdf' && (
+            <div className="space-y-6 py-6 text-center">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto shadow-sm border border-blue-100">
+                <FileUp className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-base font-bold text-zinc-900">Parse Existing PDF</h3>
+                <p className="text-xs text-zinc-500 max-w-xs mx-auto leading-relaxed">
+                  Lost your JSON? Upload your generated Kytario PDF to recover the song data and chords.
+                </p>
+              </div>
+              
+              <label className={`inline-flex items-center gap-2 text-white text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
+                isLoadingJson
+                  ? 'bg-zinc-800 pointer-events-none'
+                  : 'bg-blue-600 hover:bg-blue-700 hover:shadow-md cursor-pointer'
+              }`}>
+                {isLoadingJson ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                <span>{isLoadingJson ? 'Parsing...' : 'Select PDF File'}</span>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  disabled={isLoadingJson}
+                  onChange={handlePdfUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          )}
+
+          {activeTab === 'paste' && (
             <div className="space-y-4">
               <textarea
                 value={pastedJson}
@@ -708,7 +854,6 @@ export default function App() {
                 className="w-full rounded-lg border border-black/10 p-3 text-xs font-mono focus:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-800 resize-none bg-zinc-50 disabled:opacity-60"
               />
               <button
-                id="load-pasted-json-btn"
                 onClick={handlePasteSubmit}
                 disabled={isLoadingJson}
                 className={`w-full text-white text-xs sm:text-sm font-medium py-2.5 sm:py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm ${

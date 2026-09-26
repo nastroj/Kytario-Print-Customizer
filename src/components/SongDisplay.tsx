@@ -216,6 +216,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
     '--marker-width': markerColWidth,
     '--line-margin': `${lineMargin}px`,
     '--section-padding-left': '0.20rem',
+    '--section-separator-color': settings.sectionSeparatorColor || settings.separatorLineColor || (isDarkMode ? '#3f3f46' : '#e4e4e7'),
     fontFamily: 'var(--songbook-font-family)',
   } as React.CSSProperties;
 
@@ -429,6 +430,15 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
                   key={globalSecIndex}
                   className="song-section-block"
                 >
+                  {!isFirstInColumn && (
+                    <div 
+                      className="song-section-separator border-t w-full mb-4 print:mb-3"
+                      style={{ 
+                        borderColor: 'var(--section-separator-color)',
+                        opacity: 0.4
+                      }}
+                    />
+                  )}
                   <div 
                     className={`relative mb-3.5 sm:mb-4 song-section ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''}`}
                     style={{ 

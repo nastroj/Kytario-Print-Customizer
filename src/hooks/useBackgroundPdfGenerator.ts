@@ -206,11 +206,17 @@ export function useBackgroundPdfGenerator() {
             reject(new Error(errMsg));
           };
 
-          // Send data to worker
+          // Bottleneck Audit: Zero-Copy Serialization Transfer
+          // For large songbooks, structured cloning of the entire object can block the main thread.
+          // Encoding to JSON string and transferring the binary buffer is significantly more efficient.
+          const songbookJson = JSON.stringify(songbookData);
+          const encodedData = new TextEncoder().encode(songbookJson);
+
+          // Send data to worker utilizing Transferable Objects for the encoded buffer
           const inMessage: WorkerInMessage = {
             type: 'GENERATE_PDF',
             payload: {
-              songbookData,
+              songbookDataTransferred: encodedData,
               settings,
               fontRegularUrl,
               fontBoldUrl,
@@ -219,7 +225,7 @@ export function useBackgroundPdfGenerator() {
             },
           };
 
-          worker.postMessage(inMessage);
+          worker.postMessage(inMessage, [encodedData.buffer]);
         } catch (err: any) {
           const errMsg = err.message || 'Failed to initialize PDF worker.';
           setError(errMsg);

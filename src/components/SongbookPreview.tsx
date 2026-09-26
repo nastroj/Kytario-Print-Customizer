@@ -1131,7 +1131,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     return raw.trim().replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '_');
   }, [title]);
 
-  const syncHeadPrintPageSetup = useCallback((pageFormat: string, orientation: string, width: string, height: string) => {
+  const syncHeadPrintPageSetup = useCallback((pageFormat: string, orientation: string, width: string, height: string, settings: PrintSettings) => {
     if (typeof document === 'undefined') return;
     let styleEl = document.getElementById('kytario-print-page-setup') as HTMLStyleElement | null;
     if (!styleEl) {
@@ -1141,11 +1141,18 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     }
     const formatName = pageFormat === 'Letter' ? 'letter' : pageFormat;
 
+    // For double-sided book printing, we use @page :left and :right pseudo-classes
+    // to provide the print engine with precise margin information for registration.
+    const inner = settings.pageMarginInner ?? 5;
+    const outer = settings.pageMarginOuter ?? 5;
+
     styleEl.textContent = `
       @page {
         size: ${formatName} ${orientation};
         size: ${width} ${height};
         margin: 0mm !important;
+        bleed: 0mm;
+        marks: none;
       }
       @page :first {
         size: ${formatName} ${orientation};
@@ -1155,20 +1162,37 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       @page :left {
         size: ${formatName} ${orientation};
         size: ${width} ${height};
-        margin: 0mm !important;
+        ${settings.bookMode ? `
+          margin-left: ${outer}mm !important;
+          margin-right: ${inner}mm !important;
+        ` : 'margin: 0mm !important;'}
       }
       @page :right {
         size: ${formatName} ${orientation};
         size: ${width} ${height};
-        margin: 0mm !important;
+        ${settings.bookMode ? `
+          margin-left: ${inner}mm !important;
+          margin-right: ${outer}mm !important;
+        ` : 'margin: 0mm !important;'}
+      }
+      @media print {
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+        /* Ensure the containers themselves don't double up the margin if the @page margin is respected */
+        .print-page-container, .print-index-container, .print-cover-container {
+          ${settings.bookMode ? 'padding-left: 0 !important; padding-right: 0 !important;' : ''}
+        }
       }
     `;
   }, []);
 
   // Keep document head @page print rules in exact sync with current format and orientation
   useEffect(() => {
-    syncHeadPrintPageSetup(settings.pageFormat, settings.orientation, cssWidth, cssHeight);
-  }, [settings.pageFormat, settings.orientation, cssWidth, cssHeight, syncHeadPrintPageSetup]);
+    syncHeadPrintPageSetup(settings.pageFormat, settings.orientation, cssWidth, cssHeight, settings);
+  }, [settings, cssWidth, cssHeight, syncHeadPrintPageSetup]);
 
   const cleanupPrint = useCallback(() => {
     if (printTimeoutRef.current) {
@@ -1193,7 +1217,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   const handleDownloadPdf = useCallback(() => {
     // 0. Ensure document head has exact, current @page size & orientation rules before printing
-    syncHeadPrintPageSetup(settings.pageFormat, settings.orientation, cssWidth, cssHeight);
+    syncHeadPrintPageSetup(settings.pageFormat, settings.orientation, cssWidth, cssHeight, settings);
 
     // 1. Instantly trigger visual indicators (0ms delay) so user never sees a frozen app
     setIsPreparingPdf(true);

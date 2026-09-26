@@ -56,13 +56,36 @@
 .song-columns-container {
   column-fill: balance;
   -webkit-column-fill: balance;
-  orphans: 2;
-  widows: 2;
+  orphans: 3;
+  widows: 3;
 }
 
 .song-section {
-  orphans: 2;
-  widows: 2;
+  orphans: 3;
+  widows: 3;
+}
+
+.song-title-block {
+  break-after: avoid !important;
+  page-break-after: avoid !important;
+  -webkit-column-break-after: avoid !important;
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+.song-section-block {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  column-break-inside: avoid;
+}
+
+.song-marker {
+  break-after: avoid !important;
+  page-break-after: avoid !important;
+  -webkit-column-break-after: avoid !important;
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
 }
 
 .song-section-with-line {

@@ -1,6 +1,6 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.4.4  
+**Version:** 1.4.7  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
@@ -10,12 +10,12 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 
 ---
 
-## What's New in v1.4.4
+## What's New in v1.4.7
 
-- **Robust Printing Config**: Enhanced `@page` and `@media print` rules in `index.html` with registration mark suppression (`marks: none`, `bleed: 0mm`), explicit margin resets, and color preservation (`color-adjust: exact`) to ensure design fidelity on all printers and PDF engines.
-- **Back Cover Synchronization**: Fixed a bug where the PDF back cover defaulted to "ZADNÍ STRANA" and lacked color; it now correctly mirrors the web preview's title fallback and active color palette.
-- **Build Optimization Audit**: Completed a comprehensive project audit for version 1.4.4, removing redundant legacy directories (`assets/`), unused lockfiles (`bun.lock`), and unreferenced dependencies (`motion`, `@google/genai`) to ensure a lean, production-grade deployment.
-- **CSS Maintenance**: Consolidated redundant print page container rules in `index.css` into a shared utility class for better consistency and easier future updates.
+- **Double-Sided Book Printing**: Enhanced `@page` rule generation with precise `:left` and `:right` pseudo-classes for gutter and outer margin registration.
+- **Smart Section Separators**: Added clean section divider lines that automatically filter out when they appear at the top of a column.
+- **High-Performance Worker Export**: Implemented Zero-Copy Serialization (`TextEncoder`/`ArrayBuffer` transfer) and asynchronous worker-based chunk processing for smooth, non-blocking exports of massive songbooks.
+- **Direct Import & Recovery**: Added Kytario URL import and robust PDF text/chord parsing recovery.
 
 ---
 

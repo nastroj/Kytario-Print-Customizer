@@ -1,5 +1,33 @@
 # Release Notes
 
+## v1.4.7 - 2026-09-26
+
+### Book Printing, Performance, & Build Audit
+
+- **Double-Sided Book Printing Registration**: Enhanced the dynamic `@page` print setup to inject precise `:left` and `:right` pseudo-classes, supporting gutter binding margins for double-sided printouts.
+- **Smart Section Separators with Top-of-Column Filtering**: Introduced clean horizontal section dividers that automatically suppress when appearing at the top of a column, preserving visual cleanliness.
+- **High-Performance Worker Serialization**: Upgraded the background PDF worker communication with Zero-Copy Serialization (transferring binary `ArrayBuffer` payloads) and asynchronous chunked loops, preventing main-thread freezes during large songbook exports.
+- **Advanced Import Capabilities**: Added direct importing from Kytario URLs via a server-side proxy and PDF text/chord parser recovery for orphaned documents.
+- **Redundant Asset & Artifact Cleanup**: Pruned unnecessary files (such as leftover `bun.lock` files) to ensure a pristine, lean deployment for GitHub Pages.
+
+### Validation
+
+- `npm run lint` (`tsc --noEmit`)
+- `npm run build` (`vite build`)
+
+### Deployment
+
+This release is prepared for GitHub Pages deployment via the `.github/workflows/deploy.yml` workflow.
+
+### Release checklist
+
+- Version aligned across `package.json`, `package-lock.json`, `src/config.ts`, and `README.md`: `1.4.7`
+- Printing configuration verified across major browser engines
+- Project-wide audit completed and legacy artifacts removed
+- Ready to push to `main` for deployment
+
+---
+
 ## v1.4.4 - 2026-09-26
 
 ### Print Optimization & Code Audit
