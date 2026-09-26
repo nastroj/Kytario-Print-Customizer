@@ -52,11 +52,11 @@ export function getPageMargins(settings?: Partial<PrintSettings>, pageIndex: num
   if (settings?.bookMode) {
     inner = settings?.pageMarginInner ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? 5;
     outer = settings?.pageMarginOuter ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? 5;
-    // Index 0 is first page (odd: outer is Left, inner is Right)
-    // Index 1 is second page (even: inner is Left, outer is Right)
-    const isFirstOrOdd = pageIndex % 2 === 0;
-    left = isFirstOrOdd ? outer : inner;
-    right = isFirstOrOdd ? inner : outer;
+    // Page 1 (pageIndex 0, odd / recto): spine/binding is on the Left (Inner), outer edge is on the Right (Outer)
+    // Page 2 (pageIndex 1, even / verso): outer edge is on the Left (Outer), spine/binding is on the Right (Inner)
+    const isOddPage = pageIndex % 2 === 0;
+    left = isOddPage ? inner : outer;
+    right = isOddPage ? outer : inner;
   } else {
     left = settings?.pageMarginLeft ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? 5;
     right = settings?.pageMarginRight ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? 5;

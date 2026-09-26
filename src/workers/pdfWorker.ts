@@ -1226,8 +1226,9 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       const lyricsFontToUse = settings.lyricsItalic && italicFont ? italicFont : regularFont;
       const chordsFontToUse = settings.chordsItalic && boldItalicFont ? boldItalicFont : boldFont;
 
-      // Standard song page margins for this song index
-      const songMargins = getPageMargins(settings, sIdx);
+      // Standard song page margins for this song index, accounting for preceding cover/toc pages
+      const songDocPageIndex = doc.getPageCount();
+      const songMargins = getPageMargins(settings, songDocPageIndex);
       const songMarginPtLeft = songMargins.left * mmToPt;
       const songMarginPtRight = songMargins.right * mmToPt;
       const songMarginPtTop = songMargins.top * mmToPt;
@@ -1249,23 +1250,30 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         } else if (numPos === 'right') {
           badgeX = pageWidth - songMarginPtRight - badgeSize;
         } else {
-          // 'outer': first left (sIdx 0), second right (sIdx 1), third left (sIdx 2)...
-          const isRight = sIdx % 2 !== 0;
+          // 'outer': in facing pages layout, odd physical pages (recto) have outer margin on the right,
+          // even physical pages (verso) have outer margin on the left.
+          const isRightSpread = songDocPageIndex % 2 === 0;
+          const isRight = settings.bookMode ? isRightSpread : (sIdx % 2 !== 0);
           badgeX = isRight ? (pageWidth - songMarginPtRight - badgeSize) : songMarginPtLeft;
         }
 
         const badgeY = currentY - badgeSize;
         const badgeR = 5 * ptPerPx; // rounded-lg radius matching preview
-        const badgePath = `M ${badgeX + badgeR} ${badgeY} ` +
-          `L ${badgeX + badgeSize - badgeR} ${badgeY} ` +
-          `A ${badgeR} ${badgeR} 0 0 1 ${badgeX + badgeSize} ${badgeY + badgeR} ` +
-          `L ${badgeX + badgeSize} ${badgeY + badgeSize - badgeR} ` +
-          `A ${badgeR} ${badgeR} 0 0 1 ${badgeX + badgeSize - badgeR} ${badgeY + badgeSize} ` +
-          `L ${badgeX + badgeR} ${badgeY + badgeSize} ` +
-          `A ${badgeR} ${badgeR} 0 0 1 ${badgeX} ${badgeY + badgeSize - badgeR} ` +
-          `L ${badgeX} ${badgeY + badgeR} ` +
-          `A ${badgeR} ${badgeR} 0 0 1 ${badgeX + badgeR} ${badgeY} Z`;
+        // Use relative SVG path (0 to badgeSize) and pass (x, y) to drawSvgPath so Y-inversion maps accurately
+        const r = badgeR;
+        const s = badgeSize;
+        const badgePath = `M ${r} 0 ` +
+          `L ${s - r} 0 ` +
+          `A ${r} ${r} 0 0 1 ${s} ${r} ` +
+          `L ${s} ${s - r} ` +
+          `A ${r} ${r} 0 0 1 ${s - r} ${s} ` +
+          `L ${r} ${s} ` +
+          `A ${r} ${r} 0 0 1 0 ${s - r} ` +
+          `L 0 ${r} ` +
+          `A ${r} ${r} 0 0 1 ${r} 0 Z`;
         page.drawSvgPath(badgePath, {
+          x: badgeX,
+          y: badgeY + badgeSize,
           color: colBadgeBg,
         });
 

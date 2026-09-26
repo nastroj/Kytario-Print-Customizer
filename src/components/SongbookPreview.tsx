@@ -20,26 +20,15 @@ import {
   FileText,
   ChevronDown,
   Bug,
-  Eye,
-  Ruler,
-  Columns,
-  X
 } from 'lucide-react';
-import { AutoSaveIndicator, AutoSaveStatus } from './AutoSaveIndicator';
 
 interface SongbookPreviewProps {
   data: SongbookData;
   settings: PrintSettings;
   isUpdatingLayout?: boolean;
   onOpenSettings?: () => void;
-  onRegisterPrintTrigger?: (trigger: () => void) => void;
-  onRegisterPrintPreviewTrigger?: (trigger: () => void) => void;
-  onPrintPreviewStateChange?: (isActive: boolean) => void;
   onDownloadStatusChange?: (isDownloading: boolean) => void;
   isDarkMode?: boolean;
-  autoSaveStatus?: AutoSaveStatus;
-  lastSavedAt?: number | null;
-  storageBackend?: 'indexeddb' | 'localstorage' | 'none';
 }
 
 type ZoomMode = 'fit-width' | 'fit-page' | 'custom';
@@ -123,87 +112,6 @@ function getColumnHeight<T extends { groupLetter?: string }>(
 }
 
 // On-Screen Print Margin Guides & Physical Sheet Crop Marks Overlay
-interface PageMarginGuidesProps {
-  marginMmLeft?: number;
-  marginMmRight?: number;
-  marginMmTop?: number;
-  marginMmBottom?: number;
-  marginMmX?: number;
-  marginMmY?: number;
-  marginMmYBottom?: number;
-  pageFormat: string;
-  orientation: string;
-  pageLabel?: string;
-}
-
-const PageMarginGuides = memo(function PageMarginGuides({
-  marginMmLeft,
-  marginMmRight,
-  marginMmTop,
-  marginMmBottom,
-  marginMmX,
-  marginMmY,
-  marginMmYBottom,
-  pageFormat,
-  orientation,
-  pageLabel
-}: PageMarginGuidesProps) {
-  const topMm = marginMmTop ?? marginMmY ?? 6;
-  const bottomMm = marginMmBottom ?? marginMmYBottom ?? marginMmY ?? 6;
-  const leftMm = marginMmLeft ?? marginMmX ?? 5;
-  const rightMm = marginMmRight ?? marginMmX ?? 5;
-  return (
-    <div 
-      className="pointer-events-none absolute inset-0 z-30 print:hidden overflow-hidden select-none"
-      aria-hidden="true"
-    >
-      {/* Dashed Margin Border indicating Safe Printable Area */}
-      <div 
-        className="absolute border border-dashed border-sky-500/70 dark:border-sky-400/60 bg-sky-500/[0.02] dark:bg-sky-400/[0.02]"
-        style={{
-          top: `${topMm}mm`,
-          bottom: `${bottomMm}mm`,
-          left: `${leftMm}mm`,
-          right: `${rightMm}mm`,
-        }}
-      >
-        {/* Margin Guide Tag */}
-        <div className="absolute top-1 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-50/95 dark:bg-sky-950/90 text-sky-700 dark:text-sky-300 text-[9px] font-mono font-semibold border border-sky-300/80 dark:border-sky-700/60 shadow-2xs">
-          <span>Safe Area ({leftMm !== rightMm ? `L:${leftMm}/R:${rightMm}` : `${leftMm}`}mm × {topMm !== bottomMm ? `T:${topMm}/B:${bottomMm}` : `${topMm}`}mm)</span>
-        </div>
-      </div>
-
-      {/* 4 Corner Crop Marks (Simulating physical paper sheet trimming edges) */}
-      {/* Top Left */}
-      <div className="absolute top-1 left-1 w-4 h-4 pointer-events-none">
-        <div className="absolute top-0 left-0 w-3 h-[1px] bg-zinc-400 dark:bg-zinc-600" />
-        <div className="absolute top-0 left-0 w-[1px] h-3 bg-zinc-400 dark:bg-zinc-600" />
-      </div>
-      {/* Top Right */}
-      <div className="absolute top-1 right-1 w-4 h-4 pointer-events-none">
-        <div className="absolute top-0 right-0 w-3 h-[1px] bg-zinc-400 dark:bg-zinc-600" />
-        <div className="absolute top-0 right-0 w-[1px] h-3 bg-zinc-400 dark:bg-zinc-600" />
-      </div>
-      {/* Bottom Left */}
-      <div className="absolute bottom-1 left-1 w-4 h-4 pointer-events-none">
-        <div className="absolute bottom-0 left-0 w-3 h-[1px] bg-zinc-400 dark:bg-zinc-600" />
-        <div className="absolute bottom-0 left-0 w-[1px] h-3 bg-zinc-400 dark:bg-zinc-600" />
-      </div>
-      {/* Bottom Right */}
-      <div className="absolute bottom-1 right-1 w-4 h-4 pointer-events-none">
-        <div className="absolute bottom-0 right-0 w-3 h-[1px] bg-zinc-400 dark:bg-zinc-600" />
-        <div className="absolute bottom-0 right-0 w-[1px] h-3 bg-zinc-400 dark:bg-zinc-600" />
-      </div>
-
-      {/* Sheet Dimensions / Page Info Tag in bottom margin */}
-      <div className="absolute bottom-1.5 right-2 text-[9px] font-mono text-zinc-400 dark:text-zinc-500 select-none">
-        {pageLabel ? `${pageLabel} • ` : ''}{pageFormat} ({orientation})
-      </div>
-    </div>
-  );
-});
-
-
 const VirtualPage = memo(function VirtualPage({ 
   children, 
   isScaled,
@@ -258,8 +166,6 @@ interface SongPagesListProps {
   onScrollToSong: (id: string) => void;
   isDarkMode?: boolean;
   isDebugMode?: boolean;
-  isPrintPreviewMode?: boolean;
-  showMarginGuides?: boolean;
 }
 
 const SongPagesList = memo(function SongPagesList({
@@ -279,8 +185,6 @@ const SongPagesList = memo(function SongPagesList({
   onScrollToSong,
   isDarkMode = false,
   isDebugMode = false,
-  isPrintPreviewMode = false,
-  showMarginGuides = true,
 }: SongPagesListProps) {
   const numColWidth = useMemo(() => {
     if (songs.length >= 100) return '2.8em';
@@ -307,9 +211,7 @@ const SongPagesList = memo(function SongPagesList({
   const rowPaddingYPx = 1.5;
   const rowMarginBottomPx = 1;
 
-  const pageContainerClass = isPrintPreviewMode
-    ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border border-black/10 dark:border-zinc-800 shadow-[0_8px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] ring-1 ring-black/5 dark:ring-white/5 print:bg-white print:text-black print:border-none print:shadow-none print:ring-0'
-    : 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-md print:shadow-none border border-black/5 dark:border-zinc-800';
+  const pageContainerClass = 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-md print:shadow-none border border-black/5 dark:border-zinc-800';
 
   return (
     <>
@@ -342,17 +244,6 @@ const SongPagesList = memo(function SongPagesList({
                 left: 0,
               }}
             >
-              {isPrintPreviewMode && showMarginGuides && (
-                <PageMarginGuides 
-                  marginMmLeft={m.left}
-                  marginMmRight={m.right}
-                  marginMmTop={m.top}
-                  marginMmBottom={m.bottom}
-                  pageFormat={settings.pageFormat} 
-                  orientation={settings.orientation}
-                  pageLabel="Titulní strana / Front Cover"
-                />
-              )}
               <FrontCoverPage
                 title={title}
                 url={url}
@@ -397,19 +288,6 @@ const SongPagesList = memo(function SongPagesList({
                 left: 0,
               }}
             >
-              {/* On-Screen Print Margin Guides Overlay */}
-              {isPrintPreviewMode && showMarginGuides && (
-                <PageMarginGuides 
-                  marginMmLeft={m.left}
-                  marginMmRight={m.right}
-                  marginMmTop={m.top}
-                  marginMmBottom={m.bottom}
-                  pageFormat={settings.pageFormat} 
-                  orientation={settings.orientation}
-                  pageLabel={`Contents p.${tocPage.pageIndex}`}
-                />
-              )}
-
               {/* Page Header */}
               {tocPage.isFirstPage ? (
                 <div className="text-center shrink-0" style={{ marginBottom: '12px' }}>
@@ -573,7 +451,8 @@ const SongPagesList = memo(function SongPagesList({
 
       {/* SONG PAGES */}
       {songs.map((song, i) => {
-        const m = getPageMargins(settings, i);
+        const songDocPageIndex = (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? tocPages.length : 0) + i;
+        const m = getPageMargins(settings, songDocPageIndex);
         return (
           <VirtualPage
             key={song.id || `song-${i}`}
@@ -597,20 +476,14 @@ const SongPagesList = memo(function SongPagesList({
                 left: 0,
               }}
             >
-              {/* On-Screen Print Margin Guides Overlay */}
-              {isPrintPreviewMode && showMarginGuides && (
-                <PageMarginGuides 
-                  marginMmLeft={m.left}
-                  marginMmRight={m.right}
-                  marginMmTop={m.top}
-                  marginMmBottom={m.bottom}
-                  pageFormat={settings.pageFormat} 
-                  orientation={settings.orientation}
-                  pageLabel={`Song #${i + 1}`}
-                />
-              )}
-
-              <SongDisplay song={song} index={i} settings={settings} isDarkMode={effectiveDarkMode} isDebugMode={isDebugMode} />
+              <SongDisplay 
+                song={song} 
+                index={i} 
+                docPageIndex={songDocPageIndex}
+                settings={settings} 
+                isDarkMode={effectiveDarkMode} 
+                isDebugMode={isDebugMode} 
+              />
             </div>
           </VirtualPage>
         );
@@ -619,7 +492,8 @@ const SongPagesList = memo(function SongPagesList({
       
       {/* Back Cover Page */}
       {settings.showBackCover !== false && songs.length > 0 && (() => {
-        const m = getPageMargins(settings, songs.length + 1);
+        const backCoverDocPageIndex = (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? tocPages.length : 0) + songs.length;
+        const m = getPageMargins(settings, backCoverDocPageIndex);
         return (
           <VirtualPage
             key="back-cover"
@@ -644,17 +518,6 @@ const SongPagesList = memo(function SongPagesList({
                 left: 0,
               }}
             >
-              {isPrintPreviewMode && showMarginGuides && (
-                <PageMarginGuides 
-                  marginMmLeft={m.left}
-                  marginMmRight={m.right}
-                  marginMmTop={m.top}
-                  marginMmBottom={m.bottom}
-                  pageFormat={settings.pageFormat} 
-                  orientation={settings.orientation}
-                  pageLabel="Back Cover"
-                />
-              )}
               <BackCoverPage 
                 title={title} 
                 url={url} 
@@ -842,14 +705,8 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   settings, 
   isUpdatingLayout = false, 
   onOpenSettings,
-  onRegisterPrintTrigger,
-  onRegisterPrintPreviewTrigger,
-  onPrintPreviewStateChange,
   onDownloadStatusChange,
   isDarkMode = false,
-  autoSaveStatus,
-  lastSavedAt,
-  storageBackend = 'indexeddb' as 'indexeddb' | 'localstorage' | 'none'
 }) => {
   const songs = useMemo(() => data.songs || data.items || data.songbookSongs?.map((i: any) => i.song) || [], [data]);
   const title = data.title || data.name || 'Untitled Songbook';
@@ -871,31 +728,6 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   const [isBottomZoomMenuOpen, setIsBottomZoomMenuOpen] = useState(false);
   const [isSongNavOpen, setIsSongNavOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [isPrintPreviewMode, setIsPrintPreviewMode] = useState(false);
-  const [showMarginGuides, setShowMarginGuides] = useState(true);
-  const [previewLayout, setPreviewLayout] = useState<'continuous' | 'spread'>('continuous');
-
-  useEffect(() => {
-    if (onPrintPreviewStateChange) {
-      onPrintPreviewStateChange(isPrintPreviewMode);
-    }
-  }, [isPrintPreviewMode, onPrintPreviewStateChange]);
-
-  const togglePrintPreview = useCallback(() => {
-    setIsPrintPreviewMode(prev => {
-      const next = !prev;
-      if (next) {
-        setZoomMode('fit-page');
-      }
-      return next;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (onRegisterPrintPreviewTrigger) {
-      onRegisterPrintPreviewTrigger(togglePrintPreview);
-    }
-  }, [togglePrintPreview, onRegisterPrintPreviewTrigger]);
 
   const isDebugFeatureEnabled = isDebugHudConfigured();
   const [isDebugOpen, setIsDebugOpen] = useState<boolean>(() => {
@@ -1032,7 +864,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     setIsBottomZoomMenuOpen(false);
   }, []);
 
-  // Keyboard shortcuts: Ctrl/Cmd + Plus, Ctrl/Cmd + Minus, Ctrl/Cmd + 0, P (print preview), Escape
+  // Keyboard shortcuts: Ctrl/Cmd + Plus, Ctrl/Cmd + Minus, Ctrl/Cmd + 0
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeTag = document.activeElement?.tagName.toLowerCase();
@@ -1040,13 +872,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         return;
       }
 
-      if (e.key === 'Escape' && isPrintPreviewMode) {
-        e.preventDefault();
-        setIsPrintPreviewMode(false);
-      } else if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault();
-        togglePrintPreview();
-      } else if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
         e.preventDefault();
         handleZoomIn();
       } else if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
@@ -1068,7 +894,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleZoomIn, handleZoomOut, setPresetZoom, isPrintPreviewMode, togglePrintPreview, isDebugFeatureEnabled]);
+  }, [handleZoomIn, handleZoomOut, setPresetZoom, isDebugFeatureEnabled]);
 
   // Mouse wheel zoom inside preview canvas: Ctrl/Cmd + Scroll
   useEffect(() => {
@@ -1333,13 +1159,6 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         size: ${width} ${height};
         margin: 0mm !important;
       }
-      @media print {
-        @page {
-          size: ${formatName} ${orientation};
-          size: ${width} ${height};
-          margin: 0mm !important;
-        }
-      }
     `;
   }, []);
 
@@ -1465,12 +1284,6 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   }, []);
 
   useEffect(() => {
-    if (onRegisterPrintTrigger) {
-      onRegisterPrintTrigger(handleDownloadPdf);
-    }
-  }, [handleDownloadPdf, onRegisterPrintTrigger]);
-
-  useEffect(() => {
     if (onDownloadStatusChange) {
       onDownloadStatusChange(isPreparingPdf || isPrinting);
     }
@@ -1520,93 +1333,8 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     }
   }, [activeDebugInfo, songs, settings, isDebugFeatureEnabled]);
 
-  const previewMargins = getPageMargins(settings);
-
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative print:h-auto print:min-h-0 print:overflow-visible print:block print:static">
-      {/* ON-SCREEN PRINT PREVIEW TOP BANNER BAR */}
-      {isPrintPreviewMode && (
-        <div 
-          id="print-preview-header-bar"
-          className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md text-zinc-800 dark:text-zinc-200 border-b border-black/5 dark:border-zinc-800 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-4 shrink-0 print:hidden z-30 shadow-xs animate-in slide-in-from-top-1 duration-150"
-        >
-          {/* Left: Mode Title and Paper Specs */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 shrink-0 select-none">
-              Print Preview
-            </span>
-            <div className="h-3.5 w-px bg-zinc-200 dark:bg-zinc-700 hidden sm:block shrink-0" />
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 truncate select-none">
-              <span className="font-medium text-zinc-700 dark:text-zinc-300">{settings.pageFormat}</span>
-              <span>•</span>
-              <span className="capitalize">{settings.orientation}</span>
-              <span>•</span>
-              <span>Automatic columns</span>
-              <span>•</span>
-              <span>
-                {settings.bookMode 
-                  ? `Book (${previewMargins.inner}/${previewMargins.outer}mm)` 
-                  : `${previewMargins.left}/${previewMargins.top}mm`} margin
-              </span>
-            </div>
-            {autoSaveStatus && (
-              <div className="hidden md:flex items-center ml-2 border-l border-black/5 dark:border-zinc-800 pl-3">
-                <AutoSaveIndicator 
-                  status={autoSaveStatus} 
-                  lastSavedAt={lastSavedAt ?? null} 
-                  storageBackend={storageBackend} 
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Right: Only Guides and Pagination Toggle */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* Toggle Margin Guides */}
-            <button
-              id="preview-guides-btn"
-              onClick={() => setShowMarginGuides(!showMarginGuides)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer ${
-                showMarginGuides
-                  ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                  : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400'
-              }`}
-              title="Toggle Margin & Crop Guides"
-            >
-              <Ruler className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Guides</span>
-            </button>
-
-            {/* Layout Mode (Single Page vs 2-Page Spread) */}
-            <button
-              id="preview-pagination-toggle-btn"
-              onClick={() => setPreviewLayout(prev => prev === 'continuous' ? 'spread' : 'continuous')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer ${
-                previewLayout === 'spread'
-                  ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                  : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400'
-              }`}
-              title={previewLayout === 'spread' ? "Switch to Vertical Stack" : "Switch to 2-Page Spread"}
-            >
-              <Columns className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{previewLayout === 'spread' ? 'Spread' : 'Vertical'}</span>
-            </button>
-
-            <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
-
-            {/* Exit Preview Button */}
-            <button
-              onClick={() => setIsPrintPreviewMode(false)}
-              className="p-1.5 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
-              title="Exit Preview (Esc)"
-              aria-label="Exit Preview"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Floating Status Pill when Songbook is Updating (Prominent Black Oval) */}
       {isUpdatingLayout && (
         <div 
@@ -1621,9 +1349,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       {/* SCROLLABLE PREVIEW CANVAS */}
       <div 
         ref={containerRef}
-        className={`relative flex-1 overflow-y-auto overflow-x-auto ${
-          isPrintPreviewMode ? 'bg-zinc-200/80 dark:bg-zinc-950' : 'bg-zinc-50 dark:bg-zinc-950'
-        } p-3 sm:p-8 print:p-0 print:m-0 print:bg-white print:h-auto print:min-h-0 print:overflow-visible print:block print:static print-scroll-container`}
+        className="relative flex-1 overflow-y-auto overflow-x-auto bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-8 print:p-0 print:m-0 print:bg-white print:h-auto print:min-h-0 print:overflow-visible print:block print:static print-scroll-container"
       >
         {(isPreparingPdf || isPrinting) && (
           <div 
@@ -1641,11 +1367,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         <div 
           ref={printableRef}
           id="songbook-printable-area"
-          className={`songbook-print-root ${isPrinting ? 'is-printing-mode' : ''} animate-in fade-in duration-200 min-w-fit flex ${
-            isPrintPreviewMode && previewLayout === 'spread'
-              ? 'flex-row flex-wrap justify-center gap-8'
-              : 'flex-col items-center'
-          } print:block print:h-auto print:min-h-0 print:w-full print:static print:overflow-visible print:m-0 print:p-0 ${isUpdatingLayout ? 'opacity-80' : 'opacity-100'}`}
+          className={`songbook-print-root ${isPrinting ? 'is-printing-mode' : ''} animate-in fade-in duration-200 min-w-fit flex flex-col items-center print:block print:h-auto print:min-h-0 print:w-full print:static print:overflow-visible print:m-0 print:p-0 ${isUpdatingLayout ? 'opacity-80' : 'opacity-100'}`}
         >
           <SongPagesList 
             songs={songs}
@@ -1664,8 +1386,6 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             onScrollToSong={handleScrollTo}
             isDarkMode={isDarkMode}
             isDebugMode={isDebugFeatureEnabled && isDebugOpen}
-            isPrintPreviewMode={isPrintPreviewMode}
-            showMarginGuides={showMarginGuides}
           />
         </div>
 
@@ -1813,21 +1533,6 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           <Maximize2 className="w-4 h-4" />
         </button>
 
-        {/* On-Screen Print Preview Mode Toggle */}
-        <button
-          id="zoom-print-preview-btn"
-          onClick={togglePrintPreview}
-          className={`p-1.5 sm:p-2 rounded-full transition-colors cursor-pointer ${
-            isPrintPreviewMode 
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs' 
-              : 'hover:bg-black/5 dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-zinc-100 text-zinc-600 dark:text-zinc-300'
-          }`}
-          title={isPrintPreviewMode ? "Exit Print Preview (Esc or P)" : "On-Screen Print Preview (P)"}
-          aria-label="Toggle Print Preview"
-        >
-          <Eye className="w-4 h-4" />
-        </button>
-
         {/* Quick Song Navigator (Table of Contents / Jump to song) */}
         {songs.length > 0 && (
           <div className="relative">
@@ -1969,6 +1674,16 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           size: ${cssWidth} ${cssHeight};
           margin: 0mm !important;
         }
+        @page :left {
+          size: ${settings.pageFormat === 'Letter' ? 'letter' : settings.pageFormat} ${settings.orientation};
+          size: ${cssWidth} ${cssHeight};
+          margin: 0mm !important;
+        }
+        @page :right {
+          size: ${settings.pageFormat === 'Letter' ? 'letter' : settings.pageFormat} ${settings.orientation};
+          size: ${cssWidth} ${cssHeight};
+          margin: 0mm !important;
+        }
 
         @media print {
           *, *::before, *::after {
@@ -2051,6 +1766,8 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           }
 
           .print-page-container {
+            display: flex !important;
+            flex-direction: column !important;
             will-change: auto !important;
             width: ${cssWidth} !important;
             height: ${cssHeight} !important;
@@ -2067,9 +1784,13 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             margin: 0 !important;
             background: #ffffff !important;
             color: #000000 !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
 
           .print-index-container {
+            display: flex !important;
+            flex-direction: column !important;
             will-change: auto !important;
             width: ${cssWidth} !important;
             height: ${cssHeight} !important;
@@ -2086,9 +1807,13 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             margin: 0 !important;
             background: #ffffff !important;
             color: #000000 !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
 
           .print-cover-container {
+            display: flex !important;
+            flex-direction: column !important;
             will-change: auto !important;
             width: ${cssWidth} !important;
             height: ${cssHeight} !important;
@@ -2105,6 +1830,83 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             margin: 0 !important;
             background: #ffffff !important;
             color: #000000 !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          /* Song Display Root & Header Positioning */
+          .song-display-root {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 1 0% !important;
+            height: 100% !important;
+            min-height: 0 !important;
+            position: relative !important;
+          }
+
+          /* Song Title and Header Block */
+          .song-title-block {
+            display: block !important;
+            text-align: center !important;
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+            margin-bottom: 1.25rem !important;
+            flex-shrink: 0 !important;
+            position: relative !important;
+            z-index: 5 !important;
+          }
+
+          /* Page / Song Number Badge: 100% reliable visibility in all PDF generators */
+          .song-page-number-badge {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            position: absolute !important;
+            top: 0 !important;
+            width: 26px !important;
+            height: 26px !important;
+            min-width: 26px !important;
+            min-height: 26px !important;
+            border-radius: 5px !important;
+            background-color: #27272a !important;
+            color: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            forced-color-adjust: none !important;
+            border: 1px solid #18181b !important;
+            z-index: 50 !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+
+          .song-page-number-badge svg {
+            display: block !important;
+            visibility: visible !important;
+            position: absolute !important;
+            inset: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          .song-page-number-badge svg rect {
+            fill: #27272a !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          .song-page-number-badge span {
+            display: block !important;
+            position: relative !important;
+            z-index: 10 !important;
+            color: #ffffff !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            line-height: 1 !important;
+            visibility: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
           .print-hidden, [print-hidden] {

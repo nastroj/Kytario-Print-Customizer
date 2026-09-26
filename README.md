@@ -1,6 +1,6 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.4.2  
+**Version:** 1.4.3  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
@@ -10,13 +10,13 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 
 ---
 
-## What's New in v1.4.2
+## What's New in v1.4.3
 
-- Reduced desktop title-block spacing from 24px to 16px to save page space while preserving readability.
-- Synchronized title spacing and SmartFit height estimates between preview and PDF output.
-- Kept the on-screen preview and background PDF renderer synchronized.
-- Aligned the app version, package metadata, and release documentation to `1.4.2`.
-- Verified the project builds cleanly for GitHub Pages deployment.
+- **Fixed Missing Page Numbers in PDFs**: Replaced DOM CSS background badges with resilient inline SVG badges and vector paths in the Web Worker PDF generator so page numbers are never omitted, even if browser print engines have background graphics disabled.
+- **Accurate Document Page Indexing & Book Mode Alignment**: Document page indices (`docPageIndex`) are now calculated uniformly across front cover, Table of Contents, and song pages. Alternating odd/even page badges and inner/outer margins in book mode now align with physical booklet spreads.
+- **Deep Audit of Print CSS & `@page` Directives**: Audited `@media print` rules, removed legacy padding overrides from `index.css`, and ensured `.print-page-container` maintains proper flex column layouts without page-break clip issues.
+- **GitHub Pages Synchronization**: Enhanced `vite.config.ts` with dynamic `BASE_PATH` support matching the GitHub Actions workflow (`deploy.yml`), and converted `index.html` asset tags to `%BASE_URL%` for robust repository subpath hosting.
+- **Cleaned Redundant Assets & Legacy Artifacts**: Deleted redundant lockfiles (`bun.lock`), removed duplicate SVGs (`icon.svg`, `icon-maskable.svg`), removed 110+ unused packages (heavy `@resvg/resvg-js` native binaries, unneeded server packages `express`, `@types/express`, `dotenv`, `autoprefixer`, and `class-variance-authority`), configured Rollup manual vendor chunk splitting, and aligned all version metadata.
 
 ---
 
@@ -24,6 +24,7 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 
 - GitHub Pages deployment is triggered from the `main` branch via the workflow in `.github/workflows/deploy.yml`.
 - The build runs with Node.js 22 and publishes the generated static site from the `dist` folder.
+- Dynamic base path support ensures all assets and service worker caches resolve correctly.
 - Push the release commit to `main` to trigger deployment automatically.
 
 ---
@@ -39,7 +40,7 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 - **Intelligent Song Scaling:** Dynamically scales font sizes and line heights per song so every song cleanly fills a single page without awkward page breaks.
 - **Orphan & Widow Prevention:** Multi-column layouts break verses and stanzas cleanly, preventing lone lyric lines or orphaned chord headers.
 - **Print Formats:** Supports **A4**, **A5**, and **US Letter** in both **Portrait** and **Landscape** orientations.
-- **Custom Margins & Columns:** Select from 1 to 4 columns and set exact physical page margins in millimeters.
+- **Custom Margins & Columns:** Select from 1 to 4 columns and set exact physical page margins in millimeters, including outer/inner gutter margins for book mode.
 
 ### 📑 Dynamic Table of Contents (ToC)
 - **Alphabetical Grouping:** Group songs alphabetically by letter with optional section dividers.
@@ -50,8 +51,7 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 - **Independent Profiles:** Retains distinct configuration profiles for Light Mode and Dark Mode. Switching modes restores your preferred color palette and contrast settings immediately.
 - **Custom Palette:** Independently customize Title, Artist, Lyrics, Chords, Section Markers, and Divider lines.
 
-### 💾 Auto-Save & Offline PWA
-- **IndexedDB Storage:** Persists uploaded songbooks and settings locally in the browser with high capacity, auto-migrating legacy `localStorage` entries.
+### 📱 Offline PWA
 - **Progressive Web App (PWA):** Fully installable on iOS, Android, and Desktop with offline caching via `vite-plugin-pwa`.
 
 ---
@@ -65,7 +65,7 @@ A modern web app for transforming Kytario songbook JSON into clean print-ready l
 | **Vite 6** | High-performance build tool and dev server |
 | **pdf-lib & fontkit** | Client-side vector PDF generation in Web Worker |
 | **vite-plugin-pwa** | PWA service worker & asset caching |
-| **IndexedDB API** | Client-side persistent songbook database |
+| **IndexedDB API** | Client-side generated PDF caching |
 | **Lucide React** | Clean, accessible icon set |
 | **Motion** | Fluid animations and drawer transitions |
 
@@ -113,7 +113,7 @@ The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml
 ```bash
 # Stage, commit, and push the release
 git add .
-git commit -m "chore: release v1.4.2"
+git commit -m "chore: release v1.4.3"
 git push -u origin main
 ```
 
@@ -132,14 +132,21 @@ git push -u origin main
 
 1. **Import:** Drag and drop your Kytario songbook `.json` export file into the upload zone, or click to browse.
 2. **Customize:** Open the sidebar to choose page format, orientation, font scales, margin sizes, and color themes.
-3. **Apply & Preview:** Click **Apply Settings** in the floating action dock to update the layout. Toggle between continuous scroll and two-page spread views.
-4. **Print / Download:**
-   - Click **Download PDF** for an instant high-quality vector PDF compiled by the background Web Worker.
-   - Or click **Print** for browser native print dialog with paper margins pre-configured.
+3. **Apply Changes:** Review any unapplied changes and click **Apply Changes** in the sidebar to recalculate the SmartFit layout and update the preview.
+4. **Download PDF:** Click **Download PDF** for an instant high-quality vector PDF compiled by the background Web Worker with crisp page numbers, headers, and Table of Contents.
 
 ---
 
 ## 📝 Release History
+
+### v1.4.3
+- Fixed missing page numbers on top of pages in generated PDFs and browser print rendering.
+- Migrated page badges from CSS background blocks to resilient inline vector/SVG shapes that survive background graphics stripping.
+- Synchronized document page index calculations across covers, Table of Contents, and songs for accurate book mode alternating badge and margin placement.
+- Conducted deep audit of `@media print` and `@page` rules, removing legacy padding overrides and ensuring clean page-break flows.
+- Synchronized GitHub Pages deployment configuration with dynamic `BASE_PATH` support in `vite.config.ts` and `%BASE_URL%` interpolation in `index.html`.
+- Cleaned up redundant assets and legacy code artifacts: deleted unused lockfiles (`bun.lock`), redundant SVG icons (`icon.svg`, `icon-maskable.svg`), and purged 110+ unneeded dependencies (including heavy native `@resvg/resvg-js`, `express`, `@types/express`, `dotenv`, `autoprefixer`, and `class-variance-authority`).
+- Optimized Vite build and PWA manifest: added vendor code chunking (`react-vendor`, `icons-vendor`, `motion-vendor`), streamlined manifest icon declarations, and embedded Schema.org JSON-LD structured data.
 
 ### v1.4.2
 - Reduced desktop title-block spacing from 24px to 16px to save page space while preserving readability.

@@ -5,7 +5,9 @@ import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
-  const base = process.env.BASE_PATH || './';
+  const envBase = (process.env.BASE_PATH || process.env.BASE_URL || '').trim();
+  const rawBase = envBase || '/';
+  const base = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
   return {
     base,
     plugins: [
@@ -16,8 +18,9 @@ export default defineConfig(() => {
         includeAssets: [
           'favicon.ico',
           'favicon.svg',
+          'favicon-16x16.png',
+          'favicon-32x32.png',
           'apple-touch-icon.png',
-          'icon.svg',
           'pwa-192x192.png',
           'pwa-512x512.png',
           'pwa-maskable-192x192.png',
@@ -58,18 +61,6 @@ export default defineConfig(() => {
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
-            },
-            {
-              src: 'pwa-192x192.png',
-              sizes: '192x192',
-              type: 'image/png',
-              purpose: 'any maskable',
-            },
-            {
-              src: 'pwa-512x512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any maskable',
             },
             {
               src: 'apple-touch-icon.png',
@@ -118,6 +109,24 @@ export default defineConfig(() => {
         },
       }),
     ],
+    build: {
+      chunkSizeWarningLimit: 1500,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+              return 'react-vendor';
+            }
+            if (id.includes('node_modules/lucide-react/')) {
+              return 'icons-vendor';
+            }
+            if (id.includes('node_modules/motion/')) {
+              return 'motion-vendor';
+            }
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

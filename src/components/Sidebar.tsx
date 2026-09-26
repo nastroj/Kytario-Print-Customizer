@@ -4,7 +4,6 @@ import { APP_CONFIG } from '../config';
 import { PWAInstallButton } from './PWAInstallButton';
 import { 
   Settings2, 
-  Printer, 
   FileDown,
   FolderOpen, 
   ChevronLeft, 
@@ -14,10 +13,8 @@ import {
   RefreshCw,
   Sun,
   Moon,
-  Eye,
 } from 'lucide-react';
 import { ChangedSettingItem, getChangedSettingsList } from './UnappliedSettingsBanner';
-import { AutoSaveIndicator, AutoSaveStatus } from './AutoSaveIndicator';
 import { PageLayoutSection } from './sidebar/PageLayoutSection';
 import { CoverPageSection } from './sidebar/CoverPageSection';
 import { TypographySection } from './sidebar/TypographySection';
@@ -33,8 +30,6 @@ interface SidebarProps {
   onResetSongbook?: () => void;
   onFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadPdf?: () => void;
-  onPrint?: () => void;
-  onOpenPrintPreview?: () => void;
   isDownloadingPdf?: boolean;
   isPdfReady?: boolean;
   isMobileOpen?: boolean;
@@ -45,9 +40,6 @@ interface SidebarProps {
   onToggleCollapse?: (collapsed: boolean) => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
-  autoSaveStatus?: AutoSaveStatus;
-  lastSavedAt?: number | null;
-  storageBackend?: 'indexeddb' | 'localstorage' | 'none';
 }
 
 interface SidebarContentProps {
@@ -68,14 +60,9 @@ interface SidebarContentProps {
   onClose?: () => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
-  autoSaveStatus?: AutoSaveStatus;
-  lastSavedAt?: number | null;
-  storageBackend?: 'indexeddb' | 'localstorage' | 'none';
   onResetSongbook?: () => void;
   onFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadPdf?: () => void;
-  onPrint?: () => void;
-  onOpenPrintPreview?: () => void;
   isDownloadingPdf?: boolean;
   isPdfReady?: boolean;
   isUpdatingLayout?: boolean;
@@ -100,13 +87,8 @@ const SidebarContent = memo(function SidebarContent({
   onClose,
   isDarkMode = false,
   onToggleDarkMode,
-  autoSaveStatus,
-  lastSavedAt,
-  storageBackend,
   onResetSongbook,
   onDownloadPdf,
-  onPrint,
-  onOpenPrintPreview,
   isDownloadingPdf = false,
   isPdfReady = false,
   isUpdatingLayout = false,
@@ -122,14 +104,6 @@ const SidebarContent = memo(function SidebarContent({
               <Settings2 className="w-4 h-4 text-zinc-800 dark:text-zinc-200" />
               Settings
             </h2>
-            {autoSaveStatus && (
-              <AutoSaveIndicator 
-                status={autoSaveStatus} 
-                lastSavedAt={lastSavedAt ?? null} 
-                storageBackend={storageBackend} 
-                compact={true}
-              />
-            )}
           </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">Page layout, fonts & colors</p>
         </div>
@@ -247,14 +221,14 @@ const SidebarContent = memo(function SidebarContent({
         )}
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
           {onResetSongbook && (
             <button
               type="button"
               id={`sidebar-load-different-songbook-btn-${idSuffix}`}
               onClick={onResetSongbook}
               disabled={isLoadingJson}
-              className="py-2 px-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5 dark:border-zinc-700/60"
+              className="w-full py-2 px-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5 dark:border-zinc-700/60"
               title="Open a different songbook JSON file"
             >
               {isLoadingJson ? (
@@ -268,51 +242,14 @@ const SidebarContent = memo(function SidebarContent({
 
           <button
             type="button"
-            id={`sidebar-preview-print-btn-${idSuffix}`}
-            onClick={() => {
-              if (onOpenPrintPreview) onOpenPrintPreview();
-              if (isDrawer && onClose) onClose();
-            }}
-            className="py-2 px-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5 dark:border-zinc-700/60"
-            title="Preview exact pages on screen before printing"
-          >
-            <Eye className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-            <span>Preview</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            id={`sidebar-print-btn-${idSuffix}`}
-            onClick={() => {
-              if (onPrint) {
-                onPrint();
-              } else if (onDownloadPdf) {
-                onDownloadPdf();
-              } else {
-                window.print();
-              }
-            }}
-            className="py-2.5 px-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg text-xs font-bold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5 dark:border-zinc-700/60"
-            title="Open browser print dialog"
-          >
-            <Printer className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-            <span>Print</span>
-          </button>
-
-          <button
-            type="button"
             id={`sidebar-pdf-download-btn-${idSuffix}`}
             onClick={() => {
               if (onDownloadPdf) {
                 onDownloadPdf();
-              } else {
-                window.print();
               }
             }}
             disabled={isDownloadingPdf}
-            className={`py-2.5 px-3 rounded-lg text-xs font-bold shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 border ${
+            className={`w-full py-2.5 px-3 rounded-lg text-xs font-bold shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 border ${
               isPdfReady
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-sm'
                 : 'bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 border-transparent'
@@ -327,7 +264,7 @@ const SidebarContent = memo(function SidebarContent({
             ) : (
               <>
                 <FileDown className="w-4 h-4" />
-                <span>{isPdfReady ? 'Save PDF' : 'Get PDF'}</span>
+                <span>{isPdfReady ? 'Save PDF' : 'Download PDF'}</span>
               </>
             )}
           </button>
@@ -348,8 +285,6 @@ export const Sidebar = memo(function Sidebar({
   onResetSongbook, 
   onFileUpload, 
   onDownloadPdf, 
-  onPrint,
-  onOpenPrintPreview,
   isDownloadingPdf = false,
   isPdfReady = false,
   isMobileOpen = false,
@@ -360,9 +295,6 @@ export const Sidebar = memo(function Sidebar({
   onToggleCollapse,
   isDarkMode = false,
   onToggleDarkMode,
-  autoSaveStatus,
-  lastSavedAt,
-  storageBackend = 'indexeddb' as 'indexeddb' | 'localstorage' | 'none'
 }: SidebarProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
@@ -580,14 +512,9 @@ export const Sidebar = memo(function Sidebar({
               onClose={onMobileClose}
               isDarkMode={isDarkMode}
               onToggleDarkMode={onToggleDarkMode}
-              autoSaveStatus={autoSaveStatus}
-              lastSavedAt={lastSavedAt}
-              storageBackend={storageBackend}
               onResetSongbook={onResetSongbook}
               onFileUpload={onFileUpload}
               onDownloadPdf={onDownloadPdf}
-              onPrint={onPrint}
-              onOpenPrintPreview={onOpenPrintPreview}
               isDownloadingPdf={isDownloadingPdf}
               isPdfReady={isPdfReady}
               isUpdatingLayout={isUpdatingLayout}
@@ -662,36 +589,8 @@ export const Sidebar = memo(function Sidebar({
               )}
               <button
                 onClick={() => {
-                  if (onOpenPrintPreview) onOpenPrintPreview();
-                }}
-                className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
-                title="On-Screen Print Preview"
-                aria-label="On-Screen Print Preview"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  if (onPrint) {
-                    onPrint();
-                  } else if (onDownloadPdf) {
-                    onDownloadPdf();
-                  } else {
-                    window.print();
-                  }
-                }}
-                className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
-                title="Direct Print (open browser print dialog)"
-                aria-label="Direct Print"
-              >
-                <Printer className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
                   if (onDownloadPdf) {
                     onDownloadPdf();
-                  } else {
-                    window.print();
                   }
                 }}
                 disabled={isDownloadingPdf}
@@ -716,15 +615,6 @@ export const Sidebar = memo(function Sidebar({
                   </div>
                 )}
               </button>
-
-              {autoSaveStatus && (
-                <AutoSaveIndicator 
-                  status={autoSaveStatus} 
-                  lastSavedAt={lastSavedAt ?? null} 
-                  storageBackend={storageBackend} 
-                  compact={true} 
-                />
-              )}
             </div>
           </div>
         ) : (
@@ -748,14 +638,9 @@ export const Sidebar = memo(function Sidebar({
               onClose={() => setCollapsed(true)}
               isDarkMode={isDarkMode}
               onToggleDarkMode={onToggleDarkMode}
-              autoSaveStatus={autoSaveStatus}
-              lastSavedAt={lastSavedAt}
-              storageBackend={storageBackend}
               onResetSongbook={onResetSongbook}
               onFileUpload={onFileUpload}
               onDownloadPdf={onDownloadPdf}
-              onPrint={onPrint}
-              onOpenPrintPreview={onOpenPrintPreview}
               isDownloadingPdf={isDownloadingPdf}
               isPdfReady={isPdfReady}
               isUpdatingLayout={isUpdatingLayout}

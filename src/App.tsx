@@ -7,16 +7,9 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
 import { SongbookData, PrintSettings } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, Printer, FolderOpen, FileDown, Loader2, Sun, Moon, Eye, CloudAlert } from 'lucide-react';
+import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Sun, Moon } from 'lucide-react';
 import { safeParseSongbookJson, normalizeSongbookData } from './utils';
 import { APP_CONFIG } from './config';
-import { 
-  saveSongbookToStorage, 
-  saveSettingsToStorage, 
-  loadAppStateFromStorage, 
-  clearSavedSongbookStorage 
-} from './utils/storage';
-import { AutoSaveIndicator, AutoSaveStatus } from './components/AutoSaveIndicator';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
 import { BackgroundPdfProgressModal } from './components/BackgroundPdfProgressModal';
 
@@ -145,21 +138,7 @@ const defaultDarkSettings: PrintSettings = {
 };
 
 export default function App() {
-  const [songbookData, setSongbookData] = useState<SongbookData | null>(() => {
-    const saved = localStorage.getItem('kytario-saved-songbook');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object' && (Array.isArray(parsed.songs) || Array.isArray(parsed.items))) {
-          return normalizeSongbookData(parsed);
-        }
-      } catch (e) {
-        // ignore
-      }
-      localStorage.removeItem('kytario-saved-songbook');
-    }
-    return null;
-  });
+  const [songbookData, setSongbookData] = useState<SongbookData | null>(null);
   const [pastedJson, setPastedJson] = useState('');
   const [activeTab, setActiveTab] = useState<'upload' | 'paste'>('upload');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -171,6 +150,17 @@ export default function App() {
   const [isLoadingJson, setIsLoadingJson] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up any stale legacy auto-save localStorage items
+  useEffect(() => {
+    try {
+      localStorage.removeItem('kytario-saved-songbook');
+      localStorage.removeItem('kytario-last-saved-time');
+      localStorage.removeItem('kytario-draft-settings');
+      localStorage.removeItem('kytario-draft-settings_light');
+      localStorage.removeItem('kytario-draft-settings_dark');
+    } catch (e) {}
+  }, []);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     if (toastTimerRef.current) {
@@ -224,35 +214,17 @@ export default function App() {
     }
     return baseDefaults;
   };
-  
-  const getInitialDraftSettings = (isDark: boolean, currentSettings: PrintSettings) => {
-    const key = isDark ? 'kytario-draft-settings_dark' : 'kytario-draft-settings_light';
-    let saved = localStorage.getItem(key);
-    if (!saved) {
-       saved = localStorage.getItem('kytario-draft-settings');
-    }
-    if (saved) {
-       try {
-         return { ...currentSettings, ...JSON.parse(saved) };
-       } catch(e) {}
-    }
-    return currentSettings;
-  };
 
   const lightSettingsRef = useRef<PrintSettings>(getInitialSettings(false));
   const darkSettingsRef = useRef<PrintSettings>(getInitialSettings(true));
-  const lightDraftRef = useRef<PrintSettings | null>(getInitialDraftSettings(false, lightSettingsRef.current));
-  const darkDraftRef = useRef<PrintSettings | null>(getInitialDraftSettings(true, darkSettingsRef.current));
 
   const [settings, setSettings] = useState<PrintSettings>(() => {
     return isDarkMode ? darkSettingsRef.current : lightSettingsRef.current;
   });
   
   const [draftSettings, setDraftSettings] = useState<PrintSettings>(() => {
-    return isDarkMode ? (darkDraftRef.current || darkSettingsRef.current) : (lightDraftRef.current || lightSettingsRef.current);
+    return isDarkMode ? darkSettingsRef.current : lightSettingsRef.current;
   });
-
-  
 
   const unappliedChanges = useMemo(() => {
     return getChangedSettingsList(draftSettings, settings);
@@ -269,22 +241,6 @@ export default function App() {
   const [isUpdatingLayout, setIsUpdatingLayout] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
-  const [isPrintPreviewActive, setIsPrintPreviewActive] = useState(false);
-
-  // Auto-Save Engine State
-  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('saved');
-  const [lastSavedAt, setLastSavedAt] = useState<number | null>(() => {
-    try {
-      const saved = localStorage.getItem('kytario-last-saved-time');
-      return saved ? Number(saved) : null;
-    } catch (e) {
-      return null;
-    }
-  });
-  const [storageBackend, setStorageBackend] = useState<'indexeddb' | 'localstorage' | 'none'>('indexeddb');
-  const isInitialRestoreDoneRef = useRef(false);
-  const isDirtyRef = useRef(false);
-  const autoSaveDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     localStorage.setItem('kytario-dark-mode', JSON.stringify(isDarkMode));
@@ -303,36 +259,23 @@ export default function App() {
     }
   }, [settings, isDarkMode]);
 
-  useEffect(() => {
-    if (isDarkMode) {
-      darkDraftRef.current = draftSettings;
-    } else {
-      lightDraftRef.current = draftSettings;
-    }
-  }, [draftSettings, isDarkMode]);
-
   const handleToggleDarkMode = useCallback(() => {
     if (isDarkMode) {
       darkSettingsRef.current = settings;
-      darkDraftRef.current = draftSettings;
     } else {
       lightSettingsRef.current = settings;
-      lightDraftRef.current = draftSettings;
     }
 
     const nextMode = !isDarkMode;
     setIsDarkMode(nextMode);
     
     const nextSettings = nextMode ? darkSettingsRef.current : lightSettingsRef.current;
-    const nextDraft = nextMode ? (darkDraftRef.current || darkSettingsRef.current) : (lightDraftRef.current || lightSettingsRef.current);
     
     setSettings(nextSettings);
-    setDraftSettings(nextDraft);
-  }, [isDarkMode, settings, draftSettings]);
+    setDraftSettings(nextSettings);
+  }, [isDarkMode, settings]);
 
 
-  const printTriggerRef = useRef<(() => void) | null>(null);
-  const printPreviewTriggerRef = useRef<(() => void) | null>(null);
   const updateTimersRef = useRef<{ applyTimer?: ReturnType<typeof setTimeout>; finishTimer?: ReturnType<typeof setTimeout> }>({});
 
   // Background Web Worker PDF Generation Engine
@@ -380,29 +323,6 @@ export default function App() {
     !hasUnappliedSettings &&
     workerCachedPdf.fingerprint === currentFingerprint
   );
-
-  const handleRegisterPrintTrigger = useCallback((trigger: () => void) => {
-    printTriggerRef.current = trigger;
-  }, []);
-
-  const handleRegisterPrintPreviewTrigger = useCallback((trigger: () => void) => {
-    printPreviewTriggerRef.current = trigger;
-  }, []);
-
-  const handleOpenPrintPreview = useCallback(() => {
-    if (printPreviewTriggerRef.current) {
-      printPreviewTriggerRef.current();
-    }
-  }, []);
-
-  // Direct Print dialog (browser window.print)
-  const handlePrint = useCallback(() => {
-    if (printTriggerRef.current) {
-      printTriggerRef.current();
-    } else {
-      window.print();
-    }
-  }, []);
 
   // Background Web Worker PDF Download (or instant cached re-download)
   const handleDownloadPdf = useCallback(async (forceRegenerate: boolean = false) => {
@@ -492,156 +412,6 @@ export default function App() {
     }, 120);
   };
 
-  // 1. Initial asynchronous restoration from IndexedDB (or localStorage fallback/migration)
-  useEffect(() => {
-    let isMounted = true;
-    async function restoreSession() {
-      try {
-        const restored = await loadAppStateFromStorage();
-        if (!isMounted) return;
-
-        if (restored.backend) {
-          setStorageBackend(restored.backend);
-        }
-
-        if (restored.songbookData) {
-          setSongbookData(normalizeSongbookData(restored.songbookData));
-        }
-
-        
-        if (restored.lightSettings) {
-          lightSettingsRef.current = { ...defaultSettings, ...restored.lightSettings };
-        }
-        if (restored.darkSettings) {
-          darkSettingsRef.current = { ...defaultDarkSettings, ...restored.darkSettings };
-        }
-        if (restored.lightDraft) {
-          lightDraftRef.current = { ...lightSettingsRef.current, ...restored.lightDraft };
-        }
-        if (restored.darkDraft) {
-          darkDraftRef.current = { ...darkSettingsRef.current, ...restored.darkDraft };
-        }
-        
-        if (restored.lightSettings || restored.darkSettings) {
-          setSettings(isDarkMode ? darkSettingsRef.current : lightSettingsRef.current);
-          setDraftSettings(isDarkMode ? (darkDraftRef.current || darkSettingsRef.current) : (lightDraftRef.current || lightSettingsRef.current));
-        }
-
-        if (restored.lastSavedAt) {
-          setLastSavedAt(restored.lastSavedAt);
-        }
-
-        setAutoSaveStatus('saved');
-      } catch (err) {
-        console.warn('Could not restore auto-saved session:', err);
-      } finally {
-        if (isMounted) {
-          isInitialRestoreDoneRef.current = true;
-        }
-      }
-    }
-
-    restoreSession();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // 2. Core Auto-Save execution
-  const triggerAutoSave = useCallback(async () => {
-    if (!isInitialRestoreDoneRef.current) return;
-    const wasDirty = isDirtyRef.current;
-    try {
-      setAutoSaveStatus('saving');
-      const now = Date.now();
-
-      await Promise.all([
-        saveSongbookToStorage(songbookData),
-        saveSettingsToStorage(isDarkMode, settings, hasUnappliedSettings ? draftSettings : null),
-      ]);
-
-      isDirtyRef.current = false;
-      setLastSavedAt(now);
-      setAutoSaveStatus('saved');
-      if (wasDirty) {
-        showToast('Changes auto-saved successfully', 'success');
-      }
-    } catch (err) {
-      console.error('Auto-save error:', err);
-      setAutoSaveStatus('error');
-      showToast('Auto-save failed. Check browser storage quota.', 'error');
-    }
-  }, [songbookData, settings, draftSettings, hasUnappliedSettings, isDarkMode, showToast]);
-
-  // 3. Mark dirty & debounced auto-save on any change to songbook or settings
-  useEffect(() => {
-    if (!isInitialRestoreDoneRef.current) return;
-
-    isDirtyRef.current = true;
-    setAutoSaveStatus('saving');
-
-    if (autoSaveDebounceTimerRef.current) {
-      clearTimeout(autoSaveDebounceTimerRef.current);
-    }
-
-    autoSaveDebounceTimerRef.current = setTimeout(() => {
-      triggerAutoSave();
-    }, 1200);
-
-    return () => {
-      if (autoSaveDebounceTimerRef.current) {
-        clearTimeout(autoSaveDebounceTimerRef.current);
-      }
-    };
-  }, [songbookData, settings, draftSettings, triggerAutoSave]);
-
-  // 4. Periodic Heartbeat Auto-Save (every 10 seconds if unsaved changes exist)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (isDirtyRef.current) {
-        triggerAutoSave();
-      }
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [triggerAutoSave]);
-
-  // 5. Emergency Auto-Save on page exit or tab switch
-  useEffect(() => {
-    const handleEmergencySave = () => {
-      if (isDirtyRef.current || autoSaveStatus === 'saving') {
-        try {
-          if (songbookData) {
-            localStorage.setItem('kytario-saved-songbook', JSON.stringify(songbookData));
-          }
-          localStorage.setItem(isDarkMode ? 'kytario-print-settings-v2_dark' : 'kytario-print-settings-v2_light', JSON.stringify(settings));
-          if (hasUnappliedSettings) {
-            localStorage.setItem(isDarkMode ? 'kytario-draft-settings_dark' : 'kytario-draft-settings_light', JSON.stringify(draftSettings));
-          } else {
-            localStorage.removeItem(isDarkMode ? 'kytario-draft-settings_dark' : 'kytario-draft-settings_light');
-          }
-          localStorage.setItem('kytario-last-saved-time', String(Date.now()));
-        } catch (e) {}
-        triggerAutoSave();
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        handleEmergencySave();
-      }
-    };
-
-    window.addEventListener('beforeunload', handleEmergencySave);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleEmergencySave);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [songbookData, settings, draftSettings, hasUnappliedSettings, autoSaveStatus, triggerAutoSave, isDarkMode]);
-
-  
   const processJsonString = (rawString: string, fileName?: string) => {
     setErrorMessage(null);
     setRecoveryNotice(null);
@@ -788,18 +558,14 @@ export default function App() {
     processJsonString(pastedJson);
   };
 
-  const resetSongbook = async () => {
+  const resetSongbook = () => {
     setSongbookData(null);
     setPastedJson('');
     setErrorMessage(null);
     setRecoveryNotice(null);
     setIsLoadingJson(false);
     setIsMobileSidebarOpen(false);
-    isDirtyRef.current = false;
-    await clearSavedSongbookStorage();
-    setLastSavedAt(null);
-    setAutoSaveStatus('idle');
-    showToast('Songbook reset and auto-save cleared', 'info');
+    showToast('Songbook reset', 'info');
   };
 
   if (!songbookData) {
@@ -991,8 +757,6 @@ export default function App() {
         onResetSongbook={handleOpenResetModal}
         onFileUpload={handleFileUpload}
         onDownloadPdf={handleSidebarDownloadPdf}
-        onPrint={handlePrint}
-        onOpenPrintPreview={handleOpenPrintPreview}
         isDownloadingPdf={isDownloadingPdf || isGeneratingWorkerPdf}
         isPdfReady={isPdfReady}
         isMobileOpen={isMobileSidebarOpen}
@@ -1003,9 +767,6 @@ export default function App() {
         isLoadingJson={isLoadingJson}
         isDarkMode={isDarkMode}
         onToggleDarkMode={handleToggleDarkMode}
-        autoSaveStatus={autoSaveStatus}
-        lastSavedAt={lastSavedAt}
-        storageBackend={storageBackend}
       />
 
       <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden print:h-auto print:min-h-0 print:overflow-visible print:block print:p-0 print:m-0">
@@ -1033,12 +794,6 @@ export default function App() {
               <p className={`text-[10px] font-medium truncate ${hasUnappliedSettings ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-zinc-500 dark:text-zinc-400'}`}>
                 {songCount} songs • {hasUnappliedSettings ? 'Changes pending' : settings.pageFormat}
               </p>
-              <AutoSaveIndicator 
-                status={autoSaveStatus} 
-                lastSavedAt={lastSavedAt} 
-                storageBackend={storageBackend} 
-                compact={true} 
-              />
             </div>
           </div>
 
@@ -1051,28 +806,6 @@ export default function App() {
               aria-label="Change Songbook"
             >
               <FolderOpen className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={handleOpenPrintPreview}
-              className={`p-2 rounded-lg border shadow-2xs transition-colors cursor-pointer ${
-                isPrintPreviewActive 
-                  ? 'bg-zinc-900 hover:bg-black dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
-                  : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 border-black/5 dark:border-zinc-700/60'
-              }`}
-              title="On-Screen Print Preview (boundaries & margins)"
-              aria-label="On-Screen Print Preview"
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={handlePrint}
-              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
-              title="Direct Print (open browser print dialog)"
-              aria-label="Direct Print"
-            >
-              <Printer className="w-4 h-4" />
             </button>
 
             <button
@@ -1150,7 +883,7 @@ export default function App() {
         {warningMessage && (
           <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-2 text-xs font-medium text-amber-800 flex items-center justify-between print:hidden shrink-0">
             <span className="truncate mr-2 flex items-center gap-1.5">
-              <CloudAlert className="w-4 h-4 text-amber-600 shrink-0" />
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
               {warningMessage}
             </span>
             <button
@@ -1166,14 +899,8 @@ export default function App() {
           data={songbookData} 
           settings={settings}
           isUpdatingLayout={isUpdatingLayout}
-          onRegisterPrintTrigger={handleRegisterPrintTrigger}
-          onRegisterPrintPreviewTrigger={handleRegisterPrintPreviewTrigger}
-          onPrintPreviewStateChange={setIsPrintPreviewActive}
           onDownloadStatusChange={setIsDownloadingPdf}
           isDarkMode={isDarkMode}
-          autoSaveStatus={autoSaveStatus}
-          lastSavedAt={lastSavedAt}
-          storageBackend={storageBackend}
           onOpenSettings={handleOpenSettings}
         />
 
@@ -1206,7 +933,7 @@ export default function App() {
                 : 'bg-zinc-900 dark:bg-zinc-800 text-white border-white/10'
             }`}>
               {toast.type === 'error' ? (
-                <CloudAlert className="w-4 h-4 text-red-400 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               ) : (
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               )}

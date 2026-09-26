@@ -42,8 +42,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
             <div className="pt-2">
               <button
                 onClick={() => {
-                  localStorage.removeItem('kytario-saved-songbook');
-                  localStorage.removeItem('kytario-print-settings-v2');
+                  try {
+                    localStorage.clear();
+                  } catch (e) {}
                   window.location.reload();
                 }}
                 className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-semibold py-2.5 px-4 rounded-lg text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"

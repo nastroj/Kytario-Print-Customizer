@@ -128,12 +128,13 @@ interface SongDisplayProps {
   key?: React.Key;
   song: Song;
   index: number;
+  docPageIndex?: number;
   settings: PrintSettings;
   isDarkMode?: boolean;
   isDebugMode?: boolean;
 }
 
-export const SongDisplay = memo(function SongDisplay({ song, index, settings, isDarkMode = false, isDebugMode = false }: SongDisplayProps) {
+export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex, settings, isDarkMode = false, isDebugMode = false }: SongDisplayProps) {
   const title = song.title || song.name || 'Unknown Title';
   const artist = song.artist || song.author || song.interpreter || '';
   const text = song.text || song.content || song.lyrics || '';
@@ -314,21 +315,35 @@ export const SongDisplay = memo(function SongDisplay({ song, index, settings, is
     );
   };
 
+  // Determine physical page index in document to accurately position outer page numbers on facing pages
+  const effectiveDocPageIndex = docPageIndex !== undefined
+    ? docPageIndex
+    : (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? 1 : 0) + index;
+  // Page 1 (index 0, odd / recto) is Right; Page 2 (index 1, even / verso) is Left; Page 3 is Right
+  const isRightSpread = effectiveDocPageIndex % 2 === 0;
+  const isOuterRight = settings.bookMode ? isRightSpread : (index % 2 !== 0);
+
+  const badgePositionClass = settings.pageNumberPosition === 'left'
+    ? 'left-0 print:!left-0 print:!right-auto'
+    : settings.pageNumberPosition === 'right'
+      ? 'right-0 print:!right-0 print:!left-auto'
+      : (isOuterRight ? 'right-0 print:!right-0 print:!left-auto' : 'left-0 print:!left-0 print:!right-auto');
+
   return (
-    <div ref={containerRef} style={dynamicStyles} className="relative flex-1 flex flex-col h-full">
+    <div ref={containerRef} style={dynamicStyles} className="relative flex-1 flex flex-col h-full song-display-root">
       {/* Page / Song Number Badge on top */}
       {settings.pageNumberPosition !== 'none' && (
         <div 
-          className={`absolute top-0 ${
-            settings.pageNumberPosition === 'left' 
-              ? 'left-0 print:!left-0 print:!right-auto' 
-              : settings.pageNumberPosition === 'right'
-                ? 'right-0 print:!right-0 print:!left-auto'
-                : (index % 2 !== 0 ? 'right-0 print:!right-0 print:!left-auto' : 'left-0 print:!left-0 print:!right-auto')
-          } bg-zinc-800 text-white font-bold rounded-[5px] flex items-center justify-center print:border print:border-black select-none z-10`}
+          className={`song-page-number-badge absolute top-0 ${badgePositionClass} bg-zinc-800 text-white font-bold rounded-[5px] flex items-center justify-center select-none z-10 print:border print:border-black`}
           style={{ width: '26px', height: '26px', fontSize: '12px' }}
         >
-          {index + 1}
+          {/* Solid SVG background ensuring the dark badge is 100% rendered on generated PDFs even if browser strips CSS background-color */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none rounded-[5px]" viewBox="0 0 26 26" aria-hidden="true">
+            <rect width="26" height="26" rx="5" fill="#27272a" />
+          </svg>
+          <span className="relative z-10 text-white font-bold text-xs leading-none select-none">
+            {index + 1}
+          </span>
         </div>
       )}
 

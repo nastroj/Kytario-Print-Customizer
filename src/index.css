@@ -128,18 +128,104 @@
     contain: none !important;
     transform: none !important;
     position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    overflow: hidden !important;
   }
   .print-index-container {
     content-visibility: visible !important;
     contain: none !important;
     transform: none !important;
     position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
     box-sizing: border-box !important;
     margin: 0 !important;
-    padding: 8mm !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     overflow: hidden !important;
+  }
+  .print-cover-container {
+    content-visibility: visible !important;
+    contain: none !important;
+    transform: none !important;
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    overflow: hidden !important;
+  }
+  .song-display-root {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    position: relative !important;
+  }
+  .song-title-block {
+    display: block !important;
+    text-align: center !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+    margin-bottom: 1.25rem !important;
+    flex-shrink: 0 !important;
+    position: relative !important;
+    z-index: 5 !important;
+  }
+  .song-page-number-badge {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: absolute !important;
+    top: 0 !important;
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    min-height: 26px !important;
+    border-radius: 5px !important;
+    background-color: #27272a !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    forced-color-adjust: none !important;
+    border: 1px solid #18181b !important;
+    z-index: 50 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  .song-page-number-badge svg {
+    display: block !important;
+    visibility: visible !important;
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .song-page-number-badge svg rect {
+    fill: #27272a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .song-page-number-badge span {
+    display: block !important;
+    position: relative !important;
+    z-index: 10 !important;
+    color: #ffffff !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .toc-columns-body {
     column-fill: auto !important;
