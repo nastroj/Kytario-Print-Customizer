@@ -10,11 +10,11 @@ interface TextItem {
 }
 
 export async function parseSongbookFromPdf(file: File): Promise<SongbookData> {
-  // Dynamically import pdfjs-dist to avoid top-level evaluation crashes
+  // Dynamically import pdfjs-dist
   const pdfjs = await import('pdfjs-dist');
   
-  // PDF.js worker setup using reliable jsDelivr CDN
-  const pdfWorkerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+  // PDF.js worker setup using self-contained local build in Vite public directory
+  const pdfWorkerUrl = `${import.meta.env.BASE_URL || '/'}pdf.worker.min.js`;
   pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
   const arrayBuffer = await file.arrayBuffer();
