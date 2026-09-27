@@ -23,7 +23,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist dev-dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

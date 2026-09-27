@@ -13,8 +13,10 @@ export async function parseSongbookFromPdf(file: File): Promise<SongbookData> {
   // Dynamically import pdfjs-dist
   const pdfjs = await import('pdfjs-dist');
   
+  // Explicitly set workerSrc to satisfy pdfjs-dist requirements
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version || '3.11.174'}/build/pdf.worker.min.js`;
+
   const arrayBuffer = await file.arrayBuffer();
-  // Use disableWorker: true to run parsing on the main thread and avoid all worker loading/fetch errors
   const loadingTask = pdfjs.getDocument({ data: arrayBuffer, disableWorker: true } as any);
   const pdf = await loadingTask.promise;
   

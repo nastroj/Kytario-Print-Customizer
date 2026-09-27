@@ -711,8 +711,14 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   onDownloadStatusChange,
   isDarkMode = false,
 }) => {
-  const songs = useMemo(() => data.songs || data.items || data.songbookSongs?.map((i: any) => i.song) || [], [data]);
-  const title = data.title || data.name || 'Untitled Songbook';
+  const songs = useMemo(() => {
+    if (!data) return [];
+    return data.songs || data.items || data.songbookSongs?.map((i: any) => i.song) || [];
+  }, [data]);
+  const title = useMemo(() => {
+    if (!data) return 'Untitled Songbook';
+    return data.title || data.name || 'Untitled Songbook';
+  }, [data]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const printableRef = useRef<HTMLDivElement>(null);

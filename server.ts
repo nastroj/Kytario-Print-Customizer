@@ -21,8 +21,11 @@ async function createServer() {
     const endpoints = [
       `https://kytario.com/api/songbooks/${token}/sections`,
       `https://kytario.com/api/songbooks/${token}`,
+      `https://kytario.com/api/public/songbooks/${token}`,
+      `https://kytario.com/songbooks/${token}`,
       `https://kytario.com/${token}/export`,
-      `https://kytario.com/api/v1/songbooks/${token}`
+      `https://kytario.com/api/v1/songbooks/${token}`,
+      `https://kytario.com/api/v1/songbooks/${token}/export`
     ];
 
     let lastError = null;
@@ -30,12 +33,13 @@ async function createServer() {
       try {
         const response = await axios.get(targetUrl, {
           headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Kytario-Print-Customizer'
+            'Accept': 'application/json, text/plain, */*',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
           },
           timeout: 8000
         });
         if (response.data) {
+          // If response is HTML, check if we can extract JSON or return data
           return res.json(response.data);
         }
       } catch (error: any) {
@@ -45,7 +49,7 @@ async function createServer() {
 
     console.error(`Proxy error for token ${token}:`, lastError?.message);
     res.status(lastError?.response?.status || 500).json({ 
-      error: 'Failed to fetch from Kytario',
+      error: 'Failed to fetch songbook from Kytario. Please check the URL or upload a JSON file instead.',
       details: lastError?.message 
     });
   });
