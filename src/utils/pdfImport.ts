@@ -1,12 +1,4 @@
-import * as pdfjs from 'pdfjs-dist';
 import { SongbookData, Song } from '../types';
-
-// PDF.js worker setup
-// In a Vite environment, we usually need to point to the worker source
-// For simplicity in this applet environment, we'll try to use the one from the package
-// or a CDN if necessary.
-const pdfWorkerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 interface TextItem {
   str: string;
@@ -18,6 +10,13 @@ interface TextItem {
 }
 
 export async function parseSongbookFromPdf(file: File): Promise<SongbookData> {
+  // Dynamically import pdfjs-dist to avoid top-level evaluation crashes
+  const pdfjs = await import('pdfjs-dist');
+  
+  // PDF.js worker setup using reliable jsDelivr CDN
+  const pdfWorkerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
   const arrayBuffer = await file.arrayBuffer();
   const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
   const pdf = await loadingTask.promise;
