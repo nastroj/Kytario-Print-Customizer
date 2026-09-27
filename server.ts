@@ -15,26 +15,39 @@ async function createServer() {
   // Health check for Cloud Run
   app.get('/health', (req, res) => res.status(200).send('OK'));
 
-  // Kytario API Proxy
+  // Kytario API Proxy with robust endpoint fallbacks
   app.get('/api/proxy/kytario/:token', async (req, res) => {
     const { token } = req.params;
-    try {
-      const targetUrl = `https://kytario.com/api/songbooks/${token}/sections`;
-      const response = await axios.get(targetUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Kytario-Print-Customizer/1.4.6'
-        },
-        timeout: 10000
-      });
-      res.json(response.data);
-    } catch (error: any) {
-      console.error(`Proxy error for token ${token}:`, error.message);
-      res.status(error.response?.status || 500).json({ 
-        error: 'Failed to fetch from Kytario',
-        details: error.message 
-      });
+    const endpoints = [
+      `https://kytario.com/api/songbooks/${token}/sections`,
+      `https://kytario.com/api/songbooks/${token}`,
+      `https://kytario.com/${token}/export`,
+      `https://kytario.com/api/v1/songbooks/${token}`
+    ];
+
+    let lastError = null;
+    for (const targetUrl of endpoints) {
+      try {
+        const response = await axios.get(targetUrl, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Kytario-Print-Customizer'
+          },
+          timeout: 8000
+        });
+        if (response.data) {
+          return res.json(response.data);
+        }
+      } catch (error: any) {
+        lastError = error;
+      }
     }
+
+    console.error(`Proxy error for token ${token}:`, lastError?.message);
+    res.status(lastError?.response?.status || 500).json({ 
+      error: 'Failed to fetch from Kytario',
+      details: lastError?.message 
+    });
   });
 
   if (!isProd) {
