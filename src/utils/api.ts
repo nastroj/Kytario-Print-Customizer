@@ -191,7 +191,7 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
   const token = extractKytarioSlug(cleanUrl);
   
   if (!token && !/^https?:\/\//i.test(cleanUrl)) {
-    throw new Error('Please enter a valid Kytario songbook URL or code (e.g. "bodg" or "https://kytario.com/bodg").');
+    throw new Error('Please enter a valid Kytario songbook URL or code.');
   }
 
   const isStaticHost = typeof window !== 'undefined' && (
@@ -230,7 +230,7 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
   }
 
   // If all automated attempts fail, provide clear structured guidance with direct copy links
-  const resolvedToken = token || 'bodg';
+  const resolvedToken = token || cleanUrl.replace(/^https?:\/\//i, '').replace(/[\/\?#].*$/, '');
   const apiUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(resolvedToken)}/sections`;
   const webUrl = `https://kytario.com/${encodeURIComponent(resolvedToken)}`;
 

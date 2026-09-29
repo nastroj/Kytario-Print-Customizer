@@ -320,7 +320,7 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                       id={`frontCoverUrl-${idSuffix}`}
                       value={draftSettings.frontCoverUrl ?? ''}
                       onChange={(val) => onSettingChange('frontCoverUrl', val)}
-                      placeholder="e.g. kytario.com/bodg"
+                      placeholder="e.g. kytario.com/your-songbook"
                       className="w-full text-xs px-2.5 py-1.5 rounded-md bg-zinc-50 dark:bg-zinc-800 border border-black/10 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-400"
                     />
                   </div>

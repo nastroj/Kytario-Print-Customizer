@@ -139,32 +139,8 @@ const defaultDarkSettings: PrintSettings = {
   backCoverShowDedication: true,
 };
 
-const defaultSampleSongbook: SongbookData = {
-  title: "Acoustic Campfire Songbook",
-  songs: [
-    {
-      id: "1",
-      title: "Let It Be",
-      artist: "The Beatles",
-      content: "[Verse 1]\n[C]When I find myself in [G]times of trouble,\n[Am]Mother Mary [F]comes to me,\n[C]Speaking words of [G]wisdom, let it [F]be [C].\n\n[Chorus]\n[C]Let it be, let it [G]be, let it [F]be, let it [C]be,\n[C]Whisper words of [G]wisdom, let it [F]be [C]."
-    },
-    {
-      id: "2",
-      title: "Knockin' on Heaven's Door",
-      artist: "Bob Dylan",
-      content: "[Verse 1]\n[G]Mama, take this [D]badge off of [Am]me,\n[G]I can't [D]use it any[C]more.\n[G]It's gettin' [D]dark, too dark to [Am]see,\n[G]I feel I'm [D]knockin' on heaven's [C]door.\n\n[Chorus]\n[G]Knock, [D]knock, knockin' on heaven's [Am]door,\n[G]Knock, [D]knock, knockin' on heaven's [C]door."
-    },
-    {
-      id: "3",
-      title: "Wonderwall",
-      artist: "Oasis",
-      content: "[Verse 1]\n[Em7]Today is [G]gonna be the day that they're [Dsus4]gonna throw it back to [A7sus4]you\n[Em7]By now you [G]should've somehow [Dsus4]realized what you gotta [A7sus4]do\n[Em7]I don't believe that [G]anybody [Dsus4]feels the way I [A7sus4]do about you [Cadd9]now [Dsus4] [A7sus4]"
-    }
-  ]
-};
-
 export default function App() {
-  const [songbookData, setSongbookData] = useState<SongbookData | null>(() => defaultSampleSongbook);
+  const [songbookData, setSongbookData] = useState<SongbookData | null>(null);
   const [pastedJson, setPastedJson] = useState('');
   const [kytarioUrl, setKytarioUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'upload' | 'paste' | 'url' | 'pdf'>('upload');
@@ -833,7 +809,7 @@ export default function App() {
           {activeTab === 'url' && (
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-700 uppercase tracking-wider ml-1">Kytario Songbook Link</label>
+                <label className="text-xs font-bold text-zinc-700 uppercase tracking-wider ml-1">Kytario Songbook Link or Code</label>
                 <input
                   type="text"
                   value={kytarioUrl}
@@ -847,23 +823,10 @@ export default function App() {
                       handleKytarioUrlSubmit();
                     }
                   }}
-                  placeholder="https://kytario.com/bodg"
+                  placeholder="https://kytario.com/... or songbook code"
                   disabled={isLoadingJson}
                   className="w-full rounded-lg border border-black/10 p-3 text-sm focus:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-800 bg-zinc-50 disabled:opacity-60"
                 />
-                <div className="flex items-center justify-between text-xs pt-1 px-1">
-                  <span className="text-zinc-500">Need a sample?</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setKytarioUrl('bodg');
-                      if (kytarioFetchDetails) setKytarioFetchDetails(null);
-                    }}
-                    className="text-blue-600 dark:text-blue-400 hover:underline font-medium cursor-pointer"
-                  >
-                    Try sample code: <code className="bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono font-bold">bodg</code>
-                  </button>
-                </div>
               </div>
               <button
                 onClick={handleKytarioUrlSubmit}
