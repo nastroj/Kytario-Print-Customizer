@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
 import path from 'path';
 import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
@@ -13,6 +14,21 @@ export default defineConfig(() => {
     plugins: [
       react(),
       tailwindcss(),
+      {
+        name: 'github-pages-spa-fallback',
+        apply: 'build',
+        closeBundle() {
+          const indexPath = path.resolve(__dirname, 'dist', 'index.html');
+          const notFoundPath = path.resolve(__dirname, 'dist', '404.html');
+          try {
+            if (fs.existsSync(indexPath)) {
+              fs.copyFileSync(indexPath, notFoundPath);
+            }
+          } catch (e) {
+            // Non-critical fallback
+          }
+        },
+      },
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: [
@@ -120,9 +136,6 @@ export default defineConfig(() => {
             if (id.includes('node_modules/lucide-react/')) {
               return 'icons-vendor';
             }
-            if (id.includes('node_modules/motion/')) {
-              return 'motion-vendor';
-            }
           },
         },
       },
@@ -135,6 +148,7 @@ export default defineConfig(() => {
     server: {
       host: '0.0.0.0',
       port: 3000,
+      allowedHosts: true,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',

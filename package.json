@@ -1,7 +1,7 @@
 {
   "name": "kytario-print-customizer",
   "private": true,
-  "version": "1.4.7",
+  "version": "1.4.8",
   "description": "A web application to process and customize Kytario songbook JSON data for printing.",
   "license": "MIT",
   "keywords": [
@@ -23,8 +23,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist dev-dist",
-    "lint": "tsc --noEmit",
-    "postinstall": "npm run build"
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

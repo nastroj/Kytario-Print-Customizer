@@ -603,12 +603,34 @@ export default function App() {
     try {
       const rawData = await fetchSongbookFromKytario(kytarioUrl);
       const data = normalizeSongbookData(rawData);
+      const songs = data.songs || [];
+      
+      if (songs.length === 0) {
+        throw new Error('No songs found in the Kytario response. The songbook might be private or the URL might be incorrect.');
+      }
+      
       setSongbookData(data);
+      setDraftSettings(prev => ({
+        ...prev,
+        frontCoverTitle: undefined,
+        backCoverTitle: undefined
+      }));
+      setSettings(prev => ({
+        ...prev,
+        frontCoverTitle: undefined,
+        backCoverTitle: undefined
+      }));
       setIsLoadingJson(false);
-      const songCount = (data.songs || []).length;
-      showToast(`Successfully imported "${data.title}" from Kytario (${songCount} songs)!`);
+      const songCount = songs.length;
+      const songsWithContent = songs.filter(s => s.content && s.content.trim().length > 0).length;
+      
+      if (songsWithContent === 0 && songCount > 0) {
+        showToast(`Imported ${songCount} titles, but lyrics were not found. Try a different URL?`, 'info');
+      } else {
+        showToast(`Successfully imported "${data.title}" from Kytario (${songsWithContent}/${songCount} songs with lyrics)!`);
+      }
     } catch (err: any) {
-      console.error('Kytario import error:', err);
+      console.warn('Kytario import:', err?.message || err);
       setIsLoadingJson(false);
       setErrorMessage(err.message || 'Failed to import from Kytario.');
     }
@@ -813,6 +835,16 @@ export default function App() {
                   disabled={isLoadingJson}
                   className="w-full rounded-lg border border-black/10 p-3 text-sm focus:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-800 bg-zinc-50 disabled:opacity-60"
                 />
+                <div className="flex items-center justify-between text-xs pt-1 px-1">
+                  <span className="text-zinc-500">Need a sample?</span>
+                  <button
+                    type="button"
+                    onClick={() => setKytarioUrl('bodg')}
+                    className="text-blue-600 dark:text-blue-400 hover:underline font-medium cursor-pointer"
+                  >
+                    Try sample code: <code className="bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono font-bold">bodg</code>
+                  </button>
+                </div>
               </div>
               <button
                 onClick={handleKytarioUrlSubmit}

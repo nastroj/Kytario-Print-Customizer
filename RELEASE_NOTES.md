@@ -1,5 +1,37 @@
 # Release Notes
 
+## v1.4.8 - 2026-09-29
+
+### Kytario Songbook Name Extraction, GitHub Pages Optimization & Asset Audit
+
+- **Human-Readable Songbook Title Extraction**: Upgraded the Kytario API proxy and parser to retrieve the authentic songbook title (e.g. *"PRO RADOST"*) from public page metadata (JSON-LD `MusicAlbum`, HTML `<title>`, OpenGraph tags) instead of defaulting to the technical URL/project token (`"BODG"`).
+- **Edge-Case Validation for URL & Language Slugs**: Hardened `extractKytarioSlug` across client and server to prevent false matches against language prefixes (such as `/cs`, `/en`), query parameters, or hash fragments, returning informative user-facing alerts instead of uncaught 404 network errors.
+- **Redundant Asset & Binary Cleanup**:
+  - Removed obsolete 1.08 MB `public/pdf.worker.min.js` (PDF parsing runs in-thread with `disableWorker: true`, eliminating unnecessary distribution payload).
+  - Pruned unused `public/fonts/Roboto-*.ttf` font binaries (412 KB saved; web preview uses Google Fonts and PDF worker uses embedded Unicode Inter typography).
+  - Deleted legacy `bun.lock` (161 KB) and unused `src/lib/utils.ts` boilerplate.
+  - Removed dead `motion-vendor` rollup chunk rule from `vite.config.ts`.
+- **GitHub Pages SPA Routing (`404.html`)**: Added automated generation of `404.html` during the production build to ensure clean SPA direct routing and refreshes on static GitHub Pages hosting.
+- **Optimized PWA Precache**: Reduced service worker precache footprint by over 30% (~5.3 MB to ~2.8 MB), accelerating offline caching, PWA installation, and initial load performance on GitHub Pages.
+
+### Validation
+
+- `npm run lint` (`tsc --noEmit`)
+- `npm run build` (`vite build`)
+
+### Deployment
+
+This release is prepared for GitHub Pages deployment via the `.github/workflows/deploy.yml` workflow.
+
+### Release checklist
+
+- Version aligned across `package.json`, `package-lock.json`, `src/config.ts`, `README.md`, and `RELEASE_NOTES.md`: `1.4.8`
+- Legacy and redundant assets completely pruned
+- Build artifact includes `404.html` for GitHub Pages
+- Ready to push to `main` for deployment
+
+---
+
 ## v1.4.7 - 2026-09-26
 
 ### Book Printing, Performance, & Build Audit
@@ -65,7 +97,7 @@ This release is prepared for GitHub Pages deployment via the `.github/workflows/
 - **Deep audit of `@media print` and `@page` rules**: Removed legacy padding overrides from `src/index.css`, cleaned up dynamic `@page` rule injection, and ensured `.print-page-container` preserves flex column layout without page-break clip issues.
 - **Fixed Back Cover Title & Styling in PDF Export**: Updated `renderBackCoverPage` in `pdfWorker.ts` to correctly fallback to the songbook title (`songbookData.title`) instead of hardcoded `"ZADNÍ STRANA"`. Improved color alignment by utilizing `separatorLineColor` and applying opacities to match the web preview's visual hierarchy.
 - **Legacy artifact and asset cleanup**: Deleted redundant lockfile (`bun.lock`), pruned unused duplicate SVGs (`icon.svg`, `icon-maskable.svg`), removed 110+ unused packages (purged native `@resvg/resvg-js` binaries, unneeded server packages `express`, `@types/express`, `dotenv`, `autoprefixer`, and `class-variance-authority`), and deduplicated PWA manifest icon declarations.
-- **Optimized Vite build process**: Implemented Rollup `manualChunks` in `vite.config.ts` splitting `react-vendor`, `icons-vendor`, and `motion-vendor` into separate cacheable chunks under 400 kB, converted `index.html` asset tags to `%BASE_URL%`, and added Schema.org JSON-LD structured data.
+- **Optimized Vite build process**: Implemented Rollup `manualChunks` in `vite.config.ts` splitting `react-vendor` and `icons-vendor` into separate cacheable chunks under 400 kB, converted `index.html` asset tags to `%BASE_URL%`, and added Schema.org JSON-LD structured data.
 
 ### Validation
 

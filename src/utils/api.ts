@@ -1,67 +1,69 @@
 import axios from 'axios';
 import { SongbookData } from '../types';
 
-export async function fetchSongbookFromKytario(url: string): Promise<SongbookData> {
-  // Extract token from URL
-  // Example URLs:
-  // https://kytario.com/bodg
-  // https://kytario.com/songbooks/bodg
-  // kytario.com/bodg
+/**
+ * Robustly extracts the songbook slug / code from any Kytario URL, link, or path format.
+ */
+export function extractKytarioSlug(input: string): string {
+  if (!input) return '';
+  let str = input.trim();
+  str = str.split('#')[0].split('?')[0].trim();
+  str = str.replace(/\/+$/, '');
+
+  const noProto = str.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
   
-  let token = url.trim();
-  if (token.includes('kytario.com/')) {
-    token = token.split('kytario.com/')[1];
+  let segments: string[] = [];
+  if (noProto.includes('kytario.com')) {
+    const afterDomain = noProto.split('kytario.com')[1] || '';
+    segments = afterDomain.split('/').filter(Boolean);
+  } else {
+    segments = noProto.split('/').filter(Boolean);
   }
-  if (token.includes('/')) {
-    const parts = token.split('/');
-    token = parts[parts.length - 1];
+
+  if (segments.length === 0) return '';
+
+  const ignore = new Set([
+    'api', 'v1', 'v2', 'public', 
+    'songbook', 'songbooks', 'zpevnik', 'zpevniky', 
+    'project', 'projects', 'sections', 'export', 
+    'shared', 'cs', 'en', 'sk', 'de', 'user', 'users'
+  ]);
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i].toLowerCase();
+    if ((seg === 'songbooks' || seg === 'songbook' || seg === 'zpevnik' || seg === 'zpevniky' || seg === 'projects' || seg === 'project') && i + 1 < segments.length) {
+      const next = segments[i + 1];
+      if (!ignore.has(next.toLowerCase())) {
+        return next;
+      }
+    }
   }
+
+  const valid = segments.filter(s => !ignore.has(s.toLowerCase()));
+  if (valid.length > 0) {
+    return valid[valid.length - 1];
+  }
+
+  return '';
+}
+
+export async function fetchSongbookFromKytario(url: string): Promise<any> {
+  const cleanUrl = url.trim();
+  const token = extractKytarioSlug(cleanUrl);
   
-  if (!token) {
-    throw new Error('Invalid Kytario URL. Could not find songbook token.');
+  if (!token && !/^https?:\/\//i.test(cleanUrl)) {
+    throw new Error('Please enter a valid Kytario songbook URL or code (e.g. "bodg" or "https://kytario.com/bodg").');
   }
 
   try {
-    const response = await axios.get(`/api/proxy/kytario/${token}`);
-    const data = response.data;
-    
-    // Normalize Kytario API response to our SongbookData format
-    // Based on user hint: kytario.com/api/songbooks/bodg/sections
-    // We expect sections which contain songs.
-    
-    const songs: any[] = [];
-    
-    if (Array.isArray(data)) {
-      // It's directly an array of sections or songs
-      data.forEach((section: any) => {
-        if (section.songs && Array.isArray(section.songs)) {
-          section.songs.forEach((song: any) => {
-            songs.push({
-              id: song.id?.toString(),
-              title: song.title || song.name,
-              artist: song.artist || song.author,
-              content: song.content || song.text,
-            });
-          });
-        } else if (section.title && section.content) {
-          // Direct song
-          songs.push({
-            id: section.id?.toString(),
-            title: section.title,
-            artist: section.artist,
-            content: section.content,
-          });
-        }
-      });
-    }
-    
-    return {
-      title: 'Imported from Kytario',
-      urlToken: token,
-      songs: songs,
-    };
+    const targetParam = token || cleanUrl;
+    const response = await axios.get(`/api/proxy/kytario/${encodeURIComponent(targetParam)}`, {
+      params: { url: cleanUrl, token }
+    });
+    return response.data;
   } catch (error: any) {
-    console.error('Kytario fetch error:', error);
-    throw new Error(error.response?.data?.error || 'Failed to fetch songbook from Kytario.');
+    const msg = error.response?.data?.error || error.message || 'Failed to fetch songbook from Kytario.';
+    throw new Error(msg);
   }
 }
+
