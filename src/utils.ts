@@ -736,7 +736,7 @@ export function normalizeUrlAndShortUrl(
     };
   }
 
-  // Otherwise, it's a relative path or raw slug (e.g. "bodg" or "/bodg" or "/zpevnik/bodg")
+  // Otherwise, it's a relative path or raw slug (e.g. "your-songbook" or "/your-songbook" or "/zpevnik/your-songbook")
   const path = cleaned.startsWith('/') ? cleaned : '/' + cleaned;
   const derivedSlug = s || cleaned.replace(/^\/+/, '');
   return {
@@ -879,7 +879,7 @@ export function extractSongbookUrlAndSlug(
 }
 
 /**
- * Cleanly formats a display URL for songbook cover pages (e.g. "kytario.com/bodg").
+ * Cleanly formats a display URL for songbook cover pages (e.g. "kytario.com/your-songbook").
  */
 export function formatCoverDisplayUrl(rawUrlOrSlug?: string | null, fallbackDomain = 'kytario.com'): string {
   if (!rawUrlOrSlug || !rawUrlOrSlug.trim()) return fallbackDomain;
@@ -896,7 +896,7 @@ export function formatCoverDisplayUrl(rawUrlOrSlug?: string | null, fallbackDoma
 }
 
 /**
- * Cleanly formats a QR code target URL (e.g. "https://kytario.com/bodg").
+ * Cleanly formats a QR code target URL (e.g. "https://kytario.com/your-songbook").
  */
 export function formatCoverQrUrl(rawUrlOrSlug?: string | null, fallbackUrl = 'https://kytario.com'): string {
   if (!rawUrlOrSlug || !rawUrlOrSlug.trim()) return fallbackUrl;
@@ -913,7 +913,7 @@ export function formatCoverQrUrl(rawUrlOrSlug?: string | null, fallbackUrl = 'ht
 
 /**
  * Unified resolver for cover page display URL and QR code target URL.
- * Ensures that auto-generated covers always display the full songbook link (e.g. kytario.com/bodg)
+ * Ensures that auto-generated covers always display the full songbook link (e.g. kytario.com/your-songbook)
  * and that custom covers can optionally override them.
  */
 export function resolveCoverUrl(options: {

@@ -122,7 +122,7 @@ async function createServer() {
     if (!token && candidateUrls.length === 0) {
       console.warn(`[Proxy] Invalid or empty songbook token requested: "${rawInput}"`);
       return res.status(400).json({
-        error: 'Invalid Kytario songbook link or code. Please enter a valid songbook name (e.g. "bodg" or "https://kytario.com/bodg").'
+        error: 'Invalid Kytario songbook link or code. Please enter a valid songbook name (e.g. "https://kytario.com/your-songbook").'
       });
     }
 
@@ -189,8 +189,8 @@ async function createServer() {
     const status = lastError?.response?.status || 404;
     res.status(status).json({ 
       error: status === 404 
-        ? `Songbook "${token || rawInput}" was not found on Kytario. Please check the URL or code (e.g. "bodg").` 
-        : 'Failed to fetch songbook from Kytario. Please check the URL or code (e.g. "bodg").',
+        ? `Songbook "${token || rawInput}" was not found on Kytario. Please check the URL or code.` 
+        : 'Failed to fetch songbook from Kytario. Please check the URL or code.',
       details: lastError?.message 
     });
   });

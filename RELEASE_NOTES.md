@@ -4,7 +4,7 @@
 
 ### Kytario Songbook Name Extraction, GitHub Pages Optimization & Asset Audit
 
-- **Human-Readable Songbook Title Extraction**: Upgraded the Kytario API proxy and parser to retrieve the authentic songbook title (e.g. *"PRO RADOST"*) from public page metadata (JSON-LD `MusicAlbum`, HTML `<title>`, OpenGraph tags) instead of defaulting to the technical URL/project token (`"BODG"`).
+- **Human-Readable Songbook Title Extraction**: Upgraded the Kytario API proxy and parser to retrieve the authentic songbook title (e.g. *"PRO RADOST"*) from public page metadata (JSON-LD `MusicAlbum`, HTML `<title>`, OpenGraph tags) instead of defaulting to the technical URL/project token (`"YOUR-SONGBOOK"`).
 - **Edge-Case Validation for URL & Language Slugs**: Hardened `extractKytarioSlug` across client and server to prevent false matches against language prefixes (such as `/cs`, `/en`), query parameters, or hash fragments, returning informative user-facing alerts instead of uncaught 404 network errors.
 - **GitHub Pages Static Host Fallback & 1-Click JSON Helper**: Added client-side fallback strategies (direct fetch, public CORS proxies) when deployed to static hosting environments like GitHub Pages where no Express proxy backend runs. If browser CORS restrictions block automated background requests, the app displays an actionable guidance card with a 1-click link to open the raw JSON in a new browser tab and instantly switch to the Paste tab.
 - **Redundant Asset & Binary Cleanup**:

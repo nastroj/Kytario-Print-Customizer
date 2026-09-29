@@ -12,7 +12,7 @@ A modern, high-performance web application designed to transform Kytario songboo
 
 ## 🌟 What's New in v1.4.8
 
-- **Human-Readable Songbook Title Fetching**: Automatically extracts and displays the authentic songbook title (e.g., *"PRO RADOST"*) from public Kytario page metadata (JSON-LD `MusicAlbum`, HTML `<title>`, and OpenGraph tags) rather than defaulting to internal technical URL tokens (`"bodg"`).
+- **Human-Readable Songbook Title Fetching**: Automatically extracts and displays the authentic songbook title (e.g., *"PRO RADOST"*) from public Kytario page metadata (JSON-LD `MusicAlbum`, HTML `<title>`, and OpenGraph tags) rather than defaulting to internal technical URL tokens (`"your-songbook"`).
 - **Hardened URL & Language Slug Resolution**: Client-side and server-side URL extractors intelligently handle language prefixes (such as `/cs`), query parameters, hash anchors, and raw codes, providing clear inline validation instead of unhandled 404 network errors.
 - **GitHub Pages Static Host Fallback & 1-Click JSON Helper**: Added client-side fallback strategies (direct fetch, public CORS proxies) when deployed to static hosting environments like GitHub Pages where no Express proxy backend runs. If browser CORS restrictions block automated background requests, the app displays an actionable guidance card with a 1-click link to open the raw JSON in a new browser tab and instantly switch to the Paste tab.
 - **Comprehensive Project Configuration & Asset Audit**:
@@ -28,7 +28,7 @@ A modern, high-performance web application designed to transform Kytario songboo
 ## 🚀 Key Features
 
 ### 🌐 Direct Kytario Import & Title Enrichment
-- **Instant Online Import:** Paste any Kytario songbook link (e.g., `https://kytario.com/bodg` or `kytario.com/cs/bodg`) or code (`bodg`) to fetch songbook sections and songs directly.
+- **Instant Online Import:** Paste any Kytario songbook link (e.g., `https://kytario.com/your-songbook` or `kytario.com/cs/your-songbook`) or code (`your-songbook`) to fetch songbook sections and songs directly.
 - **Metadata Auto-Resolution:** Automatically detects and applies the songbook's human-readable name and author across covers, headers, and PDF document metadata.
 - **JSON Drag & Drop:** Support for direct drag-and-drop of exported `.json` songbook files with multi-pass error correction.
 - **Orphaned PDF Recovery:** Upload an existing Kytario PDF to parse and recover song titles, lyrics, and chords even if original JSON data was lost.
@@ -131,7 +131,7 @@ The repository includes a continuous deployment workflow in `.github/workflows/d
 
 ## 📖 How to Use
 
-1. **Import Songbook:** Enter a Kytario songbook link (e.g., `https://kytario.com/bodg`) or drag and drop your exported `.json` file into the upload zone.
+1. **Import Songbook:** Enter a Kytario songbook link (e.g., `https://kytario.com/your-songbook`) or drag and drop your exported `.json` file into the upload zone.
 2. **Configure Layout:** Use the sidebar to configure page size, orientation, columns, margins, font sizing, and double-sided book printing mode.
 3. **Customize Styling & Covers:** Set color schemes, font family, and cover page designs (custom titles, subtitles, uploaded images, QR code link).
 4. **Apply Changes:** Click **Apply Changes** in the sidebar to recompute the SmartFit layout and update the live preview.
