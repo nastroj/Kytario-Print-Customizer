@@ -14,6 +14,7 @@ A modern, high-performance web application designed to transform Kytario songboo
 
 - **Human-Readable Songbook Title Fetching**: Automatically extracts and displays the authentic songbook title (e.g., *"PRO RADOST"*) from public Kytario page metadata (JSON-LD `MusicAlbum`, HTML `<title>`, and OpenGraph tags) rather than defaulting to internal technical URL tokens (`"bodg"`).
 - **Hardened URL & Language Slug Resolution**: Client-side and server-side URL extractors intelligently handle language prefixes (such as `/cs`), query parameters, hash anchors, and raw codes, providing clear inline validation instead of unhandled 404 network errors.
+- **GitHub Pages Static Host Fallback & 1-Click JSON Helper**: Added client-side fallback strategies (direct fetch, public CORS proxies) when deployed to static hosting environments like GitHub Pages where no Express proxy backend runs. If browser CORS restrictions block automated background requests, the app displays an actionable guidance card with a 1-click link to open the raw JSON in a new browser tab and instantly switch to the Paste tab.
 - **Comprehensive Project Configuration & Asset Audit**:
   - **Removed Redundant `pdf.worker.min.js` (1.08 MB)**: In-browser PDF import executes in-thread with `disableWorker: true`, eliminating unnecessary distribution payload.
   - **Pruned Unreferenced Font Binaries (412 KB)**: Removed unused `public/fonts/Roboto-*.ttf` files (web preview consumes Google Fonts; the PDF worker embeds Unicode Inter font files).

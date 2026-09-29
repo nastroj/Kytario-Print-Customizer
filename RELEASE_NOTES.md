@@ -6,6 +6,7 @@
 
 - **Human-Readable Songbook Title Extraction**: Upgraded the Kytario API proxy and parser to retrieve the authentic songbook title (e.g. *"PRO RADOST"*) from public page metadata (JSON-LD `MusicAlbum`, HTML `<title>`, OpenGraph tags) instead of defaulting to the technical URL/project token (`"BODG"`).
 - **Edge-Case Validation for URL & Language Slugs**: Hardened `extractKytarioSlug` across client and server to prevent false matches against language prefixes (such as `/cs`, `/en`), query parameters, or hash fragments, returning informative user-facing alerts instead of uncaught 404 network errors.
+- **GitHub Pages Static Host Fallback & 1-Click JSON Helper**: Added client-side fallback strategies (direct fetch, public CORS proxies) when deployed to static hosting environments like GitHub Pages where no Express proxy backend runs. If browser CORS restrictions block automated background requests, the app displays an actionable guidance card with a 1-click link to open the raw JSON in a new browser tab and instantly switch to the Paste tab.
 - **Redundant Asset & Binary Cleanup**:
   - Removed obsolete 1.08 MB `public/pdf.worker.min.js` (PDF parsing runs in-thread with `disableWorker: true`, eliminating unnecessary distribution payload).
   - Pruned unused `public/fonts/Roboto-*.ttf` font binaries (412 KB saved; web preview uses Google Fonts and PDF worker uses embedded Unicode Inter typography).

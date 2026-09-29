@@ -7,9 +7,9 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
 import { SongbookData, PrintSettings } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Sun, Moon, Globe, FileUp } from 'lucide-react';
+import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Sun, Moon, Globe, FileUp, ExternalLink, AlertTriangle } from 'lucide-react';
 import { safeParseSongbookJson, normalizeSongbookData } from './utils';
-import { fetchSongbookFromKytario } from './utils/api';
+import { fetchSongbookFromKytario, KytarioErrorDetails } from './utils/api';
 import { parseSongbookFromPdf } from './utils/pdfImport';
 import { APP_CONFIG } from './config';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
@@ -169,6 +169,7 @@ export default function App() {
   const [kytarioUrl, setKytarioUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'upload' | 'paste' | 'url' | 'pdf'>('upload');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [kytarioFetchDetails, setKytarioFetchDetails] = useState<KytarioErrorDetails | null>(null);
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -588,10 +589,12 @@ export default function App() {
   const handleKytarioUrlSubmit = async () => {
     if (!kytarioUrl.trim()) {
       setErrorMessage('Please enter a Kytario URL first.');
+      setKytarioFetchDetails(null);
       return;
     }
     
     setErrorMessage(null);
+    setKytarioFetchDetails(null);
     setRecoveryNotice(null);
     setWarningMessage(null);
     setIsLoadingJson(true);
@@ -621,6 +624,7 @@ export default function App() {
         backCoverTitle: undefined
       }));
       setIsLoadingJson(false);
+      setKytarioFetchDetails(null);
       const songCount = songs.length;
       const songsWithContent = songs.filter(s => s.content && s.content.trim().length > 0).length;
       
@@ -633,6 +637,9 @@ export default function App() {
       console.warn('Kytario import:', err?.message || err);
       setIsLoadingJson(false);
       setErrorMessage(err.message || 'Failed to import from Kytario.');
+      if (err.details) {
+        setKytarioFetchDetails(err.details);
+      }
     }
   };
 
@@ -706,7 +713,7 @@ export default function App() {
           {/* Tabs */}
           <div className="flex border-b border-black/5 overflow-x-auto no-scrollbar">
             <button
-              onClick={() => { setActiveTab('upload'); setErrorMessage(null); }}
+              onClick={() => { setActiveTab('upload'); setErrorMessage(null); setKytarioFetchDetails(null); }}
               className={`flex-1 min-w-[80px] py-2.5 text-[11px] sm:text-xs font-semibold border-b-2 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
                 activeTab === 'upload'
                   ? 'border-zinc-900 text-zinc-900'
@@ -717,7 +724,7 @@ export default function App() {
               JSON File
             </button>
             <button
-              onClick={() => { setActiveTab('url'); setErrorMessage(null); }}
+              onClick={() => { setActiveTab('url'); setErrorMessage(null); setKytarioFetchDetails(null); }}
               className={`flex-1 min-w-[80px] py-2.5 text-[11px] sm:text-xs font-semibold border-b-2 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
                 activeTab === 'url'
                   ? 'border-zinc-900 text-zinc-900'
@@ -728,7 +735,7 @@ export default function App() {
               Kytario URL
             </button>
             <button
-              onClick={() => { setActiveTab('pdf'); setErrorMessage(null); }}
+              onClick={() => { setActiveTab('pdf'); setErrorMessage(null); setKytarioFetchDetails(null); }}
               className={`flex-1 min-w-[80px] py-2.5 text-[11px] sm:text-xs font-semibold border-b-2 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
                 activeTab === 'pdf'
                   ? 'border-zinc-900 text-zinc-900'
@@ -739,7 +746,7 @@ export default function App() {
               PDF Import
             </button>
             <button
-              onClick={() => { setActiveTab('paste'); setErrorMessage(null); }}
+              onClick={() => { setActiveTab('paste'); setErrorMessage(null); setKytarioFetchDetails(null); }}
               className={`flex-1 min-w-[80px] py-2.5 text-[11px] sm:text-xs font-semibold border-b-2 flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
                 activeTab === 'paste'
                   ? 'border-zinc-900 text-zinc-900'
@@ -830,7 +837,16 @@ export default function App() {
                 <input
                   type="text"
                   value={kytarioUrl}
-                  onChange={(e) => setKytarioUrl(e.target.value)}
+                  onChange={(e) => {
+                    setKytarioUrl(e.target.value);
+                    if (kytarioFetchDetails) setKytarioFetchDetails(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isLoadingJson) {
+                      e.preventDefault();
+                      handleKytarioUrlSubmit();
+                    }
+                  }}
                   placeholder="https://kytario.com/bodg"
                   disabled={isLoadingJson}
                   className="w-full rounded-lg border border-black/10 p-3 text-sm focus:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-800 bg-zinc-50 disabled:opacity-60"
@@ -839,7 +855,10 @@ export default function App() {
                   <span className="text-zinc-500">Need a sample?</span>
                   <button
                     type="button"
-                    onClick={() => setKytarioUrl('bodg')}
+                    onClick={() => {
+                      setKytarioUrl('bodg');
+                      if (kytarioFetchDetails) setKytarioFetchDetails(null);
+                    }}
                     className="text-blue-600 dark:text-blue-400 hover:underline font-medium cursor-pointer"
                   >
                     Try sample code: <code className="bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono font-bold">bodg</code>
@@ -862,6 +881,84 @@ export default function App() {
                 )}
                 <span>{isLoadingJson ? 'Fetching Data...' : 'Import from Kytario'}</span>
               </button>
+
+              {kytarioFetchDetails && (
+                <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-3 text-left">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-200">
+                        GitHub Pages Static Hosting Notice
+                      </h4>
+                      <p className="text-xs text-amber-700 dark:text-amber-300/90 mt-0.5 leading-relaxed">
+                        GitHub Pages is a static host without a backend proxy server, so web browsers block direct background requests to Kytario due to CORS security rules.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-white dark:bg-zinc-900/90 rounded-lg border border-amber-200/70 dark:border-amber-900/50 space-y-2">
+                    <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                      ⚡ Quick 2-Step Import:
+                    </div>
+                    <ol className="text-xs text-zinc-600 dark:text-zinc-400 list-decimal list-inside space-y-1.5 leading-relaxed">
+                      <li>
+                        Click below to open the songbook JSON data directly in your browser:
+                        <div className="mt-1">
+                          <a
+                            href={kytarioFetchDetails.apiUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800 font-mono text-[11px] font-semibold hover:bg-blue-100 transition-colors"
+                          >
+                            <span>Open {kytarioFetchDetails.token} JSON Data</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </li>
+                      <li>
+                        Press <kbd className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded font-mono text-[10px] font-semibold">Ctrl+A</kbd> then <kbd className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded font-mono text-[10px] font-semibold">Ctrl+C</kbd> to copy all text.
+                      </li>
+                      <li>
+                        Switch to the{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab('paste');
+                            setKytarioFetchDetails(null);
+                          }}
+                          className="text-blue-600 dark:text-blue-400 font-bold underline cursor-pointer"
+                        >
+                          Paste JSON tab
+                        </button>{' '}
+                        and press <kbd className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded font-mono text-[10px] font-semibold">Ctrl+V</kbd>.
+                      </li>
+                    </ol>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-0.5">
+                    <a
+                      href={kytarioFetchDetails.apiUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 min-w-[130px] px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors text-center"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>1. Open JSON Tab</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('paste');
+                        setKytarioFetchDetails(null);
+                      }}
+                      className="flex-1 min-w-[130px] px-3 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                    >
+                      <Clipboard className="w-3.5 h-3.5" />
+                      <span>2. Go to Paste Tab</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
