@@ -1,5 +1,29 @@
 # Release Notes
 
+## v1.4.9 - 2026-10-01
+
+### Import Flow Cleanup
+
+- **Removed PDF Import**: Removed the unreliable PDF import UI and parser, along with the parser-only `pdfjs-dist` dependency. PDF generation and export are unchanged.
+- **Reordered Import Tabs**: The import screen now presents Kytario URL, Paste JSON, and JSON File in that order, with Kytario URL selected by default.
+
+### Validation
+
+- `npm run lint` (`tsc --noEmit`)
+- `npm run build` (`vite build`)
+
+### Deployment
+
+This release is prepared for GitHub Pages deployment via the `.github/workflows/deploy.yml` workflow.
+
+### Release checklist
+
+- Version aligned across `package.json`, `package-lock.json`, `src/config.ts`, `README.md`, and `RELEASE_NOTES.md`: `1.4.9`
+- PDF export remains available
+- Ready to push to `main` for deployment
+
+---
+
 ## v1.4.8 - 2026-09-29
 
 ### Kytario Songbook Name Extraction, GitHub Pages Optimization & Asset Audit

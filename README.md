@@ -1,27 +1,19 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.4.8  
+**Version:** 1.4.9  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.4.8 is audited, optimized, and ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.4.9 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
 
 ---
 
-## 🌟 What's New in v1.4.8
+## 🌟 What's New in v1.4.9
 
-- **Human-Readable Songbook Title Fetching**: Automatically extracts and displays the authentic songbook title (e.g., *"PRO RADOST"*) from public Kytario page metadata (JSON-LD `MusicAlbum`, HTML `<title>`, and OpenGraph tags) rather than defaulting to internal technical URL tokens (`"your-songbook"`).
-- **Hardened URL & Language Slug Resolution**: Client-side and server-side URL extractors intelligently handle language prefixes (such as `/cs`), query parameters, hash anchors, and raw codes, providing clear inline validation instead of unhandled 404 network errors.
-- **GitHub Pages Static Host Fallback & 1-Click JSON Helper**: Added client-side fallback strategies (direct fetch, public CORS proxies) when deployed to static hosting environments like GitHub Pages where no Express proxy backend runs. If browser CORS restrictions block automated background requests, the app displays an actionable guidance card with a 1-click link to open the raw JSON in a new browser tab and instantly switch to the Paste tab.
-- **Comprehensive Project Configuration & Asset Audit**:
-  - **Removed Redundant `pdf.worker.min.js` (1.08 MB)**: In-browser PDF import executes in-thread with `disableWorker: true`, eliminating unnecessary distribution payload.
-  - **Pruned Unreferenced Font Binaries (412 KB)**: Removed unused `public/fonts/Roboto-*.ttf` files (web preview consumes Google Fonts; the PDF worker embeds Unicode Inter font files).
-  - **Removed Legacy Artifacts**: Deleted obsolete `bun.lock` (161 KB) and unused `src/lib/utils.ts` boilerplate.
-  - **Cleaned Rollup Chunking**: Removed dead `motion-vendor` chunk rule from Vite configuration.
-- **GitHub Pages SPA Routing Support (`404.html`)**: Automatic Vite build hook copies `index.html` to `dist/404.html`, guaranteeing seamless client-side routing and direct link refreshes on static GitHub Pages hosting.
-- **30%+ PWA Precache Footprint Reduction**: Total service worker precache footprint dropped from ~5.3 MB to ~2.8 MB, accelerating offline caching, PWA installation, and initial load performance.
+- **Simplified Import Flow**: Removed the unreliable PDF import feature and its `pdfjs-dist` dependency. Songbooks can still be imported from a Kytario URL, pasted JSON, or a JSON file.
+- **Import Tab Order**: Reordered the import tabs to Kytario URL, Paste JSON, then JSON File, with Kytario URL selected by default.
 
 ---
 
@@ -31,7 +23,6 @@ A modern, high-performance web application designed to transform Kytario songboo
 - **Instant Online Import:** Paste any Kytario songbook link (e.g., `https://kytario.com/your-songbook` or `kytario.com/cs/your-songbook`) or code (`your-songbook`) to fetch songbook sections and songs directly.
 - **Metadata Auto-Resolution:** Automatically detects and applies the songbook's human-readable name and author across covers, headers, and PDF document metadata.
 - **JSON Drag & Drop:** Support for direct drag-and-drop of exported `.json` songbook files with multi-pass error correction.
-- **Orphaned PDF Recovery:** Upload an existing Kytario PDF to parse and recover song titles, lyrics, and chords even if original JSON data was lost.
 
 ### 📄 Background Native PDF Generation
 - **Client-Side PDF Engine:** Generates crisp vector PDFs entirely in the browser using `pdf-lib` and `@pdf-lib/fontkit` inside a dedicated Web Worker.
@@ -118,7 +109,7 @@ The repository includes a continuous deployment workflow in `.github/workflows/d
 1. **Commit and push changes to `main`:**
    ```bash
    git add .
-   git commit -m "chore: release v1.4.8"
+   git commit -m "chore: release v1.4.9"
    git push origin main
    ```
 
@@ -141,6 +132,10 @@ The repository includes a continuous deployment workflow in `.github/workflows/d
 
 ## 📝 Release History
 
+### v1.4.9 (2026-10-01)
+- Removed unreliable PDF import and its `pdfjs-dist` dependency.
+- Reordered import tabs to Kytario URL, Paste JSON, then JSON File; Kytario URL is selected by default.
+
 ### v1.4.8 (2026-09-29)
 - **Authentic Songbook Name Extraction**: Automatically fetches real songbook names (e.g., *"PRO RADOST"*) from public Kytario page metadata (JSON-LD `MusicAlbum`, `<title>`, and OpenGraph).
 - **Hardened URL & Language Prefix Handling**: Handled edge cases with `/cs` language prefixes, query strings, and anchors.
@@ -152,7 +147,7 @@ The repository includes a continuous deployment workflow in `.github/workflows/d
 - **Double-Sided Book Printing Registration**: Enhanced dynamic `@page` print setup with `:left` and `:right` pseudo-classes for alternating inner/outer gutter margins.
 - **Smart Section Separators**: Added section divider lines with automatic top-of-column suppression.
 - **High-Performance Worker Serialization**: Zero-Copy `ArrayBuffer` transfer for non-blocking exports of massive songbooks.
-- **Direct Import & Recovery**: Added Kytario URL import proxy and PDF parser recovery for orphaned documents.
+- **Direct Import**: Added Kytario URL import proxy.
 
 ### v1.4.4 (2026-09-26)
 - **Print Optimization**: Enforced `@page` registration mark suppression (`marks: none`, `bleed: 0mm`) and exact color preservation (`color-adjust: exact`).
