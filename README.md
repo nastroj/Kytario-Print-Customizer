@@ -104,6 +104,12 @@ A modern, high-performance web application designed to transform Kytario songboo
 
 The repository includes a continuous deployment workflow in `.github/workflows/deploy.yml`.
 
+### Kytario URL Imports on GitHub Pages
+
+GitHub Pages is static hosting, so it cannot run the Express proxy used by local development. To enable automatic Kytario URL imports, deploy the included Cloudflare Worker from the repository root with `npx wrangler login` followed by `npx wrangler deploy`. Then add a repository Actions variable named `VITE_KYTARIO_PROXY_URL` with the deployed endpoint, for example `https://<worker>.<account>.workers.dev/api/proxy/kytario`, and rerun the Pages deployment. The Worker only fetches fixed public Kytario API routes; it does not accept arbitrary proxy URLs.
+
+The Worker allows the project's GitHub Pages origin and localhost by default. If you use a custom site domain, set its origin in the Worker environment variable `ALLOWED_ORIGINS` (comma-separated).
+
 ### Deployment Steps
 
 1. **Commit and push changes to `main`:**

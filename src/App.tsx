@@ -816,7 +816,7 @@ export default function App() {
                         GitHub Pages Static Hosting Notice
                       </h4>
                       <p className="text-xs text-amber-700 dark:text-amber-300/90 mt-0.5 leading-relaxed">
-                        GitHub Pages is a static host without a backend proxy server, so web browsers block direct background requests to Kytario due to CORS security rules.
+                        Automatic imports on GitHub Pages require the Cloudflare Worker to be deployed and VITE_KYTARIO_PROXY_URL set in the Pages build. Otherwise, use the manual JSON steps below.
                       </p>
                     </div>
                   </div>

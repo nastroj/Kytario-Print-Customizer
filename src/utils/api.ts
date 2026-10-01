@@ -200,19 +200,21 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
   );
 
   const targetParam = token || cleanUrl;
+  const configuredProxyUrl = import.meta.env.VITE_KYTARIO_PROXY_URL?.trim();
 
-  // If NOT a static-only hosting environment, try local backend server proxy first
-  if (!isStaticHost) {
+  // Prefer a configured hosted proxy on static hosts, otherwise use the local backend.
+  if (configuredProxyUrl || !isStaticHost) {
     try {
-      const response = await axios.get(`/api/proxy/kytario/${encodeURIComponent(targetParam)}`, {
+      const proxyBase = configuredProxyUrl || '/api/proxy/kytario';
+      const response = await axios.get(`${proxyBase.replace(/\/+$/, '')}/${encodeURIComponent(targetParam)}`, {
         params: { url: cleanUrl, token },
-        timeout: 10000
+        timeout: 25000
       });
       if (response.data && hasSongsPayload(response.data)) {
         return response.data;
       }
     } catch (err: any) {
-      console.warn('Local proxy not available, attempting client-side fallback strategies:', err?.message);
+      console.warn('Configured Kytario proxy not available, attempting client-side fallback strategies:', err?.message);
     }
   }
 
@@ -242,7 +244,7 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
   };
 
   const message = isStaticHost
-    ? `GitHub Pages is a static site without a backend proxy server, and Kytario's servers do not allow direct browser connections (CORS).`
+    ? `GitHub Pages cannot run the Kytario proxy itself. To enable automatic imports, deploy cloudflare/kytario-proxy.ts as a Cloudflare Worker and set VITE_KYTARIO_PROXY_URL to its /api/proxy/kytario endpoint before rebuilding. Otherwise, import the JSON manually.`
     : `Could not fetch songbook from Kytario. Please check the URL or copy the JSON payload into the Paste JSON tab.`;
 
   throw new KytarioFetchError(message, errorDetails);

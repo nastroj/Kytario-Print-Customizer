@@ -1,0 +1,3 @@
+name = "kytario-print-customizer-proxy"
+main = "cloudflare/kytario-proxy.ts"
+compatibility_date = "2026-10-01"
