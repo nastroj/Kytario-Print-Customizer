@@ -114,7 +114,26 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
       // Direct CORS blocked, continue
     }
 
-    // 2. allorigins raw proxy
+    // Jina Reader supports large Kytario JSON responses and returns the body as text.
+    try {
+      const proxyUrl = `https://r.jina.ai/${targetUrl}`;
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(20000) });
+      if (res.ok) {
+        const text = await res.text();
+        const marker = 'Markdown Content:\n';
+        const markerIndex = text.indexOf(marker);
+        const content = (markerIndex >= 0 ? text.slice(markerIndex + marker.length) : text).trim();
+        const jsonStart = content.search(/[\[{]/);
+        const data = JSON.parse(content.slice(jsonStart));
+        if (hasSongsPayload(data)) {
+          return data;
+        }
+      }
+    } catch {
+      // Continue to other public relays.
+    }
+
+    // 3. allorigins raw proxy
     try {
       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
       const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) });
@@ -129,7 +148,7 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
       // Continue
     }
 
-    // 3. allorigins get proxy (JSON wrapper)
+    // 4. allorigins get proxy (JSON wrapper)
     try {
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
       const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) });
@@ -146,7 +165,7 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
       // Continue
     }
 
-    // 4. codetabs proxy
+    // 5. codetabs proxy
     try {
       const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
       const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) });
@@ -244,7 +263,7 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
   };
 
   const message = isStaticHost
-    ? `GitHub Pages cannot run the Kytario proxy itself. To enable automatic imports, deploy cloudflare/kytario-proxy.ts as a Cloudflare Worker and set VITE_KYTARIO_PROXY_URL to its /api/proxy/kytario endpoint before rebuilding. Otherwise, import the JSON manually.`
+    ? `Automatic Kytario import tried public CORS relays but could not fetch this songbook. You can configure a Cloudflare Worker proxy with VITE_KYTARIO_PROXY_URL or import the JSON manually.`
     : `Could not fetch songbook from Kytario. Please check the URL or copy the JSON payload into the Paste JSON tab.`;
 
   throw new KytarioFetchError(message, errorDetails);
