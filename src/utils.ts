@@ -246,9 +246,10 @@ export function convertKytarioSectionsToChordpro(sections: any[]): string {
   let fullText = '';
   for (const sec of sections) {
     if (!sec) continue;
-    if (sec.title && String(sec.title).trim()) {
-      fullText += `- ${String(sec.title).trim()}\n`;
-    }
+    // Always add a section title line to distinguish from inline references, even if empty
+    const title = (sec.title && String(sec.title).trim()) || '';
+    fullText += `- ${title}`.trim() + '\n';
+    
     if (Array.isArray(sec.tokens)) {
       for (const t of sec.tokens) {
         if (!t) continue;
@@ -2013,7 +2014,8 @@ export function parseSongContent(content: string): SongSection[] {
           break;
         }
       }
-      const nextIsSectionHeader = nextLineTrimmed === '' || isSectionHeaderLine(nextLineTrimmed);
+      const isEndOfBlock = rawLines[i + 1] === undefined || rawLines[i + 1].trim() === '';
+      const nextIsSectionHeader = nextLineTrimmed === '' || isSectionHeaderLine(nextLineTrimmed) || isEndOfBlock;
       if (nextIsSectionHeader) {
         if (!currentSection) {
           currentSection = { marker: '', isRefrain: false, lines: [], parsedLines: [] };
@@ -2027,9 +2029,9 @@ export function parseSongContent(content: string): SongSection[] {
     // 3. Detect Section Header
     let header: { marker: string; textAfter: string } | null = null;
 
-    // 3a. Explicit dash marker (e.g. "- REF", "- [REF]", "- 1.", "- [Bridge]")
-    if (trimmed.startsWith('- ')) {
-      let marker = trimmed.substring(2).trim();
+    // 3a. Explicit dash marker (e.g. "- REF", "- [REF]", "- 1.", "- [Bridge]", "-")
+    if (trimmed === '-' || trimmed.startsWith('- ')) {
+      let marker = trimmed === '-' ? '' : trimmed.substring(2).trim();
       if (marker.startsWith('[') && marker.endsWith(']')) marker = marker.slice(1, -1).trim();
       if (marker.startsWith('(') && marker.endsWith(')')) marker = marker.slice(1, -1).trim();
       header = { marker, textAfter: '' };
