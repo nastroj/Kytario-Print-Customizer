@@ -1,3 +1,13 @@
+// Clean up invalid global __dirname / __filename if set to '.' by runtime environment
+if (typeof globalThis !== 'undefined') {
+  if ((globalThis as any).__dirname === '.') {
+    delete (globalThis as any).__dirname;
+  }
+  if ((globalThis as any).__filename === '.') {
+    delete (globalThis as any).__filename;
+  }
+}
+
 import express from 'express';
 import http from 'http';
 import axios from 'axios';
@@ -214,7 +224,7 @@ async function createServer() {
       const vite = await createViteServer({
         server: {
           middlewareMode: true,
-          hmr: false,
+          hmr: { server: httpServer },
         },
         appType: 'spa',
       });

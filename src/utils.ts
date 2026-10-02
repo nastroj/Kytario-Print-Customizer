@@ -988,7 +988,7 @@ export function normalizeSongbookData(raw: any, rawJsonText?: string): SongbookD
   };
 }
 
-export const sectionRefRegex = /^(?:(?:\d+[\.\:]?|\(\d+\))(?:\s*(?:VERSE|SLOKA))?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|VERSE|SLOKA|PRE-CHORUS|INTRO|OUTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|B[\.\:]|M[\.\:])$/i;
+export const sectionRefRegex = /^(?:(?:\d+[\.\:]?|\(\d+\))(?:\s*(?:VERSE|SLOKA))?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|VERSE|SLOKA|PRE-CHORUS|INTRO|OUTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|B[\.\:]|M[\.\:])$/i;
 
 /**
  * Checks if a trimmed line represents a section header or directive.
@@ -1002,7 +1002,7 @@ export function isSectionHeaderLine(trimmedLine: string): boolean {
   if (bracketMatch && sectionRefRegex.test(bracketMatch[1].trim())) return true;
   const parenMatch = trimmedLine.match(/^\(([^\)]+)\)(?:\s*(.*)|$)/);
   if (parenMatch && sectionRefRegex.test(parenMatch[1].trim())) return true;
-  const markerPattern = /^((?:(?:\d+[\.\:]|\(\d+\))(?:\s*(?:VERSE|SLOKA))?[\.\:]?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|VERSE|SLOKA|PRE-CHORUS|INTRO|OUTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|B[\.\:]|M[\.\:]))(?:\s+|(?=\[)|(?=\{)|$)/i;
+  const markerPattern = /^((?:(?:\d+[\.\:]|\(\d+\))(?:\s*(?:VERSE|SLOKA))?[\.\:]?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|VERSE|SLOKA|PRE-CHORUS|INTRO|OUTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|B[\.\:]|M[\.\:]))(?:\s+|(?=\[)|(?=\{)|$)/i;
   return markerPattern.test(trimmedLine);
 }
 
@@ -1090,8 +1090,8 @@ export function isRepetitionOrChordsOnlyLine(line: string): boolean {
   if (stripped.length === 0) return true;
 
   // Also check if what remains is a musical label prefix or note
-  // e.g. Intro:, Solo:, Riff:, Mezihra:, Předehra:, Dohra:, Bridge:, Interlude:, Sloka:, Verse:, Chorus:
-  const strippedNoLabels = stripped.replace(/^(?:Intro|Outro|Solo|Mezihra|Bridge|Coda|R|Ref|Refrén|Refrain|Chorus|Verse|Sloka|Riff|Interlude|Předehra|Dohra|Kytara|Guitar|Instr|Instrumental|Theme|Lead|Break|Takt|Bar|Akordy|Chords)[0-9]*[\.:]?$/i, '');
+  // e.g. Intro:, Solo:, Riff:, Mezihra:, Předehra:, Dohra:, Bridge:, BRD:, Interlude:, Sloka:, Verse:, Chorus:
+  const strippedNoLabels = stripped.replace(/^(?:Intro|Outro|Solo|Mezihra|Bridge|BRD|Coda|R|Ref|Refrén|Refrain|Chorus|Verse|Sloka|Riff|Interlude|Předehra|Dohra|Kytara|Guitar|Instr|Instrumental|Theme|Lead|Break|Takt|Bar|Akordy|Chords)[0-9]*[\.:]?$/i, '');
   return strippedNoLabels.length === 0;
 }
 
@@ -1374,6 +1374,30 @@ export function computeSmartFitScale(
   const effectiveColW = Math.max(80, colWidth - (baseLyricsSize * ((hasMarkers ? markerColEm : 0) + sectionLineIndentEm)));
   const showChords = settings.showChords ?? true;
 
+  // Measure the maximum rendered width in character units across all non-empty lines
+  let maxRenderedWidth = 0;
+  sections.forEach(sec => {
+    sec.parsedLines?.forEach(line => {
+      if (line.isEmpty) return;
+      const chunks = line.chunks || [];
+      const textLen = line.raw ? line.raw.replace(/\[[^\]]*\]|\{[^\}]*\}/g, '').length : 0;
+      let chordsLen = 0;
+      if (line.hasChords && showChords && chunks.length > 0) {
+        chordsLen = chunks.reduce((total, chunk) => total + (chunk.chord ? chunk.chord.length + 2 : 0), 0);
+      }
+      const renderedWidth = chunks.length === 0
+        ? Math.max(textLen, chordsLen)
+        : line.isRepetitionLine
+        ? chunks.reduce((total, chunk) => total + chunk.text.length + (showChords && chunk.chord ? chunk.chord.length + 2 : 0), 0)
+        : chunks.reduce((total, chunk) => {
+            const textWidth = chunk.text.length;
+            const chordWidth = showChords && chunk.chord ? chunk.chord.length + 2 : 0;
+            return total + Math.max(textWidth, chordWidth);
+          }, 0);
+      maxRenderedWidth = Math.max(maxRenderedWidth, renderedWidth);
+    });
+  });
+
   const calcHeightAtScale = (s: number): { height: number; maxWrapLines: number } => {
     const lSize = baseLyricsSize * s;
     const cSize = baseChordsSize * s;
@@ -1382,12 +1406,17 @@ export function computeSmartFitScale(
     let maxWrapLines = 1;
     const sectionHeights = sections.map((sec, idx) => {
       let secH = 0;
-      
 
       if (sec.marker && (!sec.parsedLines?.length || sec.parsedLines.every(l => l.isEmpty))) {
         secH += Math.round(lSize + 6);
       }
       sec.parsedLines.forEach(line => {
+        if (!line.isEmpty) {
+          const vLines = estimateVisualLineCount(line, charsPerCol, showChords);
+          if (vLines > maxWrapLines) {
+            maxWrapLines = vLines;
+          }
+        }
         secH += estimateLineHeight(line, s, lSize, cSize, charsPerCol, showChords);
       });
       return secH + Math.max(14, Math.round(16 * Math.min(1.3, s)));
@@ -1418,20 +1447,47 @@ export function computeSmartFitScale(
 
   const linesPerCol = sections.reduce((acc, sec) => acc + sec.parsedLines.filter(l => !l.isEmpty).length, 0) / colCount;
 
+  const minScale = Math.max(0.55, MIN_READABLE_LYRICS_FONT_SIZE / baseLyricsSize);
+
+  // Maximum scale where long lines fit horizontally within the column without wrapping/splitting
+  const maxScaleWithoutWrap = maxRenderedWidth > 0
+    ? (effectiveColW / (maxRenderedWidth * baseLyricsSize * 0.54))
+    : 2.5;
+
   const { height: baseHeight } = calcHeightAtScale(1.0);
+
+  // 1. Check vertical overflow downscale
+  let verticalScale = 1.0;
   if (baseHeight > availColH) {
-    const minScale = Math.max(0.55, MIN_READABLE_LYRICS_FONT_SIZE / baseLyricsSize);
-    return Math.round(Math.max(minScale, Math.min(0.98, (availColH * 0.96) / baseHeight)) * 100) / 100;
+    verticalScale = Math.max(minScale, Math.min(0.98, (availColH * 0.96) / baseHeight));
+  }
+
+  // 2. Check horizontal long line wrapping downscale:
+  // If long lines wrap at 1.0, scale down to fit them cleanly without splitting
+  let horizontalFitScale = 1.0;
+  if (maxScaleWithoutWrap < 1.0) {
+    horizontalFitScale = Math.max(minScale, Math.min(1.0, Math.floor(maxScaleWithoutWrap * 100) / 100));
+  }
+
+  // If the song needs downscaling either vertically or horizontally:
+  if (verticalScale < 1.0 || horizontalFitScale < 1.0) {
+    const downScale = Math.min(verticalScale, horizontalFitScale);
+    return Math.round(Math.max(minScale, downScale) * 100) / 100;
   }
 
   if (!settings.smartFit) return 1.0;
-  const config = linesPerCol <= 12 ? { max: 2.25, util: 0.94, wrap: 3 } :
-                 linesPerCol <= 18 ? { max: 1.95, util: 0.93, wrap: 3 } :
-                 linesPerCol <= 25 ? { max: 1.70, util: 0.91, wrap: 2 } :
-                                     { max: 1.50, util: 0.90, wrap: 2 };
+  const config = linesPerCol <= 12 ? { max: 2.25, util: 0.94 } :
+                 linesPerCol <= 18 ? { max: 1.95, util: 0.93 } :
+                 linesPerCol <= 25 ? { max: 1.70, util: 0.91 } :
+                                     { max: 1.50, util: 0.90 };
 
   const maxPx = settings.maxFontSizePx || 32;
-  const upscaleLimit = Math.min(config.max, (maxPx * 0.75) / baseLyricsSize);
+  // Never upscale past the point where lines start wrapping
+  const upscaleLimit = Math.min(
+    config.max,
+    (maxPx * 0.75) / baseLyricsSize,
+    Math.max(1.0, Math.floor(maxScaleWithoutWrap * 100) / 100)
+  );
   if (upscaleLimit <= 1.0) return 1.0;
 
   const targetMaxH = availColH * config.util;
@@ -1440,7 +1496,7 @@ export function computeSmartFitScale(
   for (let i = 0; i < 8; i++) {
     const mid = (low + high) / 2;
     const { height, maxWrapLines } = calcHeightAtScale(mid);
-    if (height <= targetMaxH && maxWrapLines <= config.wrap) { bestScale = mid; low = mid; }
+    if (height <= targetMaxH && maxWrapLines <= 1) { bestScale = mid; low = mid; }
     else { high = mid; }
   }
 
@@ -1925,7 +1981,7 @@ export function parseSongContent(content: string): SongSection[] {
   }
 
   let currentSection: SongSection | null = null;
-  const markerRegex = /^((?:\d+[\.\:]|\(\d+\))|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|VERSE|SLOKA|PRE-CHORUS|INTRO|OUTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]|\(R\d*\))(?:\s+|(?=\[)|(?=\{)|$)/i;
+  const markerRegex = /^((?:\d+[\.\:]|\(\d+\))|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|VERSE|SLOKA|PRE-CHORUS|INTRO|OUTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]|\(R\d*\)|BRD\d*[\.\:]?|\(BRD\d*\))(?:\s+|(?=\[)|(?=\{)|$)/i;
 
   for (let i = 0; i < rawLines.length; i++) {
     const rawLine = rawLines[i];
@@ -2014,9 +2070,9 @@ export function parseSongContent(content: string): SongSection[] {
         }
       }
 
-      // 3f. Standard prefix markers (e.g. "1. ", "1. verse", "Bridge: ", "Bridge", "B: ", "B. ", "Mezihra: ", "R: ", "Chorus:")
+      // 3f. Standard prefix markers (e.g. "1. ", "1. verse", "Bridge: ", "Bridge", "B: ", "B. ", "Mezihra: ", "R: ", "Chorus:", "BRD", "BRD1")
       if (!header) {
-        const markerPattern = /^((?:(?:\d+[\.\:]|\(\d+\))(?:\s*(?:VERSE|SLOKA))?[\.\:]?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|VERSE|SLOKA|PRE-CHORUS|INTRO|OUTRO|SOLO|CODA|MEZIHRA|PŘEDEHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|B[\.\:]|M[\.\:]))(?:\s+|(?=\[)|(?=\{)|$)/i;
+        const markerPattern = /^((?:(?:\d+[\.\:]|\(\d+\))(?:\s*(?:VERSE|SLOKA))?[\.\:]?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|VERSE|SLOKA|PRE-CHORUS|INTRO|OUTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|B[\.\:]|M[\.\:]))(?:\s+|(?=\[)|(?=\{)|$)/i;
         const match = trimmed.match(markerPattern);
         if (match) {
           let marker = (match[1] || match[0] || '').trim();
