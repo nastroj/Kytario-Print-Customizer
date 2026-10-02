@@ -4,6 +4,7 @@ export interface ChordChunk {
   chord: string | null;
   text: string;
   isSectionRef?: boolean;
+  targetSectionIndex?: number;
 }
 
 export interface ParsedLine {
@@ -2124,12 +2125,64 @@ export function parseSongContent(content: string): SongSection[] {
 
   const result = sections.filter(s => s.lines.length > 0 || s.marker !== '');
   
+  linkSectionReferences(result);
+
   if (songContentCache.size >= MAX_CACHE_SIZE) {
     songContentCache.clear();
   }
   songContentCache.set(strContent, result);
 
   return result;
+}
+
+/**
+ * Traverses sections and links standalone section references to their target sections
+ * by matching markers.
+ */
+export function linkSectionReferences(sections: SongSection[]) {
+  // Map markers to their section index
+  const markerToIndex = new Map<string, number>();
+  
+  const normalize = (s: string) => 
+    s.replace(/[\.\:\s]/g, '')
+     .replace(/^REFR[EÉ]N$|^REFRAIN$|^CHORUS$|^R$/i, 'REF')
+     .replace(/^SLOKA$|^VERSE$|^V$/i, 'VERSE')
+     .replace(/^BRIDGE$|^BRD$|^B$/i, 'BRIDGE')
+     .replace(/^PRE-CHORUS$|^PRE-REF$|^PREF$/i, 'PREF')
+     .replace(/^MEZIHRA$|^INTERLUDE$|^M$/i, 'INTERLUDE')
+     .trim().toUpperCase();
+
+  sections.forEach((sec, idx) => {
+    if (sec.marker) {
+      const cleanMarker = normalize(sec.marker);
+      if (!markerToIndex.has(cleanMarker)) {
+        markerToIndex.set(cleanMarker, idx);
+      }
+    }
+  });
+
+  // Traverse all sections and their chunks to link references
+  sections.forEach((sec) => {
+    sec.parsedLines.forEach((line) => {
+      line.chunks.forEach((chunk) => {
+        if (chunk.isSectionRef) {
+          const refText = chunk.text.replace(/^\[(.*)\]$/, '$1');
+          const normalizedRef = normalize(refText);
+          const targetIdx = markerToIndex.get(normalizedRef);
+          
+          if (targetIdx !== undefined) {
+            chunk.targetSectionIndex = targetIdx;
+          } else {
+            // Try matching without numbers if specific match fails (e.g. [REF] -> REF1)
+            const baseMatch = Array.from(markerToIndex.keys()).find(k => k.startsWith(normalizedRef) || normalizedRef.startsWith(k));
+            if (baseMatch) {
+              chunk.targetSectionIndex = markerToIndex.get(baseMatch);
+            }
+          }
+        }
+      });
+    });
+  });
 }
 
 /**

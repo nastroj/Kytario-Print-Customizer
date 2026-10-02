@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, memo } from 'react';
+import React, { useEffect, useRef, useMemo, memo, useState } from 'react';
 import { Song, PrintSettings, ColumnBalancePlan } from '../types';
 import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, partitionSectionsIntoColumns, computeSmartFitLineMargin, MIN_READABLE_LYRICS_FONT_SIZE, SongSection, ParsedLine, getPageMargins, getOptimalColumnCount } from '../utils';
 import { getFontFamilyStack } from '../fonts';
@@ -139,7 +139,27 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
   const artist = song.artist || song.author || song.interpreter || '';
   const text = song.text || song.content || song.lyrics || '';
 
+  const [highlightedSectionIndex, setHighlightedSectionIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleRefClick = (targetIndex: number) => {
+    setHighlightedSectionIndex(targetIndex);
+    
+    // Find the element with data-section-index
+    const element = containerRef.current?.querySelector(`[data-section-index="${targetIndex}"]`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // If it's a multi-column layout, we might need a small delay or check
+      // for the correct element.
+    }
+
+    // Remove highlight after a delay
+    setTimeout(() => {
+      setHighlightedSectionIndex(null);
+    }, 2000);
+  };
+
   const sections = useMemo(() => parseSongContent(text), [text]);
 
   // Hook handles vertical height calculation, line/chord/buffer summing, upscale for short songs,
@@ -290,7 +310,19 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
                     }}
                   >
                     {isSectionRef ? (
-                      `[${chunk.text.replace(/^\[(.*)\]$/, '$1').trim()}]`
+                      <span 
+                        className={`inline-block px-1 rounded-sm transition-all duration-300 ${chunk.targetSectionIndex !== undefined ? 'cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-bold' : 'opacity-80'}`}
+                        onClick={(e) => {
+                          if (chunk.targetSectionIndex !== undefined) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRefClick(chunk.targetSectionIndex);
+                          }
+                        }}
+                        title={chunk.targetSectionIndex !== undefined ? `Jump to section ${chunk.text.replace(/^\[(.*)\]$/, '$1')}` : undefined}
+                      >
+                        {`[${chunk.text.replace(/^\[(.*)\]$/, '$1').trim()}]`}
+                      </span>
                     ) : hasActualText && !isWhitespaceOnly ? (
                       chunk.text
                     ) : isWhitespaceOnly ? (
@@ -440,7 +472,8 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
                     />
                   )}
                   <div 
-                    className={`relative mb-3.5 sm:mb-4 song-section ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''}`}
+                    className={`relative mb-3.5 sm:mb-4 song-section ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''} transition-all duration-500 ${highlightedSectionIndex === globalSecIndex ? 'ring-2 ring-blue-500 ring-offset-2 ring-opacity-100 bg-blue-500/10 rounded-sm' : ''}`}
+                    data-section-index={globalSecIndex}
                     style={{ 
                       ...(showSectionLines ? {
                         borderLeft: `0.22em solid ${currentLineColor}`,
