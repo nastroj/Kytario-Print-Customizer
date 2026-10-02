@@ -17,11 +17,23 @@ export class KytarioFetchError extends Error {
 }
 
 /**
+ * Normalizes a Kytario URL by removing page/index suffixes like '/index-1' or '/index'
+ * (e.g. 'https://kytario.com/cs/pisnicky/index-1' -> 'https://kytario.com/cs/pisnicky').
+ */
+export function cleanKytarioUrl(input: string): string {
+  if (!input) return '';
+  let str = input.trim();
+  // Strip trailing /index-1 or /index-\d+ or /index at the end of the URL/path before query/hash or end
+  str = str.replace(/\/index(?:-\d+)?\/?(?=[?#]|$)/i, '');
+  return str;
+}
+
+/**
  * Robustly extracts the songbook slug / code from any Kytario URL, link, or path format.
  */
 export function extractKytarioSlug(input: string): string {
   if (!input) return '';
-  let str = input.trim();
+  let str = cleanKytarioUrl(input);
   str = str.split('#')[0].split('?')[0].trim();
   str = str.replace(/\/+$/, '');
 
@@ -48,13 +60,13 @@ export function extractKytarioSlug(input: string): string {
     const seg = segments[i].toLowerCase();
     if ((seg === 'songbooks' || seg === 'songbook' || seg === 'zpevnik' || seg === 'zpevniky' || seg === 'projects' || seg === 'project') && i + 1 < segments.length) {
       const next = segments[i + 1];
-      if (!ignore.has(next.toLowerCase())) {
+      if (!ignore.has(next.toLowerCase()) && !/^index(?:-\d+)?$/i.test(next)) {
         return next;
       }
     }
   }
 
-  const valid = segments.filter(s => !ignore.has(s.toLowerCase()));
+  const valid = segments.filter(s => !ignore.has(s.toLowerCase()) && !/^index(?:-\d+)?$/i.test(s));
   if (valid.length > 0) {
     return valid[valid.length - 1];
   }
@@ -206,7 +218,7 @@ async function enrichTitleInClient(data: any, token: string) {
 }
 
 export async function fetchSongbookFromKytario(url: string): Promise<any> {
-  const cleanUrl = url.trim();
+  const cleanUrl = cleanKytarioUrl(url);
   const token = extractKytarioSlug(cleanUrl);
   
   if (!token && !/^https?:\/\//i.test(cleanUrl)) {

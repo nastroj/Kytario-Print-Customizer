@@ -9,7 +9,7 @@ import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
 import { SongbookData, PrintSettings } from './types';
 import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Sun, Moon, Globe, ExternalLink, AlertTriangle } from 'lucide-react';
 import { safeParseSongbookJson, normalizeSongbookData } from './utils';
-import { fetchSongbookFromKytario, KytarioErrorDetails } from './utils/api';
+import { fetchSongbookFromKytario, cleanKytarioUrl, KytarioErrorDetails } from './utils/api';
 import { APP_CONFIG } from './config';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
 import { BackgroundPdfProgressModal } from './components/BackgroundPdfProgressModal';
@@ -415,6 +415,123 @@ export default function App() {
     }, 120);
   };
 
+  const animateSongbookLoad = useCallback((
+    data: SongbookData,
+    options: {
+      startProgress?: number;
+      isRepaired?: boolean;
+      recoveredCount?: number;
+      sourceType: 'file' | 'url' | 'paste';
+      sourceLabel?: string;
+    }
+  ) => {
+    const songs = data.songs || data.items || [];
+    if (songs.length === 0) {
+      setIsLoadingJson(false);
+      setErrorMessage(
+        options.sourceType === 'url'
+          ? 'No songs found in the Kytario response. The songbook might be private or the URL might be incorrect.'
+          : 'No songs found in the provided JSON.'
+      );
+      return;
+    }
+
+    // Explicitly verify the presence and format of the urlToken field
+    const candidateToken = data.urlToken || data.slug || data.shortUrl;
+    if (!candidateToken || !String(candidateToken).trim()) {
+      setWarningMessage('Warning: The "urlToken" field is missing or empty. Generated covers or QR codes might be incomplete.');
+    } else if (!/^[a-zA-Z0-9_\-\./]+$/.test(String(candidateToken).trim())) {
+      setWarningMessage('Warning: The "urlToken" field format appears invalid (contains unsupported characters). Generated covers or QR codes might be incomplete.');
+    }
+
+    const startProgress = options.startProgress ?? 20;
+    const targetSongProgress = 90; // Formatting songs advances progress to 90%
+    const progressRange = targetSongProgress - startProgress;
+    
+    let currentSong = 0;
+    const totalSongs = songs.length;
+    // 12-16 update steps so the user sees smooth, detailed progression
+    const steps = Math.min(15, totalSongs);
+    const chunkSize = Math.max(1, Math.ceil(totalSongs / steps));
+
+    const stepProgress = () => {
+      currentSong = Math.min(currentSong + chunkSize, totalSongs);
+      const ratio = currentSong / totalSongs;
+      const percent = Math.round(startProgress + ratio * progressRange);
+      const currentTitle = songs[currentSong - 1]?.title;
+      const songSuffix = currentTitle ? `: ${currentTitle}` : '';
+
+      setLoadingStatus({
+        title: 'Processing songs...',
+        subtitle: `Formatting song ${currentSong} of ${totalSongs}${songSuffix}`,
+        progress: percent,
+      });
+
+      if (currentSong < totalSongs) {
+        requestAnimationFrame(() => setTimeout(stepProgress, 35));
+      } else {
+        // Formatting is complete! Now transition to layout rendering at 95%
+        setLoadingStatus({
+          title: 'Preparing preview...',
+          subtitle: 'Rendering layouts & page breaks...',
+          progress: 95,
+        });
+
+        // Small timeout allows browser to paint the 95% state before heavy layout calculation
+        setTimeout(() => {
+          setSongbookData(data);
+          if (options.sourceType === 'url') {
+            setDraftSettings(prev => ({
+              ...prev,
+              frontCoverTitle: undefined,
+              backCoverTitle: undefined,
+            }));
+            setSettings(prev => ({
+              ...prev,
+              frontCoverTitle: undefined,
+              backCoverTitle: undefined,
+            }));
+          }
+          if (options.isRepaired) {
+            setRecoveryNotice(`Successfully parsed and recovered ${options.recoveredCount} songs from formatted/truncated JSON data.`);
+          }
+
+          // Next animation frame after songbookData mounts
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              // Layout is mounted, now advance to 100%!
+              setLoadingStatus({
+                title: 'Ready!',
+                subtitle: 'Layout complete',
+                progress: 100,
+              });
+
+              // Give user 300ms to clearly see the progress bar reach the 100% end
+              setTimeout(() => {
+                setIsLoadingJson(false);
+                const songCount = songs.length;
+                const songsWithContent = songs.filter(s => s.content && s.content.trim().length > 0).length;
+                const bookTitle = data.title || options.sourceLabel || 'Songbook';
+
+                if (options.sourceType === 'url') {
+                  if (songsWithContent === 0 && songCount > 0) {
+                    showToast(`Imported ${songCount} titles, but lyrics were not found. Try a different URL?`, 'info');
+                  } else {
+                    showToast(`Successfully imported "${bookTitle}" from Kytario (${songsWithContent}/${songCount} songs with lyrics)!`);
+                  }
+                } else {
+                  showToast(`Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`);
+                }
+              }, 300);
+            }, 100);
+          });
+        }, 80);
+      }
+    };
+
+    requestAnimationFrame(() => setTimeout(stepProgress, 40));
+  }, [showToast]);
+
   const processJsonString = (rawString: string, fileName?: string) => {
     setErrorMessage(null);
     setRecoveryNotice(null);
@@ -423,73 +540,20 @@ export default function App() {
     setLoadingStatus({
       title: 'Reading JSON file...',
       subtitle: fileName ? `Extracting songs from ${fileName}...` : 'Analyzing structure...',
-      progress: 0
+      progress: 10,
     });
 
     // Short timeout allows the browser to render the loading spinner before computational work
     setTimeout(() => {
       try {
         const { data, isRepaired, recoveredCount } = safeParseSongbookJson(rawString);
-        const songs = data.songs || data.items || [];
-        
-        if (songs.length === 0) {
-          throw new Error('No songs found in the provided JSON.');
-        }
-
-        // Explicitly verify the presence and format of the urlToken field
-        const candidateToken = data.urlToken || data.slug || data.shortUrl;
-        if (!candidateToken || !String(candidateToken).trim()) {
-          setWarningMessage('Warning: The "urlToken" field is missing or empty. Generated covers or QR codes might be incomplete.');
-        } else if (!/^[a-zA-Z0-9_\-\./]+$/.test(String(candidateToken).trim())) {
-          setWarningMessage('Warning: The "urlToken" field format appears invalid (contains unsupported characters). Generated covers or QR codes might be incomplete.');
-        }
-
-        // Simulate progress for a more professional feel
-        let currentSong = 0;
-        const totalSongs = songs.length;
-        const steps = Math.min(10, totalSongs); // Max 10 update steps
-        const chunkSize = Math.max(1, Math.ceil(totalSongs / steps));
-        
-        const updateProgress = () => {
-          currentSong = Math.min(currentSong + chunkSize, totalSongs);
-          const percent = Math.round((currentSong / totalSongs) * 100);
-          
-          setLoadingStatus({
-            title: 'Processing songs...',
-            subtitle: `Formatting song ${currentSong} of ${totalSongs}...`,
-            progress: percent
-          });
-          
-          if (currentSong < totalSongs) {
-            requestAnimationFrame(() => setTimeout(updateProgress, 30));
-          } else {
-            // Done simulating, set data and render
-            setLoadingStatus({
-              title: 'Preparing preview...',
-              subtitle: 'Rendering layouts...',
-              progress: 100
-            });
-            
-            setTimeout(() => {
-              setSongbookData(data);
-              if (isRepaired) {
-                setRecoveryNotice(`Successfully parsed and recovered ${recoveredCount} songs from formatted/truncated JSON data.`);
-              }
-              
-              requestAnimationFrame(() => {
-                setTimeout(() => {
-                  setIsLoadingJson(false);
-                  const songCount = songs.length;
-                  const bookTitle = data.title || fileName || 'Songbook';
-                  showToast(`Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`);
-                }, 400);
-              });
-            }, 50);
-          }
-        };
-        
-        updateProgress();
-
+        animateSongbookLoad(data, {
+          startProgress: 20,
+          isRepaired,
+          recoveredCount,
+          sourceType: fileName ? 'file' : 'paste',
+          sourceLabel: fileName,
+        });
       } catch (err: any) {
         console.error('JSON parse error:', err);
         setIsLoadingJson(false);
@@ -562,10 +626,15 @@ export default function App() {
   };
 
   const handleKytarioUrlSubmit = async () => {
-    if (!kytarioUrl.trim()) {
+    const cleanUrl = cleanKytarioUrl(kytarioUrl);
+    if (!cleanUrl) {
       setErrorMessage('Please enter a Kytario URL first.');
       setKytarioFetchDetails(null);
       return;
+    }
+
+    if (cleanUrl !== kytarioUrl) {
+      setKytarioUrl(cleanUrl);
     }
     
     setErrorMessage(null);
@@ -574,41 +643,39 @@ export default function App() {
     setWarningMessage(null);
     setIsLoadingJson(true);
     setLoadingStatus({
-      title: 'Fetching from Kytario...',
-      subtitle: kytarioUrl,
+      title: 'Connecting to Kytario...',
+      subtitle: cleanUrl,
+      progress: 10,
     });
 
+    const downloadTimer = setTimeout(() => {
+      setLoadingStatus({
+        title: 'Downloading songbook...',
+        subtitle: 'Fetching data from Kytario API...',
+        progress: 25,
+      });
+    }, 450);
+
     try {
-      const rawData = await fetchSongbookFromKytario(kytarioUrl);
+      const rawData = await fetchSongbookFromKytario(cleanUrl);
+      clearTimeout(downloadTimer);
+
       const data = normalizeSongbookData(rawData);
-      const songs = data.songs || [];
-      
-      if (songs.length === 0) {
-        throw new Error('No songs found in the Kytario response. The songbook might be private or the URL might be incorrect.');
-      }
-      
-      setSongbookData(data);
-      setDraftSettings(prev => ({
-        ...prev,
-        frontCoverTitle: undefined,
-        backCoverTitle: undefined
-      }));
-      setSettings(prev => ({
-        ...prev,
-        frontCoverTitle: undefined,
-        backCoverTitle: undefined
-      }));
-      setIsLoadingJson(false);
       setKytarioFetchDetails(null);
-      const songCount = songs.length;
-      const songsWithContent = songs.filter(s => s.content && s.content.trim().length > 0).length;
-      
-      if (songsWithContent === 0 && songCount > 0) {
-        showToast(`Imported ${songCount} titles, but lyrics were not found. Try a different URL?`, 'info');
-      } else {
-        showToast(`Successfully imported "${data.title}" from Kytario (${songsWithContent}/${songCount} songs with lyrics)!`);
-      }
+
+      setLoadingStatus({
+        title: 'Analyzing songbook...',
+        subtitle: `Found ${(data.songs || []).length} songs in "${data.title || 'Songbook'}"`,
+        progress: 35,
+      });
+
+      animateSongbookLoad(data, {
+        startProgress: 35,
+        sourceType: 'url',
+        sourceLabel: cleanUrl,
+      });
     } catch (err: any) {
+      clearTimeout(downloadTimer);
       console.warn('Kytario import:', err?.message || err);
       setIsLoadingJson(false);
       setErrorMessage(err.message || 'Failed to import from Kytario.');
@@ -778,6 +845,12 @@ export default function App() {
                   onChange={(e) => {
                     setKytarioUrl(e.target.value);
                     if (kytarioFetchDetails) setKytarioFetchDetails(null);
+                  }}
+                  onBlur={() => {
+                    const cleaned = cleanKytarioUrl(kytarioUrl);
+                    if (cleaned && cleaned !== kytarioUrl) {
+                      setKytarioUrl(cleaned);
+                    }
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !isLoadingJson) {

@@ -38,6 +38,18 @@
     </script>
     <script>
       (function() {
+        // Ignore benign Vite HMR WebSocket errors in AI Studio iframe (as specified in environment constraints)
+        var originalError = console.error;
+        console.error = function() {
+          var msg = arguments[0];
+          if (typeof msg === 'string' && (msg.indexOf('[vite]') !== -1 || msg.indexOf('websocket') !== -1 || msg.indexOf('WebSocket') !== -1)) {
+            return;
+          }
+          if (msg && typeof msg.message === 'string' && (msg.message.indexOf('[vite]') !== -1 || msg.message.indexOf('WebSocket') !== -1)) {
+            return;
+          }
+          return originalError.apply(console, arguments);
+        };
         try {
           var saved = localStorage.getItem('kytario-dark-mode');
           var isDark = saved !== null ? JSON.parse(saved) : window.matchMedia('(prefers-color-scheme: dark)').matches;

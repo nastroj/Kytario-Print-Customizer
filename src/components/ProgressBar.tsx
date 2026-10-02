@@ -99,11 +99,11 @@ export function ProgressBar({
         {/* Dynamic Activity Indicator */}
         <div className="space-y-3 pt-1">
           {/* Progress bar */}
-          <div className="w-full h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden border border-black/5 dark:border-zinc-700/50 relative">
+          <div className="w-full h-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden border border-black/5 dark:border-zinc-700/50 relative">
             {isDeterminate ? (
                <div
-                 className="h-full bg-amber-500 rounded-full transition-all duration-300 ease-out"
-                 style={{ width: `${Math.max(3, clampedProgress!)}%` }}
+                 className="h-full bg-gradient-to-r from-amber-500 to-amber-600 rounded-full transition-all duration-200 ease-out"
+                 style={{ width: `${clampedProgress === 100 ? 100 : Math.max(3, clampedProgress!)}%` }}
                />
             ) : (
                <div className="h-full w-2/5 bg-gradient-to-r from-zinc-800/0 via-amber-500 to-zinc-800/0 rounded-full absolute animate-indeterminate-bar" />
@@ -111,18 +111,21 @@ export function ProgressBar({
           </div>
           
           {isDeterminate && (
-            <div className="text-xs font-bold text-amber-600 dark:text-amber-400 tabular-nums text-right">
-              {clampedProgress}%
+            <div className="flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400 tabular-nums">
+              <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                {clampedProgress === 100 ? 'Complete' : 'Progress'}
+              </span>
+              <span>{clampedProgress}%</span>
             </div>
           )}
 
           {/* Active status badge with live ping dot */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-600"></span>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${clampedProgress === 100 ? 'bg-emerald-500' : 'bg-amber-500'} opacity-75`} />
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${clampedProgress === 100 ? 'bg-emerald-600' : 'bg-amber-600'}`} />
             </span>
-            <span>Parsing songbook data...</span>
+            <span>{clampedProgress === 100 ? 'Layout complete!' : (statusText || 'Processing songbook data...')}</span>
           </div>
         </div>
 

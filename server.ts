@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import axios from 'axios';
 import path from 'path';
 import fs from 'fs';
@@ -9,15 +10,25 @@ const __dirname = path.dirname(__filename);
 
 async function createServer() {
   const app = express();
+  const httpServer = http.createServer(app);
   const distPath = path.join(__dirname, 'dist');
-  const isProd = process.env.NODE_ENV === 'production' || fs.existsSync(distPath);
+  const isDev = process.env.npm_lifecycle_event === 'dev' || process.env.NODE_ENV === 'development';
+  const isProd = !isDev && (process.env.NODE_ENV === 'production' || fs.existsSync(distPath));
 
   // Health check for Cloud Run
   app.get('/health', (req, res) => res.status(200).send('OK'));
 
-  function extractKytarioSlug(input: string): string {
+  function cleanKytarioUrl(input: string): string {
     if (!input) return '';
     let str = input.trim();
+    // Strip trailing /index-1 or /index-\d+ or /index at the end of the URL/path before query/hash or end
+    str = str.replace(/\/index(?:-\d+)?\/?(?=[?#]|$)/i, '');
+    return str;
+  }
+
+  function extractKytarioSlug(input: string): string {
+    if (!input) return '';
+    let str = cleanKytarioUrl(input);
     str = str.split('#')[0].split('?')[0].trim();
     str = str.replace(/\/+$/, '');
 
@@ -44,13 +55,13 @@ async function createServer() {
       const seg = segments[i].toLowerCase();
       if ((seg === 'songbooks' || seg === 'songbook' || seg === 'zpevnik' || seg === 'zpevniky' || seg === 'projects' || seg === 'project') && i + 1 < segments.length) {
         const next = segments[i + 1];
-        if (!ignore.has(next.toLowerCase())) {
+        if (!ignore.has(next.toLowerCase()) && !/^index(?:-\d+)?$/i.test(next)) {
           return next;
         }
       }
     }
 
-    const valid = segments.filter(s => !ignore.has(s.toLowerCase()));
+    const valid = segments.filter(s => !ignore.has(s.toLowerCase()) && !/^index(?:-\d+)?$/i.test(s));
     if (valid.length > 0) {
       return valid[valid.length - 1];
     }
@@ -95,7 +106,8 @@ async function createServer() {
 
   // Kytario API Proxy with robust endpoint fallbacks
   app.all(['/api/proxy/kytario', '/api/proxy/kytario/:token(*)'], async (req, res) => {
-    const rawInput = (req.query.url as string) || (req.query.token as string) || (req.params as any).token || (req.params as any)[0] || '';
+    let rawInput = (req.query.url as string) || (req.query.token as string) || (req.params as any).token || (req.params as any)[0] || '';
+    rawInput = cleanKytarioUrl(rawInput);
     const token = extractKytarioSlug(rawInput);
     console.log(`[Proxy] Fetching songbook for input: "${rawInput}", resolved token: "${token}"`);
 
@@ -200,7 +212,10 @@ async function createServer() {
     try {
       const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({
-        server: { middlewareMode: true },
+        server: {
+          middlewareMode: true,
+          hmr: false,
+        },
         appType: 'spa',
       });
       app.use(vite.middlewares);
@@ -222,7 +237,7 @@ async function createServer() {
   }
 
   const port = process.env.PORT || 3000;
-  app.listen(Number(port), '0.0.0.0', () => {
+  httpServer.listen(Number(port), '0.0.0.0', () => {
     console.log(`Server listening on port ${port} (0.0.0.0)`);
   });
 }

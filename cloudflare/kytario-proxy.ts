@@ -24,8 +24,13 @@ function jsonResponse(data: unknown, status: number, origin?: string): Response 
   return new Response(JSON.stringify(data), { status, headers });
 }
 
+function cleanKytarioUrl(input: string): string {
+  if (!input) return '';
+  return input.trim().replace(/\/index(?:-\d+)?\/?(?=[?#]|$)/i, '');
+}
+
 function extractSlug(input: string): string {
-  const clean = input.trim().split(/[?#]/, 1)[0].replace(/\/+$/, '');
+  const clean = cleanKytarioUrl(input).split(/[?#]/, 1)[0].replace(/\/+$/, '');
   const noProtocol = clean.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
   const domainIndex = noProtocol.toLowerCase().indexOf('kytario.com');
   const path = domainIndex >= 0 ? noProtocol.slice(domainIndex + 'kytario.com'.length) : noProtocol;
@@ -39,11 +44,11 @@ function extractSlug(input: string): string {
   for (let index = 0; index < segments.length - 1; index++) {
     if (['songbooks', 'songbook', 'zpevnik', 'zpevniky', 'projects', 'project'].includes(segments[index].toLowerCase())) {
       const next = segments[index + 1];
-      if (!ignored.has(next.toLowerCase())) return next;
+      if (!ignored.has(next.toLowerCase()) && !/^index(?:-\d+)?$/i.test(next)) return next;
     }
   }
 
-  return segments.filter((segment) => !ignored.has(segment.toLowerCase())).at(-1) || '';
+  return segments.filter((segment) => !ignored.has(segment.toLowerCase()) && !/^index(?:-\d+)?$/i.test(segment)).at(-1) || '';
 }
 
 function hasSongsPayload(data: any): boolean {
