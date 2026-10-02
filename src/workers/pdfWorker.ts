@@ -1602,14 +1602,15 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
               if (chunk.isSectionRef) {
                 const cleanRef = (chunk.text || '').replace(/^\[(.*)\]$/, '$1').trim();
                 if (cleanRef) {
-                  page.drawText(cleanRef, {
+                  const textToDraw = `[${cleanRef}]`;
+                  page.drawText(textToDraw, {
                     x: curX,
                     y: colY - lyricsPt,
                     size: lyricsPt,
                     font: regularFont,
                     color: colMarker,
                   });
-                  curX += regularFont.widthOfTextAtSize(cleanRef, lyricsPt) + (6 * ptPerPx);
+                  curX += regularFont.widthOfTextAtSize(textToDraw, lyricsPt) + (6 * ptPerPx);
                 }
               } else if (chunk.chord && settings.showChords) {
                 // Chords rendered directly WITHOUT square brackets!
@@ -1649,7 +1650,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
               const hasChord = Boolean(chunk.chord);
               const chordStr = chunk.chord || '';
               const isSectionRef = chunk.isSectionRef;
-              const textStr = isSectionRef ? (chunk.text || '').replace(/^\[(.*)\]$/, '$1').trim() : (chunk.text || '');
+              const textStr = isSectionRef ? `[${(chunk.text || '').replace(/^\[(.*)\]$/, '$1').trim()}]` : (chunk.text || '');
 
               // Compute widths: chords receive a small right padding unless it is the last chunk
               const chordW = hasChord
@@ -1693,7 +1694,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
 
             for (const chunk of lineData.chunks) {
               const isSectionRef = chunk.isSectionRef;
-              const textStr = isSectionRef ? (chunk.text || '').replace(/^\[(.*)\]$/, '$1').trim() : (chunk.text || '');
+              const textStr = isSectionRef ? `[${(chunk.text || '').replace(/^\[(.*)\]$/, '$1').trim()}]` : (chunk.text || '');
               if (textStr) {
                 page.drawText(textStr, {
                   x: curX,

@@ -290,7 +290,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
                     }}
                   >
                     {isSectionRef ? (
-                      chunk.text.replace(/^\[(.*)\]$/, '$1')
+                      `[${chunk.text.replace(/^\[(.*)\]$/, '$1').trim()}]`
                     ) : hasActualText && !isWhitespaceOnly ? (
                       chunk.text
                     ) : isWhitespaceOnly ? (
