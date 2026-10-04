@@ -32,6 +32,8 @@ export function getChangedSettingsList(
   if (draft.showChords !== applied.showChords) changes.push({ key: 'showChords', label: 'Chords Visibility', section: 'layout' });
   if (draft.smartFit !== applied.smartFit) changes.push({ key: 'smartFit', label: 'Auto-fit Scaling', section: 'layout' });
   if (draft.maxFontSizePx !== applied.maxFontSizePx) changes.push({ key: 'maxFontSizePx', label: 'Max Font Cap', section: 'layout' });
+  if (draft.maxLineHeight !== applied.maxLineHeight) changes.push({ key: 'maxLineHeight', label: 'Max. Line Height', section: 'layout' });
+  if (draft.sectionMarginCap !== applied.sectionMarginCap) changes.push({ key: 'sectionMarginCap', label: 'Section Margin Cap', section: 'layout' });
   if (draft.indexSortOrder !== applied.indexSortOrder) changes.push({ key: 'indexSortOrder', label: 'Index Sorting', section: 'layout' });
   if (draft.tocAlphabeticalGrouping !== applied.tocAlphabeticalGrouping) changes.push({ key: 'tocAlphabeticalGrouping', label: 'TOC Grouping', section: 'layout' });
   if (draft.tocGroupDividers !== applied.tocGroupDividers) changes.push({ key: 'tocGroupDividers', label: 'Letter Group Dividers', section: 'layout' });
@@ -45,7 +47,6 @@ export function getChangedSettingsList(
   if (draft.frontCoverSubtitle !== applied.frontCoverSubtitle) changes.push({ key: 'frontCoverSubtitle', label: 'Cover Subtitle', section: 'cover' });
   if (draft.frontCoverUrl !== applied.frontCoverUrl) changes.push({ key: 'frontCoverUrl', label: 'Cover URL', section: 'cover' });
   if (draft.frontCoverShowQr !== applied.frontCoverShowQr) changes.push({ key: 'frontCoverShowQr', label: 'Cover QR Code', section: 'cover' });
-  if (draft.frontCoverShowNotation !== applied.frontCoverShowNotation) changes.push({ key: 'frontCoverShowNotation', label: 'Cover Notation Guide', section: 'cover' });
   if (draft.frontCoverShowFooter !== applied.frontCoverShowFooter) changes.push({ key: 'frontCoverShowFooter', label: 'Cover Footer', section: 'cover' });
   if (draft.frontCoverCustomImage !== applied.frontCoverCustomImage) changes.push({ key: 'frontCoverCustomImage', label: 'Cover Artwork', section: 'cover' });
   if (draft.frontCoverImagePosition !== applied.frontCoverImagePosition) changes.push({ key: 'frontCoverImagePosition', label: 'Cover Image Position', section: 'cover' });
@@ -56,7 +57,6 @@ export function getChangedSettingsList(
   if (draft.backCoverSubtitle !== applied.backCoverSubtitle) changes.push({ key: 'backCoverSubtitle', label: 'Back Cover Subtitle', section: 'cover' });
   if (draft.backCoverUrl !== applied.backCoverUrl) changes.push({ key: 'backCoverUrl', label: 'Back Cover URL', section: 'cover' });
   if (draft.backCoverShowQr !== applied.backCoverShowQr) changes.push({ key: 'backCoverShowQr', label: 'Back Cover QR Code', section: 'cover' });
-  if (draft.backCoverShowNotation !== applied.backCoverShowNotation) changes.push({ key: 'backCoverShowNotation', label: 'Back Cover Notation Guide', section: 'cover' });
   if (draft.backCoverShowFooter !== applied.backCoverShowFooter) changes.push({ key: 'backCoverShowFooter', label: 'Back Cover Footer', section: 'cover' });
   if (draft.backCoverCustomImage !== applied.backCoverCustomImage) changes.push({ key: 'backCoverCustomImage', label: 'Back Cover Artwork', section: 'cover' });
   if (draft.backCoverImagePosition !== applied.backCoverImagePosition) changes.push({ key: 'backCoverImagePosition', label: 'Back Cover Image Position', section: 'cover' });

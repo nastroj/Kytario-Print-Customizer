@@ -28,51 +28,65 @@ export const Stepper = React.memo(function Stepper({
   className = '',
   ariaLabel,
 }: StepperProps) {
-  const [localStr, setLocalStr] = useState(value.toString());
+  const isFloat = (step % 1 !== 0) || (min % 1 !== 0) || (max % 1 !== 0) || (defaultValue % 1 !== 0);
+
+  const parseNum = (valStr: string) => {
+    return isFloat ? parseFloat(valStr) : parseInt(valStr, 10);
+  };
+
+  const formatNum = (num: number) => {
+    if (isFloat) {
+      return Number(num.toFixed(2)).toString();
+    }
+    return num.toString();
+  };
+
+  const [localStr, setLocalStr] = useState(formatNum(value));
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
     if (!isFocused) {
-      setLocalStr(value.toString());
+      setLocalStr(formatNum(value));
     }
-  }, [value, isFocused]);
+  }, [value, isFocused, isFloat]);
 
   const commitValue = (valStr: string) => {
-    const num = parseInt(valStr, 10);
+    const num = parseNum(valStr);
     if (isNaN(num)) {
-      setLocalStr(defaultValue.toString());
+      setLocalStr(formatNum(defaultValue));
       onChange(defaultValue);
       return;
     }
     const clamped = Math.max(min, Math.min(max, num));
-    setLocalStr(clamped.toString());
-    if (clamped !== value) {
-      onChange(clamped);
+    const rounded = isFloat ? Math.round(clamped * 100) / 100 : clamped;
+    setLocalStr(formatNum(rounded));
+    if (rounded !== value) {
+      onChange(rounded);
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const text = e.target.value;
     setLocalStr(text);
-    const parsed = parseInt(text, 10);
+    const parsed = parseNum(text);
     if (!isNaN(parsed) && parsed >= min && parsed <= max) {
-      onChange(parsed);
+      onChange(isFloat ? Math.round(parsed * 100) / 100 : parsed);
     }
   };
 
   const handleIncrement = () => {
     if (disabled) return;
-    const current = isNaN(parseInt(localStr, 10)) ? value : parseInt(localStr, 10);
-    const next = Math.min(max, current + step);
-    setLocalStr(next.toString());
+    const current = isNaN(parseNum(localStr)) ? value : parseNum(localStr);
+    const next = isFloat ? Math.min(max, Math.round((current + step) * 100) / 100) : Math.min(max, current + step);
+    setLocalStr(formatNum(next));
     onChange(next);
   };
 
   const handleDecrement = () => {
     if (disabled) return;
-    const current = isNaN(parseInt(localStr, 10)) ? value : parseInt(localStr, 10);
-    const prev = Math.max(min, current - step);
-    setLocalStr(prev.toString());
+    const current = isNaN(parseNum(localStr)) ? value : parseNum(localStr);
+    const prev = isFloat ? Math.max(min, Math.round((current - step) * 100) / 100) : Math.max(min, current - step);
+    setLocalStr(formatNum(prev));
     onChange(prev);
   };
 
@@ -96,8 +110,8 @@ export const Stepper = React.memo(function Stepper({
         <input
           id={id}
           type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
+          inputMode={isFloat ? "decimal" : "numeric"}
+          pattern={isFloat ? "[0-9]*[.]?[0-9]*" : "[0-9]*"}
           disabled={disabled}
           value={localStr}
           onFocus={(e) => {

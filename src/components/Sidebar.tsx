@@ -13,6 +13,8 @@ import {
   RefreshCw,
   Sun,
   Moon,
+  Save,
+  RotateCcw,
 } from 'lucide-react';
 import { ChangedSettingItem, getChangedSettingsList } from './UnappliedSettingsBanner';
 import { PageLayoutSection } from './sidebar/PageLayoutSection';
@@ -27,6 +29,8 @@ interface SidebarProps {
   hasUnappliedChanges?: boolean;
   changes?: ChangedSettingItem[];
   onApplySettings: (settings: PrintSettings) => void;
+  onSaveSettings?: () => void;
+  onResetToDefaults?: () => void;
   onResetSongbook?: () => void;
   onFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadPdf?: () => void;
@@ -52,9 +56,8 @@ interface SidebarContentProps {
   hasCoverChanges: boolean;
   hasTypographyChanges: boolean;
   onSettingChange: (keyOrPartial: keyof PrintSettings | Partial<PrintSettings>, value?: any) => void;
-  onResetLayoutDefaults: () => void;
-  onResetCoverDefaults: () => void;
-  onResetTypoDefaults: () => void;
+  onSaveSettings?: () => void;
+  onResetToDefaults?: () => void;
   onDiscardChanges: () => void;
   onApplyChanges: (isDrawer: boolean) => void;
   onClose?: () => void;
@@ -79,9 +82,8 @@ const SidebarContent = memo(function SidebarContent({
   hasCoverChanges,
   hasTypographyChanges,
   onSettingChange,
-  onResetLayoutDefaults,
-  onResetCoverDefaults,
-  onResetTypoDefaults,
+  onSaveSettings,
+  onResetToDefaults,
   onDiscardChanges,
   onApplyChanges,
   onClose,
@@ -148,7 +150,6 @@ const SidebarContent = memo(function SidebarContent({
           draftSettings={draftSettings}
           hasLayoutChanges={hasLayoutChanges}
           onSettingChange={onSettingChange}
-          onResetDefaults={onResetLayoutDefaults}
         />
 
         {/* SECTION 2: Cover Pages */}
@@ -157,7 +158,6 @@ const SidebarContent = memo(function SidebarContent({
           draftSettings={draftSettings}
           hasCoverChanges={hasCoverChanges}
           onSettingChange={onSettingChange}
-          onResetDefaults={onResetCoverDefaults}
         />
 
         {/* SECTION 3: Typography & Colors */}
@@ -166,7 +166,6 @@ const SidebarContent = memo(function SidebarContent({
           draftSettings={draftSettings}
           hasTypoChanges={hasTypographyChanges}
           onSettingChange={onSettingChange}
-          onResetDefaults={onResetTypoDefaults}
         />
       </div>
 
@@ -222,6 +221,30 @@ const SidebarContent = memo(function SidebarContent({
 
         {/* Action Buttons */}
         <div className="flex flex-col gap-2">
+          {/* Save Settings & Reset Defaults Row */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              id={`save-settings-btn-${idSuffix}`}
+              onClick={onSaveSettings}
+              className="flex-1 py-2 px-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5 dark:border-zinc-700/60"
+              title={`Save settings locally in browser for ${isDarkMode ? 'Dark Mode' : 'Light Mode'}`}
+            >
+              <Save className="w-3.5 h-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+              <span className="truncate">Save Settings</span>
+            </button>
+            <button
+              type="button"
+              id={`reset-settings-btn-${idSuffix}`}
+              onClick={onResetToDefaults}
+              className="flex-1 py-2 px-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5 dark:border-zinc-700/60"
+              title={`Reset all settings to default for ${isDarkMode ? 'Dark Mode' : 'Light Mode'}`}
+            >
+              <RotateCcw className="w-3.5 h-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+              <span className="truncate">Reset Defaults</span>
+            </button>
+          </div>
+
           {onResetSongbook && (
             <button
               type="button"
@@ -282,6 +305,8 @@ export const Sidebar = memo(function Sidebar({
   hasUnappliedChanges: externalHasUnappliedChanges,
   changes: externalChanges,
   onApplySettings, 
+  onSaveSettings,
+  onResetToDefaults,
   onResetSongbook, 
   onFileUpload, 
   onDownloadPdf, 
@@ -359,101 +384,6 @@ export const Sidebar = memo(function Sidebar({
     });
   }, [updateDraft]);
 
-  const handleResetLayoutDefaults = useCallback(() => {
-    updateDraft((prev) => ({
-      ...prev,
-      pageFormat: 'A4',
-      orientation: 'landscape',
-      columns: 2,
-      pageMargin: 5,
-      pageMarginTopBottom: 6,
-      pageMarginLeftRight: 5,
-      pageMarginTop: 6,
-      pageMarginBottom: 6,
-      pageMarginLeft: 5,
-      pageMarginRight: 5,
-      pageMarginInner: 5,
-      pageMarginOuter: 5,
-      bookMode: false,
-      pageNumberPosition: 'outer',
-      showFrontCover: true,
-      showTableOfContents: true,
-      showToc: true,
-      showIndex: true,
-      indexSortOrder: 'alphabetical',
-      tocAlphabeticalGrouping: true,
-      tocGroupDividers: true,
-      showChords: true,
-      showSectionLines: true,
-      smartFit: true,
-      maxFontSizePx: 32,
-    }));
-  }, [updateDraft]);
-
-  const handleResetCoverDefaults = useCallback(() => {
-    updateDraft((prev) => ({
-      ...prev,
-      showFrontCover: true,
-      frontCoverType: 'auto',
-      frontCoverTitle: undefined,
-      frontCoverSubtitle: undefined,
-      frontCoverDedication: undefined,
-      frontCoverShowDedication: true,
-      frontCoverUrl: undefined,
-      frontCoverQrUrl: undefined,
-      frontCoverShowQr: true,
-      frontCoverCustomImage: undefined,
-      frontCoverImagePosition: 'replace-qr',
-      frontCoverAlignment: 'center',
-      frontCoverShowNotation: true,
-      frontCoverNotationText: undefined,
-      frontCoverShowFooter: true,
-      frontCoverFooterText: undefined,
-      showBackCover: true,
-      backCoverType: 'auto',
-      backCoverTitle: undefined,
-      backCoverSubtitle: undefined,
-      backCoverDedication: undefined,
-      backCoverShowDedication: true,
-      backCoverUrl: undefined,
-      backCoverQrUrl: undefined,
-      backCoverShowQr: true,
-      backCoverCustomImage: undefined,
-      backCoverImagePosition: 'replace-qr',
-      backCoverAlignment: 'center',
-      backCoverShowNotation: true,
-      backCoverNotationText: undefined,
-      backCoverShowFooter: true,
-      backCoverFooterText: undefined,
-    }));
-  }, [updateDraft]);
-
-  const handleResetTypoDefaults = useCallback(() => {
-    updateDraft((prev) => ({
-      ...prev,
-      fontFamily: 'Inter',
-      titleFontSize: 16,
-      artistFontSize: 16,
-      lyricsFontSize: 12,
-      chordsFontSize: 12,
-      tocFontSize: 12,
-      titleColor: isDarkMode ? '#f4f4f5' : '#1c1917',
-      artistColor: isDarkMode ? '#a1a1aa' : '#57534e',
-      lyricsColor: isDarkMode ? '#f4f4f5' : '#27272a',
-      chordsColor: isDarkMode ? '#60a5fa' : '#2563eb',
-      markerColor: isDarkMode ? '#f4f4f5' : '#27272a',
-      tocColor: isDarkMode ? '#f4f4f5' : '#1c1917',
-      sectionLineColor: isDarkMode ? '#52525b' : '#a1a1aa',
-      refrainLineColor: isDarkMode ? '#60a5fa' : '#2563eb',
-      sectionSeparatorColor: isDarkMode ? '#3f3f46' : '#e4e4e7',
-      titleItalic: false,
-      artistItalic: false,
-      lyricsItalic: false,
-      chordsItalic: true,
-      tocItalic: false,
-    }));
-  }, [updateDraft, isDarkMode]);
-
   const handleApplyChanges = useCallback((isDrawer = false) => {
     onApplySettings(draftSettings);
     if (isDrawer && onMobileClose) {
@@ -504,9 +434,8 @@ export const Sidebar = memo(function Sidebar({
               hasCoverChanges={hasCoverChanges}
               hasTypographyChanges={hasTypographyChanges}
               onSettingChange={handleSettingChange}
-              onResetLayoutDefaults={handleResetLayoutDefaults}
-              onResetCoverDefaults={handleResetCoverDefaults}
-              onResetTypoDefaults={handleResetTypoDefaults}
+              onSaveSettings={onSaveSettings}
+              onResetToDefaults={onResetToDefaults}
               onDiscardChanges={handleDiscardChanges}
               onApplyChanges={handleApplyChanges}
               onClose={onMobileClose}
@@ -630,9 +559,8 @@ export const Sidebar = memo(function Sidebar({
               hasCoverChanges={hasCoverChanges}
               hasTypographyChanges={hasTypographyChanges}
               onSettingChange={handleSettingChange}
-              onResetLayoutDefaults={handleResetLayoutDefaults}
-              onResetCoverDefaults={handleResetCoverDefaults}
-              onResetTypoDefaults={handleResetTypoDefaults}
+              onSaveSettings={onSaveSettings}
+              onResetToDefaults={onResetToDefaults}
               onDiscardChanges={handleDiscardChanges}
               onApplyChanges={handleApplyChanges}
               onClose={() => setCollapsed(true)}

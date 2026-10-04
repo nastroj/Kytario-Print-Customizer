@@ -5,7 +5,6 @@ import { resizeAndCompressImage } from '../../utils/imageResize';
 import { MaterialToggle } from './MaterialToggle';
 import { LocalizedInput, LocalizedTextarea } from './LocalizedInput';
 
-export const DEFAULT_NOTATION_TEXT = "Tento zpěvník používá německou notaci - tóny C-C#-D-D#-E-F-F#-G-G#-A-B-H.\nTón B odpovídá tónu A# nebo Hb.";
 export const DEFAULT_FOOTER_TEXT = "Vytvořeno s ♥ pomocí kytario.com | Vytvoř si zpěvník, sdílej ho a hraj.\nPosouvejte text živě společně, transponuj do libovolné tóniny nebo exportuj do PDF - zdarma pro tebe i tvé přátele. :)";
 
 export interface CoverPageSectionProps {
@@ -13,7 +12,6 @@ export interface CoverPageSectionProps {
   draftSettings: PrintSettings;
   hasCoverChanges: boolean;
   onSettingChange: (key: keyof PrintSettings, value: any) => void;
-  onResetDefaults: () => void;
 }
 
 const COVER_KEYS: (keyof PrintSettings)[] = [
@@ -29,8 +27,6 @@ const COVER_KEYS: (keyof PrintSettings)[] = [
   'frontCoverCustomImage',
   'frontCoverImagePosition',
   'frontCoverAlignment',
-  'frontCoverShowNotation',
-  'frontCoverNotationText',
   'frontCoverShowFooter',
   'frontCoverFooterText',
   'showBackCover',
@@ -45,8 +41,6 @@ const COVER_KEYS: (keyof PrintSettings)[] = [
   'backCoverCustomImage',
   'backCoverImagePosition',
   'backCoverAlignment',
-  'backCoverShowNotation',
-  'backCoverNotationText',
   'backCoverShowFooter',
   'backCoverFooterText',
 ];
@@ -55,7 +49,6 @@ function areCoverPropsEqual(prev: CoverPageSectionProps, next: CoverPageSectionP
   if (prev.idSuffix !== next.idSuffix) return false;
   if (prev.hasCoverChanges !== next.hasCoverChanges) return false;
   if (prev.onSettingChange !== next.onSettingChange) return false;
-  if (prev.onResetDefaults !== next.onResetDefaults) return false;
 
   for (const key of COVER_KEYS) {
     if (prev.draftSettings[key] !== next.draftSettings[key]) {
@@ -70,7 +63,6 @@ export const CoverPageSection = React.memo(function CoverPageSection({
   draftSettings,
   hasCoverChanges,
   onSettingChange,
-  onResetDefaults,
 }: CoverPageSectionProps) {
   const [isProcessingFrontImage, setIsProcessingFrontImage] = useState(false);
   const [isProcessingBackImage, setIsProcessingBackImage] = useState(false);
@@ -139,17 +131,6 @@ export const CoverPageSection = React.memo(function CoverPageSection({
           )}
         </h3>
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onResetDefaults();
-            }}
-            className="px-2 py-0.5 text-[11px] font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
-            title="Reset cover settings to default"
-          >
-            Defaults
-          </button>
           <div className="p-0.5 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200 transition-colors">
             {isSectionOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
           </div>
@@ -407,39 +388,10 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                     )}
                   </div>
 
-                  {/* Notation Guide Options */}
-                  <div className="pt-2 border-t border-black/5 dark:border-zinc-700/60 space-y-1.5">
-                    <div
-                      onClick={() => onSettingChange('frontCoverShowNotation', draftSettings.frontCoverShowNotation === false ? true : false)}
-                      className="flex items-center justify-between cursor-pointer select-none"
-                    >
-                      <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
-                        German Notation Notice
-                      </span>
-                      <MaterialToggle
-                        id={`frontCoverShowNotation-${idSuffix}`}
-                        size="sm"
-                        checked={draftSettings.frontCoverShowNotation !== false}
-                        onChange={(checked) => onSettingChange('frontCoverShowNotation', checked)}
-                        ariaLabel="German Notation Notice"
-                      />
-                    </div>
-                    {draftSettings.frontCoverShowNotation !== false && (
-                      <LocalizedTextarea
-                        id={`frontCoverNotationText-${idSuffix}`}
-                        rows={2}
-                        value={draftSettings.frontCoverNotationText ?? DEFAULT_NOTATION_TEXT}
-                        onChange={(val) => onSettingChange('frontCoverNotationText', val)}
-                        className="w-full text-[11px] p-2 rounded bg-zinc-50 dark:bg-zinc-800 border border-black/10 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 resize-none font-mono"
-                        title="Edit notation guide message"
-                      />
-                    )}
-                  </div>
-
                   {/* Footer Attribution Options */}
                   <div className="pt-2 border-t border-black/5 dark:border-zinc-700/60 space-y-1.5">
                     <div
-                      onClick={() => onSettingChange('frontCoverShowFooter', draftSettings.frontCoverShowFooter === false ? true : false)}
+                      onClick={() => onSettingChange('frontCoverShowFooter', !Boolean(draftSettings.frontCoverShowFooter))}
                       className="flex items-center justify-between cursor-pointer select-none"
                     >
                       <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
@@ -448,16 +400,17 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                       <MaterialToggle
                         id={`frontCoverShowFooter-${idSuffix}`}
                         size="sm"
-                        checked={draftSettings.frontCoverShowFooter !== false}
+                        checked={Boolean(draftSettings.frontCoverShowFooter)}
                         onChange={(checked) => onSettingChange('frontCoverShowFooter', checked)}
                         ariaLabel="Footer Attribution"
                       />
                     </div>
-                    {draftSettings.frontCoverShowFooter !== false && (
+                    {Boolean(draftSettings.frontCoverShowFooter) && (
                       <LocalizedTextarea
                         id={`frontCoverFooterText-${idSuffix}`}
                         rows={2}
-                        value={draftSettings.frontCoverFooterText ?? DEFAULT_FOOTER_TEXT}
+                        value={draftSettings.frontCoverFooterText ?? ''}
+                        placeholder="Custom footer attribution note..."
                         onChange={(val) => onSettingChange('frontCoverFooterText', val)}
                         className="w-full text-[11px] p-2 rounded bg-zinc-50 dark:bg-zinc-800 border border-black/10 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 resize-none"
                         title="Edit footer attribution message"
@@ -711,36 +664,10 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                     )}
                   </div>
 
+                  {/* Footer Attribution Options */}
                   <div className="pt-2 border-t border-black/5 dark:border-zinc-700/60 space-y-1.5">
                     <div
-                      onClick={() => onSettingChange('backCoverShowNotation', draftSettings.backCoverShowNotation === false ? true : false)}
-                      className="flex items-center justify-between cursor-pointer select-none"
-                    >
-                      <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
-                        Notation Notice
-                      </span>
-                      <MaterialToggle
-                        id={`backCoverShowNotation-${idSuffix}`}
-                        size="sm"
-                        checked={draftSettings.backCoverShowNotation !== false}
-                        onChange={(checked) => onSettingChange('backCoverShowNotation', checked)}
-                        ariaLabel="Notation Notice"
-                      />
-                    </div>
-                    {draftSettings.backCoverShowNotation !== false && (
-                      <LocalizedTextarea
-                        id={`backCoverNotationText-${idSuffix}`}
-                        rows={2}
-                        value={draftSettings.backCoverNotationText ?? DEFAULT_NOTATION_TEXT}
-                        onChange={(val) => onSettingChange('backCoverNotationText', val)}
-                        className="w-full text-[11px] p-2 rounded bg-zinc-50 dark:bg-zinc-800 border border-black/10 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 resize-none font-mono"
-                      />
-                    )}
-                  </div>
-
-                  <div className="pt-2 border-t border-black/5 dark:border-zinc-700/60 space-y-1.5">
-                    <div
-                      onClick={() => onSettingChange('backCoverShowFooter', draftSettings.backCoverShowFooter === false ? true : false)}
+                      onClick={() => onSettingChange('backCoverShowFooter', !Boolean(draftSettings.backCoverShowFooter))}
                       className="flex items-center justify-between cursor-pointer select-none"
                     >
                       <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
@@ -749,16 +676,17 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                       <MaterialToggle
                         id={`backCoverShowFooter-${idSuffix}`}
                         size="sm"
-                        checked={draftSettings.backCoverShowFooter !== false}
+                        checked={Boolean(draftSettings.backCoverShowFooter)}
                         onChange={(checked) => onSettingChange('backCoverShowFooter', checked)}
                         ariaLabel="Footer Attribution"
                       />
                     </div>
-                    {draftSettings.backCoverShowFooter !== false && (
+                    {Boolean(draftSettings.backCoverShowFooter) && (
                       <LocalizedTextarea
                         id={`backCoverFooterText-${idSuffix}`}
                         rows={2}
-                        value={draftSettings.backCoverFooterText ?? DEFAULT_FOOTER_TEXT}
+                        value={draftSettings.backCoverFooterText ?? ''}
+                        placeholder="Custom footer attribution note..."
                         onChange={(val) => onSettingChange('backCoverFooterText', val)}
                         className="w-full text-[11px] p-2 rounded bg-zinc-50 dark:bg-zinc-800 border border-black/10 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 resize-none"
                       />

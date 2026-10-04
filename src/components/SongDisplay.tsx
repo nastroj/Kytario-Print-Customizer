@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, memo, useState } from 'react';
 import { Song, PrintSettings, ColumnBalancePlan } from '../types';
-import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, partitionSectionsIntoColumns, computeSmartFitLineMargin, MIN_READABLE_LYRICS_FONT_SIZE, SongSection, ParsedLine, getPageMargins, getOptimalColumnCount } from '../utils';
+import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, computeSmartSectionFilling, partitionSectionsIntoColumns, computeSmartFitLineMargin, MIN_READABLE_LYRICS_FONT_SIZE, SongSection, ParsedLine, getPageMargins, getOptimalColumnCount } from '../utils';
 import { getFontFamilyStack } from '../fonts';
 
 interface UseSmartFitParams {
@@ -17,6 +17,7 @@ export interface UseSmartFitResult {
   chosenChordsFontSize: number;
   minFontSizeConstraint: number;
   columnPlan: ColumnBalancePlan;
+  availColH: number;
 }
 
 /**
@@ -59,6 +60,8 @@ export function useSmartFit({
     settings.pageMarginOuter,
     settings.bookMode,
     settings.maxFontSizePx,
+    settings.maxLineHeight,
+    settings.sectionMarginCap,
     hasTitle,
     hasArtist,
   ]);
@@ -121,6 +124,7 @@ export function useSmartFit({
     chosenChordsFontSize,
     minFontSizeConstraint: MIN_READABLE_LYRICS_FONT_SIZE,
     columnPlan,
+    availColH,
   };
 }
 
@@ -164,7 +168,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
 
   // Hook handles vertical height calculation, line/chord/buffer summing, upscale for short songs,
   // min readability constraint, & smart column balancing with orphan prevention
-  const { scale: computedScale, chosenLyricsFontSize, columnPlan } = useSmartFit({
+  const { scale: computedScale, chosenLyricsFontSize, columnPlan, availColH } = useSmartFit({
     sections,
     settings,
     hasTitle: Boolean(title),
@@ -191,6 +195,10 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
   const columns = useMemo(() => {
     return partitionSectionsIntoColumns(sections, columnPlan, colCount);
   }, [sections, columnPlan, colCount]);
+
+  const sectionFillingPlan = useMemo(() => {
+    return computeSmartSectionFilling(columns, settings, availColH, computedScale);
+  }, [columns, settings, availColH, computedScale]);
 
   const hasAnyMarkers = useMemo(() => {
     return sections.some((s) => Boolean(s.marker && s.marker.trim()));
@@ -354,7 +362,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
     : (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? 1 : 0) + index;
   // Page 1 (index 0, odd / recto) is Right; Page 2 (index 1, even / verso) is Left; Page 3 is Right
   const isRightSpread = effectiveDocPageIndex % 2 === 0;
-  const isOuterRight = settings.bookMode ? isRightSpread : (index % 2 !== 0);
+  const isOuterRight = settings.bookMode ? isRightSpread : true;
 
   const badgePositionClass = settings.pageNumberPosition === 'left'
     ? 'left-0 print:!left-0 print:!right-auto'
@@ -411,68 +419,73 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
           gap: colCount > 1 ? '1.5rem' : '0',
         }}
       >
-        {columns.map((col, colIdx) => (
-          <div 
-            key={colIdx} 
-            className="flex-1 min-w-0 flex flex-col song-column"
-          >
-            {col.columnSections.map((sec, sIdxInCol) => {
-              const globalSecIndex = col.startIndex + sIdxInCol;
-              const isFirstInColumn = sIdxInCol === 0;
-              const plan = columnPlan?.sections?.[globalSecIndex];
-              const firstNonEmptyIndex = sec.parsedLines.findIndex((l) => !l.isEmpty);
+        {columns.map((col, colIdx) => {
+          const colFill = sectionFillingPlan?.columns?.[colIdx];
+          const colLineMargin = colFill?.lineMargin ?? lineMargin;
+          const colSectionGap = colFill?.sectionGap ?? Math.max(12, Math.round(Number(settings.lyricsFontSize || 12) * computedScale));
 
-              const orphanProtection = plan?.orphanProtection;
-              const hasOrphanGuards = Boolean(
-                orphanProtection && orphanProtection.hasHeadGroup && orphanProtection.hasTailGroup && orphanProtection.tailGroupStartIndex > 0
-              );
+          return (
+            <div 
+              key={colIdx} 
+              className="flex-1 min-w-0 flex flex-col song-column"
+              style={{
+                '--line-margin': `${colLineMargin}px`,
+              } as React.CSSProperties}
+            >
+              {col.columnSections.map((sec, sIdxInCol) => {
+                const globalSecIndex = col.startIndex + sIdxInCol;
+                const isFirstInColumn = sIdxInCol === 0;
+                const plan = columnPlan?.sections?.[globalSecIndex];
+                const firstNonEmptyIndex = sec.parsedLines.findIndex((l) => !l.isEmpty);
 
-              const headLines: { line: ParsedLine; index: number }[] = [];
-              const middleLines: { line: ParsedLine; index: number }[] = [];
-              const tailLines: { line: ParsedLine; index: number }[] = [];
+                const orphanProtection = plan?.orphanProtection;
+                const hasOrphanGuards = Boolean(
+                  orphanProtection && orphanProtection.hasHeadGroup && orphanProtection.hasTailGroup && orphanProtection.tailGroupStartIndex > 0
+                );
 
-              if (hasOrphanGuards && orphanProtection) {
-                const nonEmptyIndices = sec.parsedLines
-                  .map((l, idx) => ({ isEmpty: l.isEmpty, idx }))
-                  .filter(l => !l.isEmpty);
+                const headLines: { line: ParsedLine; index: number }[] = [];
+                const middleLines: { line: ParsedLine; index: number }[] = [];
+                const tailLines: { line: ParsedLine; index: number }[] = [];
 
-                const headEndIdx = nonEmptyIndices.length >= 2 ? nonEmptyIndices[1].idx : 0;
-                const tailStartIdx = orphanProtection.tailGroupStartIndex;
+                if (hasOrphanGuards && orphanProtection) {
+                  const nonEmptyIndices = sec.parsedLines
+                    .map((l, idx) => ({ isEmpty: l.isEmpty, idx }))
+                    .filter(l => !l.isEmpty);
 
-                if (headEndIdx < tailStartIdx) {
-                  sec.parsedLines.forEach((line, idx) => {
-                    if (idx <= headEndIdx) {
-                      headLines.push({ line, index: idx });
-                    } else if (idx < tailStartIdx) {
-                      middleLines.push({ line, index: idx });
-                    } else {
-                      tailLines.push({ line, index: idx });
-                    }
-                  });
+                  const headEndIdx = nonEmptyIndices.length >= 2 ? nonEmptyIndices[1].idx : 0;
+                  const tailStartIdx = orphanProtection.tailGroupStartIndex;
+
+                  if (headEndIdx < tailStartIdx) {
+                    sec.parsedLines.forEach((line, idx) => {
+                      if (idx <= headEndIdx) {
+                        headLines.push({ line, index: idx });
+                      } else if (idx < tailStartIdx) {
+                        middleLines.push({ line, index: idx });
+                      } else {
+                        tailLines.push({ line, index: idx });
+                      }
+                    });
+                  }
                 }
-              }
 
-              const showSectionLines = settings.showSectionLines !== false;
-              const currentLineColor = sec.isRefrain
-                ? (settings.refrainLineColor || settings.chordsColor || defaultRefrainLineCol)
-                : (settings.sectionLineColor || defaultLineCol);
+                const showSectionLines = settings.showSectionLines !== false;
+                const currentLineColor = sec.isRefrain
+                  ? (settings.refrainLineColor || settings.chordsColor || defaultRefrainLineCol)
+                  : (settings.sectionLineColor || defaultLineCol);
 
-              return (
-                <div 
-                  key={globalSecIndex}
-                  className="song-section-block"
-                >
-                  {!isFirstInColumn && (
-                    <div 
-                      className="song-section-separator border-t w-full mb-4 print:mb-3"
-                      style={{ 
-                        borderColor: 'var(--section-separator-color)',
-                        opacity: 0.4
-                      }}
-                    />
-                  )}
+                return (
                   <div 
-                    className={`relative mb-3.5 sm:mb-4 song-section ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''} transition-all duration-500 ${highlightedSectionIndex === globalSecIndex ? 'ring-2 ring-blue-500 ring-offset-2 ring-opacity-100 bg-blue-500/10 rounded-sm' : ''}`}
+                    key={globalSecIndex}
+                    className="song-section-block"
+                  >
+                    {!isFirstInColumn && (
+                      <div 
+                        className="song-section-gap w-full select-none pointer-events-none"
+                        style={{ height: `${colSectionGap}px` }}
+                      />
+                    )}
+                  <div 
+                    className={`relative mb-1.5 sm:mb-2 song-section ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''} transition-all duration-500 ${highlightedSectionIndex === globalSecIndex ? 'ring-2 ring-blue-500 ring-offset-2 ring-opacity-100 bg-blue-500/10 rounded-sm' : ''}`}
                     data-section-index={globalSecIndex}
                     style={{ 
                       ...(showSectionLines ? {
@@ -521,7 +534,8 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
               );
             })}
           </div>
-        ))}
+        );
+      })}
       </div>
     </div>
   );

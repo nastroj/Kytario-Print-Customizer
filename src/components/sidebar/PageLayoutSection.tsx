@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutTemplate, RectangleVertical, RectangleHorizontal, ArrowUpDown, ArrowLeftRight, BookOpen, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Hash, ChevronDown, ChevronRight } from 'lucide-react';
+import { LayoutTemplate, RectangleVertical, RectangleHorizontal, ArrowUpDown, ArrowLeftRight, BookOpen, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Hash, ChevronDown, ChevronRight, Shrink, Sparkles } from 'lucide-react';
 import { PrintSettings } from '../../types';
 import { Stepper } from './Stepper';
 import { MaterialToggle } from './MaterialToggle';
@@ -9,7 +9,6 @@ export interface PageLayoutSectionProps {
   draftSettings: PrintSettings;
   hasLayoutChanges: boolean;
   onSettingChange: (keyOrPartial: keyof PrintSettings | Partial<PrintSettings>, value?: any) => void;
-  onResetDefaults: () => void;
 }
 
 const LAYOUT_KEYS: (keyof PrintSettings)[] = [
@@ -36,13 +35,14 @@ const LAYOUT_KEYS: (keyof PrintSettings)[] = [
   'showSectionLines',
   'smartFit',
   'maxFontSizePx',
+  'maxLineHeight',
+  'sectionMarginCap',
 ];
 
 function arePageLayoutPropsEqual(prev: PageLayoutSectionProps, next: PageLayoutSectionProps): boolean {
   if (prev.idSuffix !== next.idSuffix) return false;
   if (prev.hasLayoutChanges !== next.hasLayoutChanges) return false;
   if (prev.onSettingChange !== next.onSettingChange) return false;
-  if (prev.onResetDefaults !== next.onResetDefaults) return false;
 
   for (const key of LAYOUT_KEYS) {
     if (prev.draftSettings[key] !== next.draftSettings[key]) {
@@ -57,7 +57,6 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
   draftSettings,
   hasLayoutChanges,
   onSettingChange,
-  onResetDefaults,
 }: PageLayoutSectionProps) {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -89,17 +88,6 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
           )}
         </h3>
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onResetDefaults();
-            }}
-            className="px-2 py-0.5 text-[11px] font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
-            title="Reset page & layout settings to default"
-          >
-            Defaults
-          </button>
           <div className="p-0.5 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200 transition-colors">
             {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
           </div>
@@ -186,7 +174,10 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                     pageNumberPosition: 'outer',
                   });
                 } else {
-                  onSettingChange('bookMode', false);
+                  onSettingChange({
+                    bookMode: false,
+                    pageNumberPosition: 'right',
+                  });
                 }
               }}
             />
@@ -198,7 +189,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
 
         {/* Page Number Position (Top) */}
         <div className="p-2.5 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 space-y-2">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 min-w-0">
             <label 
               htmlFor={`pageNumberPosition-${idSuffix}`}
               className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5 shrink-0"
@@ -208,24 +199,32 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
             </label>
             <select
               id={`pageNumberPosition-${idSuffix}`}
-              className="w-44 rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
-              value={draftSettings.pageNumberPosition ?? 'outer'}
+              className="w-36 sm:w-40 min-w-0 max-w-full truncate rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+              value={draftSettings.bookMode ? (draftSettings.pageNumberPosition ?? 'outer') : ((draftSettings.pageNumberPosition === 'outer' || !draftSettings.pageNumberPosition) ? 'right' : draftSettings.pageNumberPosition)}
               onChange={(e) => onSettingChange('pageNumberPosition', e.target.value as any)}
             >
-              <option value="outer">Outer (Alternating)</option>
-              <option value="left">Left</option>
+              {draftSettings.bookMode && (
+                <option value="outer">Outer (Alternating)</option>
+              )}
               <option value="right">Right</option>
+              <option value="left">Left</option>
               <option value="none">Hidden / None</option>
             </select>
           </div>
           <p className="text-[10.5px] text-zinc-500 dark:text-zinc-400 leading-tight">
-            {(draftSettings.pageNumberPosition ?? 'outer') === 'outer'
-              ? 'Outer edges: 1st page left, 2nd right, 3rd left, etc.'
-              : draftSettings.pageNumberPosition === 'left'
-                ? 'Positioned on the top-left of every page.'
-                : draftSettings.pageNumberPosition === 'right'
+            {draftSettings.bookMode
+              ? ((draftSettings.pageNumberPosition ?? 'outer') === 'outer'
+                  ? 'Alternates based on book spread: outer right on recto pages, outer left on verso pages.'
+                  : draftSettings.pageNumberPosition === 'left'
+                    ? 'Positioned on the top-left of every page.'
+                    : draftSettings.pageNumberPosition === 'right'
+                      ? 'Positioned on the top-right of every page.'
+                      : 'Page numbers are hidden.')
+              : ((draftSettings.pageNumberPosition ?? 'right') === 'right'
                   ? 'Positioned on the top-right of every page.'
-                  : 'Page numbers are hidden.'}
+                  : draftSettings.pageNumberPosition === 'left'
+                    ? 'Positioned on the top-left of every page.'
+                    : 'Page numbers are hidden.')}
           </p>
         </div>
 
@@ -234,9 +233,6 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
           <div className="flex items-center justify-between">
             <span className="block text-xs font-semibold text-zinc-800 dark:text-zinc-200">
               Page Margins {draftSettings.bookMode ? '(Book Layout)' : '(Standard)'}
-            </span>
-            <span className="text-[10.5px] text-zinc-500 dark:text-zinc-400 font-mono">
-              mm
             </span>
           </div>
 
@@ -324,13 +320,13 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                   <select
                     id={`pageMarginInner-${idSuffix}`}
                     className="w-full rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
-                    value={draftSettings.pageMarginInner ?? draftSettings.pageMarginLeftRight ?? (draftSettings.pageMargin ?? 5)}
+                    value={draftSettings.pageMarginInner ?? draftSettings.pageMarginLeftRight ?? (draftSettings.pageMargin ?? 15)}
                     onChange={(e) => onSettingChange('pageMarginInner', parseInt(e.target.value, 10))}
                   >
                     <option value="2">2 mm (Minimal)</option>
                     <option value="3">3 mm</option>
                     <option value="4">4 mm</option>
-                    <option value="5">5 mm (Standard)</option>
+                    <option value="5">5 mm (Narrow)</option>
                     <option value="6">6 mm</option>
                     <option value="7">7 mm</option>
                     <option value="8">8 mm</option>
@@ -338,9 +334,9 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                     <option value="10">10 mm</option>
                     <option value="12">12 mm</option>
                     <option value="14">14 mm</option>
-                    <option value="15">15 mm (Wide)</option>
+                    <option value="15">15 mm (Standard Binding)</option>
                     <option value="18">18 mm</option>
-                    <option value="20">20 mm (Binding)</option>
+                    <option value="20">20 mm (Wide Binding)</option>
                     <option value="25">25 mm (Deep Gutter)</option>
                   </select>
                 </div>
@@ -550,7 +546,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
           />
         </div>
 
-        {/* Smart Fit & Font Cap */}
+        {/* Smart Auto-scale & Layout Caps */}
         <div className="p-2.5 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 space-y-2">
           <div
             onClick={() => onSettingChange('smartFit', !draftSettings.smartFit)}
@@ -573,25 +569,78 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
           </div>
 
           {draftSettings.smartFit && (
-            <div className="p-2 bg-zinc-100/80 dark:bg-zinc-800/50 rounded-lg border border-black/5 dark:border-zinc-700/40 space-y-1.5 animate-in fade-in duration-100">
+            <div className="p-2.5 bg-zinc-100/80 dark:bg-zinc-800/50 rounded-lg border border-black/5 dark:border-zinc-700/40 space-y-2 animate-in fade-in duration-100">
+              {/* Max Font Cap */}
               <div className="flex items-center justify-between gap-2">
-                <label htmlFor={`max-font-${idSuffix}`} className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">
-                  Max Font Cap
-                </label>
+                <div>
+                  <label htmlFor={`max-font-${idSuffix}`} className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 block">
+                    Max Font Cap
+                  </label>
+                  <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
+                    Max lyric size
+                  </span>
+                </div>
                 <Stepper
                   id={`max-font-${idSuffix}`}
-                  value={typeof draftSettings.maxFontSizePx === 'number' ? draftSettings.maxFontSizePx : 32}
-                  min={16}
+                  value={typeof draftSettings.maxFontSizePx === 'number' ? draftSettings.maxFontSizePx : 16}
+                  min={12}
                   max={72}
                   step={1}
-                  defaultValue={32}
+                  defaultValue={16}
                   suffix="px"
                   onChange={(val) => onSettingChange('maxFontSizePx', val)}
                   ariaLabel="Max Font Size Cap"
                 />
               </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-tight">
-                Allows lyrics to grow up to <span className="font-semibold text-zinc-700 dark:text-zinc-300">{draftSettings.maxFontSizePx || 32}px</span> to fill empty space.
+
+              {/* Max. Line Height */}
+              <div className="pt-2 border-t border-black/5 dark:border-zinc-700/40 flex items-center justify-between gap-2">
+                <div>
+                  <label htmlFor={`max-line-height-${idSuffix}`} className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 block">
+                    Max. Line Height
+                  </label>
+                  <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
+                    Max line spacing
+                  </span>
+                </div>
+                <Stepper
+                  id={`max-line-height-${idSuffix}`}
+                  value={typeof draftSettings.maxLineHeight === 'number' ? draftSettings.maxLineHeight : 1.6}
+                  min={1.1}
+                  max={2.5}
+                  step={0.1}
+                  defaultValue={1.6}
+                  suffix="×"
+                  onChange={(val) => onSettingChange('maxLineHeight', val)}
+                  ariaLabel="Maximum Line Height Multiplier"
+                />
+              </div>
+
+              {/* Section Margin Cap */}
+              <div className="pt-2 border-t border-black/5 dark:border-zinc-700/40 flex items-center justify-between gap-2">
+                <div>
+                  <label htmlFor={`section-margin-cap-${idSuffix}`} className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 block">
+                    Section Margin Cap
+                  </label>
+                  <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
+                    Max gap between stanzas
+                  </span>
+                </div>
+                <Stepper
+                  id={`section-margin-cap-${idSuffix}`}
+                  value={typeof draftSettings.sectionMarginCap === 'number' ? draftSettings.sectionMarginCap : 28}
+                  min={8}
+                  max={72}
+                  step={1}
+                  defaultValue={28}
+                  suffix="px"
+                  onChange={(val) => onSettingChange('sectionMarginCap', val)}
+                  ariaLabel="Section Margin Cap"
+                />
+              </div>
+
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-tight pt-1">
+                Caps font size, line height, and section padding when auto-fitting songs to the page.
               </p>
             </div>
           )}

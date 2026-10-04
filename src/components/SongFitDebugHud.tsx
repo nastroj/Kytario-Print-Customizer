@@ -56,6 +56,7 @@ export const SongFitDebugHud: React.FC<SongFitDebugHudProps> = ({
       `- **Calculated Column Height:** ${debugInfo.calculatedHeight}px / ${debugInfo.availColHeight}px (${debugInfo.heightUtilization}% utilization)`,
       `- **Layout:** ${debugInfo.columns} columns, ${debugInfo.pageFormat} ${debugInfo.orientation}`,
       `- **SmartFit Enabled:** ${debugInfo.smartFitEnabled ? 'Yes' : 'No'}`,
+      `- **SmartFit Active:** ${debugInfo.smartFitEnabled ? 'Yes' : 'No'}`,
       debugInfo.columnBalancing ? `- **Smart Column Balancing:** Strategy: "${debugInfo.columnBalancing.strategy}", Orphan Protection: ${debugInfo.columnBalancing.hasOrphanProtection ? 'Active' : 'None'}, Max Col Est: ~${debugInfo.columnBalancing.estimatedMaxColumnHeight}px` : '',
       debugInfo.sectionsDetail.length > 0 ? `\n#### Sections:\n` + debugInfo.sectionsDetail.map((s, idx) => {
         const secPlan = debugInfo.columnBalancing?.sections?.[idx];
@@ -309,9 +310,11 @@ export const SongFitDebugHud: React.FC<SongFitDebugHudProps> = ({
               <span>{debugInfo.columns} Columns</span>
             </span>
             <span>{debugInfo.pageFormat} {debugInfo.orientation}</span>
-            <span className={debugInfo.smartFitEnabled ? 'text-emerald-400' : 'text-zinc-500'}>
-              {debugInfo.smartFitEnabled ? 'SmartFit Active' : 'Fixed Scale'}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className={debugInfo.smartFitEnabled ? 'text-emerald-400' : 'text-zinc-500'}>
+                {debugInfo.smartFitEnabled ? 'SmartFit Active' : 'Fixed Scale'}
+              </span>
+            </div>
           </div>
 
           {debugInfo.columnBalancing && (
@@ -324,6 +327,20 @@ export const SongFitDebugHud: React.FC<SongFitDebugHudProps> = ({
                   : debugInfo.columnBalancing.strategy === 'protected-split'
                   ? 'Orphan-Guarded' 
                   : 'Single Column'}
+              </span>
+            </div>
+          )}
+
+          {debugInfo.smartSectionFilling && (
+            <div className="border-t border-zinc-800/80 pt-1.5 flex items-center justify-between text-[10px]">
+              <span className="text-zinc-400">Section Filling:</span>
+              <span className="font-semibold text-indigo-400 flex items-center gap-1">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                {debugInfo.smartSectionFilling.isSongShort
+                  ? `Short Song (+${debugInfo.smartSectionFilling.extraLineSpacing || 0}px lines, +${debugInfo.smartSectionFilling.extraSectionGap || 0}px gaps)`
+                  : debugInfo.smartSectionFilling.hasUnevenColumns
+                  ? `Uneven Cols (+${debugInfo.smartSectionFilling.extraLineSpacing || 0}px lines, +${debugInfo.smartSectionFilling.extraSectionGap || 0}px gaps)`
+                  : 'Balanced'}
               </span>
             </div>
           )}

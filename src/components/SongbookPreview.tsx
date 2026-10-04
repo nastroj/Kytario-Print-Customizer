@@ -624,6 +624,9 @@ const areSettingsEquivalent = (prev: PrintSettings, next: PrintSettings): boolea
     prev.columns === next.columns &&
     prev.showChords === next.showChords &&
     prev.smartFit === next.smartFit &&
+    prev.maxLineHeight === next.maxLineHeight &&
+    prev.sectionMarginCap === next.sectionMarginCap &&
+    prev.lineHeight === next.lineHeight &&
     prev.bookMode === next.bookMode &&
     prev.pageNumberPosition === next.pageNumberPosition &&
     prev.pageMargin === next.pageMargin &&
@@ -1011,10 +1014,10 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     const showDividers = (settings.indexSortOrder === 'alphabetical') && !!settings.tocAlphabeticalGrouping && (settings.tocGroupDividers !== false);
     const dividerTotalHeight = 7; // 1px border + 3px marginTop + 3px marginBottom
 
-    // Page 1 Header exact height: title (fontSize * 1.15 * 1.2) + margin/lineHeight (18px) + marginBottom (12px) + paddingTop/Bottom (4px) + 2px
+    // Page 1 Header exact height
     const headerHeightP1 = Math.ceil(Math.round(safeTitleSize * 1.15) * 1.2) + 36;
     
-    // Subsequent Pages Header exact height: title (fontSize * 0.85 * 1.2) + subtitle (18px) + paddingBottom (4px) + marginBottom (10px) + paddingTop/Bottom (4px) + border (1px)
+    // Subsequent Pages Header exact height
     const headerHeightSubsequent = Math.ceil(Math.round(safeTitleSize * 0.85) * 1.2) + 37;
 
     // Minimal safety buffer (2px) to handle sub-pixel rounding without artificially inflating the margin

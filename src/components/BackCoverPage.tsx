@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { PrintSettings } from '../types';
 import { Book } from 'lucide-react';
-import { DEFAULT_NOTATION_TEXT, DEFAULT_FOOTER_TEXT } from './FrontCoverPage';
+import { DEFAULT_FOOTER_TEXT } from './FrontCoverPage';
 import { resolveCoverUrl } from '../utils';
 
 interface BackCoverPageProps {
@@ -43,15 +43,10 @@ export function BackCoverPage({
 
   const showQr = settings.backCoverShowQr !== false;
 
-  const showNotation = settings.backCoverShowNotation !== false;
-  const notationText = (isCustom && settings.backCoverNotationText !== undefined)
-    ? settings.backCoverNotationText
-    : DEFAULT_NOTATION_TEXT;
-
-  const showFooter = settings.backCoverShowFooter !== false;
-  const footerText = (isCustom && settings.backCoverFooterText !== undefined)
+  const showFooter = Boolean(settings.backCoverShowFooter);
+  const footerText = isCustom && settings.backCoverFooterText !== undefined
     ? settings.backCoverFooterText
-    : DEFAULT_FOOTER_TEXT;
+    : (settings.backCoverFooterText || '');
 
   const customImage = settings.backCoverCustomImage;
   const imagePosition = settings.backCoverImagePosition || 'replace-qr';
@@ -174,28 +169,19 @@ export function BackCoverPage({
         </div>
       </div>
 
-      <div className={`w-full max-w-3xl ${alignment === 'center' ? 'mx-auto text-center' : 'text-left'} space-y-3 pt-4 shrink-0`}>
-        {showNotation && notationText && (
-          <p className="font-medium text-xs sm:text-sm leading-relaxed opacity-85 whitespace-pre-line max-w-2xl mx-auto">
-            {notationText}
-          </p>
-        )}
-
-        {(showNotation || showFooter) && (
+      {showFooter && footerText && (
+        <div className={`w-full max-w-3xl ${alignment === 'center' ? 'mx-auto text-center' : 'text-left'} space-y-3 pt-4 shrink-0`}>
           <div
             className="h-px w-full bg-current opacity-20 my-2"
             style={{
               borderColor: settings.separatorLineColor || '#a1a1aa',
             }}
           />
-        )}
-
-        {showFooter && footerText && (
-          <p className="text-[11px] sm:text-xs leading-relaxed opacity-75 max-w-2xl mx-auto">
+          <p className="text-[11px] sm:text-xs leading-relaxed opacity-75 max-w-2xl mx-auto whitespace-pre-line">
             {footerText}
           </p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

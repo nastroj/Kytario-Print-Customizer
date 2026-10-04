@@ -2,7 +2,7 @@ import { PDFDocument, rgb, RGB } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import QRCode from 'qrcode';
 import { SongbookData, PrintSettings, Song } from '../types';
-import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, computeSmartFitLineMargin, SongSection, resolveCoverUrl, getPageMargins, getOptimalColumnCount } from '../utils';
+import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, computeSmartSectionFilling, partitionSectionsIntoColumns, computeSmartFitLineMargin, SongSection, resolveCoverUrl, getPageMargins, getOptimalColumnCount } from '../utils';
 
 export interface GeneratePdfPayload {
   songbookData?: SongbookData;
@@ -229,15 +229,10 @@ async function renderFrontCoverPage(
 
   const showQr = settings.frontCoverShowQr !== false;
 
-  const showNotation = settings.frontCoverShowNotation !== false;
-  const notationText = (isCustom && settings.frontCoverNotationText !== undefined)
-    ? settings.frontCoverNotationText
-    : "Tento zpěvník používá německou notaci - tóny C-C#-D-D#-E-F-F#-G-G#-A-B-H.\nTón B odpovídá tónu A# nebo Hb.";
-
-  const showFooter = settings.frontCoverShowFooter !== false;
-  const footerText = (isCustom && settings.frontCoverFooterText !== undefined)
+  const showFooter = Boolean(settings.frontCoverShowFooter);
+  const footerText = isCustom && settings.frontCoverFooterText !== undefined
     ? settings.frontCoverFooterText
-    : "Vytvořeno s ♥ pomocí kytario.com | Vytvoř si zpěvník, sdílej ho a hraj.\nPosouvejte text živě společně, transponuj do libovolné tóniny nebo exportuj do PDF - zdarma pro tebe i tvé přátele. :)";
+    : (settings.frontCoverFooterText || '');
 
   const customImage = settings.frontCoverCustomImage;
   const imagePosition = settings.frontCoverImagePosition || 'replace-qr';
@@ -266,13 +261,10 @@ async function renderFrontCoverPage(
     }
   }
 
-  // 1. Bottom Section (Notation, Divider, Footer)
+  // 1. Bottom Section (Footer Attribution)
   let bottomReservedH = 0;
   const footerLines = (showFooter && footerText) ? footerText.split('\n') : [];
-  const notationLines = (showNotation && notationText) ? notationText.split('\n') : [];
-
   const footerPt = isLandscape ? 7.5 : 8.5;
-  const notPt = isLandscape ? 8.5 : 9.5;
 
   let footY = Math.max(marginPtBottom + (isLandscape ? 8 : 12), isLandscape ? 28 : 36);
   if (showFooter && footerLines.length > 0) {
@@ -290,10 +282,8 @@ async function renderFrontCoverPage(
       });
       footY += (footerPt + 3);
     }
-  }
 
-  const dividerY = footY + (isLandscape ? 6 : 10);
-  if ((showNotation && notationLines.length > 0) || (showFooter && footerLines.length > 0)) {
+    const dividerY = footY + (isLandscape ? 6 : 10);
     const divWidth = Math.min(pageWidth - marginPtLeft - marginPtRight, isLandscape ? 480 : 420);
     const divStartX = alignment === 'center' ? (pageWidth - divWidth) / 2 : marginPtLeft;
     page.drawLine({
@@ -303,27 +293,10 @@ async function renderFrontCoverPage(
       color: colSectionLine,
       opacity: 0.4,
     });
+    bottomReservedH = dividerY + 12;
+  } else {
+    bottomReservedH = marginPtBottom + 12;
   }
-
-  let notY = dividerY + (isLandscape ? 8 : 12);
-  if (showNotation && notationLines.length > 0) {
-    for (let i = notationLines.length - 1; i >= 0; i--) {
-      const line = notationLines[i].trim().replace(/❤️/g, '♥');
-      if (!line) continue;
-      const lineW = regularFont.widthOfTextAtSize(line, notPt);
-      const x = alignment === 'center' ? (pageWidth - lineW) / 2 : marginPtLeft;
-      page.drawText(line, {
-        x: Math.max(marginPtLeft, x),
-        y: notY,
-        size: notPt,
-        font: regularFont,
-        color: colTitle,
-      });
-      notY += (notPt + 3.5);
-    }
-  }
-
-  bottomReservedH = notY + 12;
 
   // 2. Top Section (Title, Subtitle, URL, Header Image)
   let topY = pageHeight - Math.max(marginPtTop + (isLandscape ? 15 : 25), isLandscape ? 60 : 100);
@@ -515,15 +488,10 @@ async function renderBackCoverPage(
 
   const showQr = settings.backCoverShowQr !== false;
 
-  const showNotation = settings.backCoverShowNotation !== false;
-  const notationText = (isCustom && settings.backCoverNotationText !== undefined)
-    ? settings.backCoverNotationText
-    : "Tento zpěvník používá německou notaci - tóny C-C#-D-D#-E-F-F#-G-G#-A-B-H.\nTón B odpovídá tónu A# nebo Hb.";
-
-  const showFooter = settings.backCoverShowFooter !== false;
-  const footerText = (isCustom && settings.backCoverFooterText !== undefined)
+  const showFooter = Boolean(settings.backCoverShowFooter);
+  const footerText = isCustom && settings.backCoverFooterText !== undefined
     ? settings.backCoverFooterText
-    : "Vytvořeno s ♥ pomocí kytario.com | Vytvoř si zpěvník, sdílej ho a hraj.\nPosouvejte text živě společně, transponuj do libovolné tóniny nebo exportuj do PDF - zdarma pro tebe i tvé přátele. :)";
+    : (settings.backCoverFooterText || '');
 
   const customImage = settings.backCoverCustomImage;
   const imagePosition = settings.backCoverImagePosition || 'replace-qr';
@@ -554,13 +522,10 @@ async function renderBackCoverPage(
     }
   }
 
-  // 1. Bottom Section (Notation, Divider, Footer)
+  // 1. Bottom Section (Footer Attribution)
   let bottomReservedH = 0;
   const footerLines = (showFooter && footerText) ? footerText.split('\n') : [];
-  const notationLines = (showNotation && notationText) ? notationText.split('\n') : [];
-
   const footerPt = isLandscape ? 7.5 : 8.5;
-  const notPt = isLandscape ? 8.5 : 9.5;
 
   let footY = Math.max(marginPtBottom + (isLandscape ? 8 : 12), isLandscape ? 28 : 36);
   if (showFooter && footerLines.length > 0) {
@@ -579,10 +544,8 @@ async function renderBackCoverPage(
       });
       footY += (footerPt + 3);
     }
-  }
 
-  const dividerY = footY + (isLandscape ? 6 : 10);
-  if ((showNotation && notationLines.length > 0) || (showFooter && footerLines.length > 0)) {
+    const dividerY = footY + (isLandscape ? 6 : 10);
     const divWidth = Math.min(pageWidth - marginPtLeft - marginPtRight, isLandscape ? 480 : 420);
     const divStartX = alignment === 'center' ? (pageWidth - divWidth) / 2 : marginPtLeft;
     page.drawLine({
@@ -592,29 +555,10 @@ async function renderBackCoverPage(
       color: colSeparator,
       opacity: 0.3,
     });
+    bottomReservedH = dividerY + 12;
+  } else {
+    bottomReservedH = marginPtBottom + 12;
   }
-
-  let notY = dividerY + (isLandscape ? 8 : 12);
-  if (showNotation && notationLines.length > 0) {
-    for (let i = notationLines.length - 1; i >= 0; i--) {
-      const line = notationLines[i].trim().replace(/❤️/g, '♥');
-      if (!line) continue;
-      const lineW = regularFont.widthOfTextAtSize(line, notPt);
-      const x = alignment === 'center' ? (pageWidth - lineW) / 2 : marginPtLeft;
-      page.drawText(line, {
-        x: Math.max(marginPtLeft, x),
-        y: notY,
-        size: notPt,
-        font: regularFont,
-        color: colTitle,
-        opacity: 0.85,
-      });
-      footY = Math.max(footY, notY + (notPt + 3.5)); // Track max height
-      notY += (notPt + 3.5);
-    }
-  }
-
-  bottomReservedH = notY + 12;
 
   // 2. Top Section (Title, Subtitle, URL, Header Image)
   let topY = pageHeight - Math.max(marginPtTop + (isLandscape ? 15 : 25), isLandscape ? 60 : 100);
@@ -995,7 +939,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
 
     const rowLineHeight = 1.35;
     const rowLineHeightPx = Math.ceil(safeTocSize * rowLineHeight);
-    const singleItemHeightPx = rowLineHeightPx + 3 + 1;
+    const singleItemHeightPx = rowLineHeightPx + 4;
     const singleItemHeightPt = singleItemHeightPx * ptPerPx;
     const dividerTotalHeightPt = 7 * ptPerPx;
     const tocLineHeight = singleItemHeightPt;
@@ -1296,7 +1240,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       const printableHeight = pageHeight - songMarginPtTop - songMarginPtBottom;
 
       // Add fresh page
-      const page = doc.addPage([pageWidth, pageHeight]);
+      let page = doc.addPage([pageWidth, pageHeight]);
       let currentY = pageHeight - songMarginPtTop;
 
       // 4A. Song Number Badge (26px x 26px dark rounded box)
@@ -1309,10 +1253,11 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         } else if (numPos === 'right') {
           badgeX = pageWidth - songMarginPtRight - badgeSize;
         } else {
-          // 'outer': in facing pages layout, odd physical pages (recto) have outer margin on the right,
+          // 'outer': in facing pages layout (Book Mode), odd physical pages (recto) have outer margin on the right,
           // even physical pages (verso) have outer margin on the left.
+          // When Book Mode is off, page numbers are always on the right side of the page.
           const isRightSpread = songDocPageIndex % 2 === 0;
-          const isRight = settings.bookMode ? isRightSpread : (sIdx % 2 !== 0);
+          const isRight = settings.bookMode ? isRightSpread : true;
           badgeX = isRight ? (pageWidth - songMarginPtRight - badgeSize) : songMarginPtLeft;
         }
 
@@ -1357,7 +1302,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       const wTitle = boldFont.widthOfTextAtSize(titleStr, titlePt);
       const wArtist = artistStr ? boldFont.widthOfTextAtSize(artistSuffix, artistPt) : 0;
       const totalHeaderW = wTitle + wArtist;
-      const headerMaxW = printableWidth - (64 * ptPerPx); // padding px-8 on both sides
+      const headerMaxW = printableWidth - (64 * ptPerPx);
 
       if (totalHeaderW <= headerMaxW) {
         // Fits comfortably on a single centered line
@@ -1380,7 +1325,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           });
         }
 
-        currentY -= Math.max(titlePt, artistPt) + (22 * ptPerPx); // mb-5 sm:mb-6 in preview
+        currentY -= Math.max(titlePt, artistPt) + (22 * ptPerPx);
       } else {
         // Wrap title and artist on two centered lines
         const titleX = songMarginPtLeft + (printableWidth - Math.min(printableWidth - 20, wTitle)) / 2;
@@ -1410,7 +1355,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
 
       // 4C. Columns and Smart Column Balancing
       const colCount = getOptimalColumnCount(sections, settings);
-      const colGap = colCount > 1 ? (24 * ptPerPx) : 0; // 1.5rem = 24px in CSS
+      const colGap = colCount > 1 ? (24 * ptPerPx) : 0;
       const colWidth = (printableWidth - (colCount - 1) * colGap) / colCount;
 
       const availColHeightPt = currentY - songMarginPtBottom;
@@ -1418,6 +1363,8 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
 
       // Smart column balance plan (determines inter-section breaks & orphan guards)
       const columnPlan = computeSmartColumnBalance(sections, settings, availColHeightPx, scale);
+      const partitionedCols = partitionSectionsIntoColumns(sections, columnPlan, colCount);
+      const sectionFillingPlan = computeSmartSectionFilling(partitionedCols, settings, availColHeightPx, scale);
 
       // Section markers column width calculation
       const hasAnyMarkers = sections.some((s) => Boolean(s.marker && s.marker.trim()));
@@ -1439,7 +1386,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       // Section lines setup (0.22em border, 0.20rem padding-left)
       const showSectionLines = settings.showSectionLines !== false;
       const sectionBorderW = Math.max(1.2, 0.22 * lyricsPt);
-      const sectionPaddingLeft = (0.20 * 16) * ptPerPx; // ~2.4 pt
+      const sectionPaddingLeft = (0.20 * 16) * ptPerPx;
       const sectionLeftInset = showSectionLines ? (sectionBorderW + sectionPaddingLeft + (2 * ptPerPx)) : 0;
 
       // Vertical line dimensions
@@ -1447,8 +1394,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       const lyricHeightPt = lyricsPt;
       const chordSpacingPt = 2 * ptPerPx;
       const pdfLineMarginPx = computeSmartFitLineMargin(sections, settings, Boolean(song.title), Boolean(song.artist), scale);
-      const lineMarginBottomPt = pdfLineMarginPx * ptPerPx;
-      const sectionBottomMarginPt = 14 * ptPerPx; // mb-3.5 sm:mb-4
+      const sectionGapPt = (settings.sectionMargin ?? 12) * ptPerPx;
 
       const colStartY = currentY;
       let currentCol = 0;
@@ -1470,6 +1416,12 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           didBreakColumn = true;
         }
 
+        const colFill = sectionFillingPlan?.columns?.[currentCol];
+        const currentLineMarginPx = colFill?.lineMargin ?? pdfLineMarginPx;
+        const currentSectionGapPx = colFill?.sectionGap ?? Math.max(12, lyricsPt / ptPerPx);
+        const lineMarginBottomPt = currentLineMarginPx * ptPerPx;
+        const colSectionGapPt = currentSectionGapPx * ptPerPx;
+
         // Calculate approximate section height
         let secEstimatedH = 0;
         for (const line of section.parsedLines) {
@@ -1483,7 +1435,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
             secEstimatedH += lyricHeightPt + lineMarginBottomPt;
           }
         }
-        secEstimatedH += sectionBottomMarginPt;
+        secEstimatedH += colSectionGapPt;
 
         // If plan says avoidBreakInside and section doesn't fit in current column, advance
         if (plan?.avoidBreakInside && (colY - secEstimatedH < songMarginPtBottom) && currentCol < colCount - 1) {
@@ -1494,7 +1446,11 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
 
         const isFirstInThisCol = (currentCol !== lastCol) || Math.abs(colY - colStartY) <= 2;
 
-        // --- ADD SEPARATOR ---
+        // Uniform section separation spacing (no dividers or ornaments)
+        if (!isFirstInThisCol) {
+          colY -= colSectionGapPt;
+        }
+
         lastCol = currentCol;
 
         const firstNonEmptyIndex = section.parsedLines.findIndex((l) => !l.isEmpty);
@@ -1503,7 +1459,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         // Render standalone marker if section has no non-empty lines
         if (section.marker && firstNonEmptyIndex === -1 && hasAnyMarkers) {
           const reqLineH = lyricHeightPt + lineMarginBottomPt;
-          if (colY - reqLineH < songMarginPtBottom && currentCol < colCount - 1) {
+          if (colY - reqLineH < songMarginPtBottom) {
             if (showSectionLines && secSegmentStartY > colY) {
               const borderColX = songMarginPtLeft + currentCol * (colWidth + colGap) + (sectionBorderW / 2);
               page.drawLine({
@@ -1513,9 +1469,16 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
                 color: currentLineColor,
               });
             }
-            currentCol++;
-            colY = colStartY;
-            secSegmentStartY = colY;
+            if (currentCol < colCount - 1) {
+              currentCol++;
+              colY = colStartY;
+              secSegmentStartY = colY;
+            } else {
+              page = doc.addPage([pageWidth, pageHeight]);
+              currentCol = 0;
+              colY = pageHeight - songMarginPtTop - (20 * ptPerPx);
+              secSegmentStartY = colY;
+            }
           }
           const colBaseX = songMarginPtLeft + currentCol * (colWidth + colGap);
           const lineStartX = colBaseX + sectionLeftInset;
@@ -1540,15 +1503,15 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           const isFirstNonEmpty = lIdx === firstNonEmptyIndex;
 
           const reqLineH = lineData.isEmpty
-            ? 9 * ptPerPx
+            ? (9 * ptPerPx)
             : lineData.isRepetitionLine
             ? chordHeightPt + (4 * ptPerPx)
             : lineData.hasChords && settings.showChords
             ? chordHeightPt + chordSpacingPt + lyricHeightPt + lineMarginBottomPt
             : lyricHeightPt + lineMarginBottomPt;
 
-          // If line overflows column, advance to next column
-          if (colY - reqLineH < songMarginPtBottom && currentCol < colCount - 1) {
+          // If line overflows column, advance to next column or continuation page
+          if (colY - reqLineH < songMarginPtBottom) {
             // Finish section border line on current column before moving
             if (showSectionLines && secSegmentStartY > colY) {
               const borderColX = songMarginPtLeft + currentCol * (colWidth + colGap) + (sectionBorderW / 2);
@@ -1560,9 +1523,23 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
               });
             }
 
-            currentCol++;
-            colY = colStartY;
-            secSegmentStartY = colY;
+            if (currentCol < colCount - 1) {
+              currentCol++;
+              colY = colStartY;
+              secSegmentStartY = colY;
+            } else {
+              page = doc.addPage([pageWidth, pageHeight]);
+              currentCol = 0;
+              colY = pageHeight - songMarginPtTop - (22 * ptPerPx);
+              page.drawText(`${titleStr} (pokračování)`, {
+                x: songMarginPtLeft,
+                y: colY + (4 * ptPerPx),
+                size: Math.max(9, titlePt * 0.75),
+                font: boldFont,
+                color: colTitle,
+              });
+              secSegmentStartY = colY;
+            }
           }
 
           const colBaseX = songMarginPtLeft + currentCol * (colWidth + colGap);
@@ -1721,9 +1698,6 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
             color: currentLineColor,
           });
         }
-
-        // Section separation spacing
-        colY -= sectionBottomMarginPt;
       }
     }
 

@@ -46,6 +46,11 @@ export interface PrintSettings {
   tocFontSize: number;
   showChords: boolean;
   smartFit: boolean;
+  smartSectionFilling?: boolean;
+  maxLineHeight?: number; // Maximum line-height multiplier when smart auto-scaling (default: 1.6)
+  sectionMarginCap?: number; // Maximum section gap/margin in px when smart auto-scaling (default: 28)
+  lineHeight?: number;
+  sectionMargin?: number;
   lyricsItalic?: boolean;
   chordsItalic?: boolean;
   titleItalic?: boolean;
@@ -67,7 +72,7 @@ export interface PrintSettings {
   pageMarginInner?: number; // Inner (binding/gutter) margin in mm (when bookMode is true, default: 5)
   pageMarginOuter?: number; // Outer margin in mm (when bookMode is true, default: 5)
   bookMode?: boolean; // Book mode (facing pages: inner/outer margins, alternating page numbers)
-  pageNumberPosition?: 'left' | 'right' | 'outer' | 'none'; // Position of page number badge on top (default: 'outer')
+  pageNumberPosition?: 'left' | 'right' | 'outer' | 'none'; // Position of page number badge on top (default: 'right' when bookMode is false, 'outer' when bookMode is true)
   showSectionLines?: boolean;
   separatorLineColor?: string;
   sectionSeparatorColor?: string;
@@ -86,9 +91,7 @@ export interface PrintSettings {
   frontCoverUrl?: string; // custom URL
   frontCoverShowQr?: boolean; // default: true
   frontCoverQrUrl?: string; // custom QR target URL
-  frontCoverShowNotation?: boolean; // default: true
-  frontCoverNotationText?: string; // custom notation text
-  frontCoverShowFooter?: boolean; // default: true
+  frontCoverShowFooter?: boolean; // default: false
   frontCoverFooterText?: string; // custom footer text
   frontCoverCustomImage?: string; // base64 / data URL
   frontCoverImagePosition?: 'above-title' | 'replace-qr' | 'below-qr'; // default: 'replace-qr'
@@ -102,8 +105,6 @@ export interface PrintSettings {
   backCoverUrl?: string;
   backCoverShowQr?: boolean;
   backCoverQrUrl?: string;
-  backCoverShowNotation?: boolean;
-  backCoverNotationText?: string;
   backCoverShowFooter?: boolean;
   backCoverFooterText?: string;
   backCoverCustomImage?: string;
@@ -166,6 +167,14 @@ export interface SongFitDebugInfo {
   pageFormat: string;
   orientation: string;
   smartFitEnabled: boolean;
+  smartSectionFilling?: {
+    isSongShort: boolean;
+    hasUnevenColumns: boolean;
+    heightUtilization: number;
+    extraLineSpacing?: number;
+    extraSectionGap?: number;
+    extraWhitespacePerGap?: number;
+  };
   sectionsDetail: SectionDebugDetail[];
   columnBalancing?: {
     isBalanced: boolean;

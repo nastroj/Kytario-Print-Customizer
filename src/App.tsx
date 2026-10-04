@@ -24,10 +24,10 @@ const defaultSettings: PrintSettings = {
   pageMarginBottom: 6,
   pageMarginLeft: 5,
   pageMarginRight: 5,
-  pageMarginInner: 5,
+  pageMarginInner: 15,
   pageMarginOuter: 5,
   bookMode: false,
-  pageNumberPosition: 'outer',
+  pageNumberPosition: 'right',
   columns: 2,
   titleColor: '#1c1917', // zinc-900
   artistColor: '#57534e', // zinc-500
@@ -52,7 +52,11 @@ const defaultSettings: PrintSettings = {
   tocItalic: false,
   showChords: true,
   smartFit: true,
-  maxFontSizePx: 32,
+  smartSectionFilling: true,
+  maxLineHeight: 1.6,
+  sectionMarginCap: 28,
+  lineHeight: 1.3,
+  maxFontSizePx: 16,
   indexSortOrder: 'alphabetical',
   tocAlphabeticalGrouping: true,
   tocGroupDividers: true,
@@ -63,15 +67,15 @@ const defaultSettings: PrintSettings = {
   showTableOfContents: true,
   frontCoverType: 'auto',
   frontCoverShowQr: true,
-  frontCoverShowNotation: true,
-  frontCoverShowFooter: true,
+  frontCoverShowFooter: false,
+  frontCoverFooterText: '',
   frontCoverDedication: '',
   frontCoverShowDedication: true,
   showBackCover: true,
   backCoverType: 'auto',
   backCoverShowQr: true,
-  backCoverShowNotation: true,
-  backCoverShowFooter: true,
+  backCoverShowFooter: false,
+  backCoverFooterText: '',
   backCoverDedication: '',
   backCoverShowDedication: true,
 };
@@ -86,10 +90,10 @@ const defaultDarkSettings: PrintSettings = {
   pageMarginBottom: 6,
   pageMarginLeft: 5,
   pageMarginRight: 5,
-  pageMarginInner: 5,
+  pageMarginInner: 15,
   pageMarginOuter: 5,
   bookMode: false,
-  pageNumberPosition: 'outer',
+  pageNumberPosition: 'right',
   columns: 2,
   titleColor: '#f4f4f5', // zinc-100
   artistColor: '#a1a1aa', // zinc-400
@@ -114,7 +118,11 @@ const defaultDarkSettings: PrintSettings = {
   tocItalic: false,
   showChords: true,
   smartFit: true,
-  maxFontSizePx: 32,
+  smartSectionFilling: true,
+  maxLineHeight: 1.6,
+  sectionMarginCap: 28,
+  lineHeight: 1.3,
+  maxFontSizePx: 16,
   indexSortOrder: 'alphabetical',
   tocAlphabeticalGrouping: true,
   tocGroupDividers: true,
@@ -125,15 +133,15 @@ const defaultDarkSettings: PrintSettings = {
   showTableOfContents: true,
   frontCoverType: 'auto',
   frontCoverShowQr: true,
-  frontCoverShowNotation: true,
-  frontCoverShowFooter: true,
+  frontCoverShowFooter: false,
+  frontCoverFooterText: '',
   frontCoverDedication: '',
   frontCoverShowDedication: true,
   showBackCover: true,
   backCoverType: 'auto',
   backCoverShowQr: true,
-  backCoverShowNotation: true,
-  backCoverShowFooter: true,
+  backCoverShowFooter: false,
+  backCoverFooterText: '',
   backCoverDedication: '',
   backCoverShowDedication: true,
 };
@@ -209,7 +217,13 @@ export default function App() {
           parsed.chordsFontSize = 12;
         }
         if (typeof parsed.maxFontSizePx !== 'number') {
-          parsed.maxFontSizePx = 32;
+          parsed.maxFontSizePx = 16;
+        }
+        if (typeof parsed.maxLineHeight !== 'number') {
+          parsed.maxLineHeight = 1.6;
+        }
+        if (typeof parsed.sectionMarginCap !== 'number') {
+          parsed.sectionMarginCap = 28;
         }
         const restoredOrientation = parsed.orientation || baseDefaults.orientation || 'landscape';
         return { ...baseDefaults, ...parsed, columns: 2 };
@@ -277,6 +291,48 @@ export default function App() {
     setSettings(nextSettings);
     setDraftSettings(nextSettings);
   }, [isDarkMode, settings]);
+
+  const handleSaveSettings = useCallback(() => {
+    const key = isDarkMode ? 'kytario-print-settings-v2_dark' : 'kytario-print-settings-v2_light';
+    const settingsToSave: PrintSettings = {
+      ...(isDarkMode ? defaultDarkSettings : defaultSettings),
+      ...draftSettings,
+      columns: 2,
+    };
+
+    try {
+      localStorage.setItem(key, JSON.stringify(settingsToSave));
+      if (isDarkMode) {
+        darkSettingsRef.current = settingsToSave;
+      } else {
+        lightSettingsRef.current = settingsToSave;
+      }
+      setSettings(settingsToSave);
+      setDraftSettings(settingsToSave);
+      showToast(`Settings saved locally for ${isDarkMode ? 'Dark' : 'Light'} Mode!`, 'success');
+    } catch (e) {
+      showToast('Failed to save settings to local storage', 'error');
+    }
+  }, [draftSettings, isDarkMode, showToast]);
+
+  const handleResetToDefaults = useCallback(() => {
+    const key = isDarkMode ? 'kytario-print-settings-v2_dark' : 'kytario-print-settings-v2_light';
+    const baseDefaults = isDarkMode ? defaultDarkSettings : defaultSettings;
+
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {}
+
+    if (isDarkMode) {
+      darkSettingsRef.current = baseDefaults;
+    } else {
+      lightSettingsRef.current = baseDefaults;
+    }
+
+    setSettings(baseDefaults);
+    setDraftSettings(baseDefaults);
+    showToast(`Settings reset to default (${isDarkMode ? 'Dark' : 'Light'} Mode)`, 'info');
+  }, [isDarkMode, showToast]);
 
 
   const updateTimersRef = useRef<{ applyTimer?: ReturnType<typeof setTimeout>; finishTimer?: ReturnType<typeof setTimeout> }>({});
@@ -1016,6 +1072,8 @@ export default function App() {
         hasUnappliedChanges={hasUnappliedSettings}
         changes={unappliedChanges}
         onApplySettings={handleApplySettings}
+        onSaveSettings={handleSaveSettings}
+        onResetToDefaults={handleResetToDefaults}
         onResetSongbook={handleOpenResetModal}
         onFileUpload={handleFileUpload}
         onDownloadPdf={handleSidebarDownloadPdf}

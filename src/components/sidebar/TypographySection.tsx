@@ -9,7 +9,6 @@ export interface TypographySectionProps {
   draftSettings: PrintSettings;
   hasTypoChanges: boolean;
   onSettingChange: (key: keyof PrintSettings, value: any) => void;
-  onResetDefaults: () => void;
 }
 
 interface TypographyRowItemProps {
@@ -143,7 +142,6 @@ function areTypographyPropsEqual(prev: TypographySectionProps, next: TypographyS
   if (prev.idSuffix !== next.idSuffix) return false;
   if (prev.hasTypoChanges !== next.hasTypoChanges) return false;
   if (prev.onSettingChange !== next.onSettingChange) return false;
-  if (prev.onResetDefaults !== next.onResetDefaults) return false;
 
   for (const key of TYPO_KEYS) {
     if (prev.draftSettings[key] !== next.draftSettings[key]) {
@@ -158,7 +156,6 @@ export const TypographySection = React.memo(function TypographySection({
   draftSettings,
   hasTypoChanges,
   onSettingChange,
-  onResetDefaults,
 }: TypographySectionProps) {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -180,17 +177,6 @@ export const TypographySection = React.memo(function TypographySection({
           )}
         </h3>
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onResetDefaults();
-            }}
-            className="px-2 py-0.5 text-[11px] font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
-            title="Reset typography and color settings to default"
-          >
-            Defaults
-          </button>
           <div className="p-0.5 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200 transition-colors">
             {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
           </div>

@@ -1,19 +1,24 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.4.9  
+**Version:** 1.5.0  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.4.9 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.5.0 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
 
 ---
 
-## 🌟 What's New in v1.4.9
+## 🌟 What's New in v1.5.0
 
-- **Simplified Import Flow**: Removed the unreliable PDF import feature and its `pdfjs-dist` dependency. Songbooks can still be imported from a Kytario URL, pasted JSON, or a JSON file.
-- **Import Tab Order**: Reordered the import tabs to Kytario URL, Paste JSON, then JSON File, with Kytario URL selected by default.
+- **Local Settings Persistence (Light & Dark Mode)**: Added highly compact, matching zinc-colored **Save Settings** and **Reset Defaults** action buttons in the sidebar's footer, freeing up vertical space at the top of the settings page so layout sections are immediately visible. Settings persist in the browser separately for **Light Mode** (`kytario-print-settings-v2_light`) and **Dark Mode** (`kytario-print-settings-v2_dark`).
+- **Unified & Streamlined Action Buttons**: Consolidated scattered section-level reset buttons and removed redundant mode name suffixes (like `(Light)` or `(Dark)`) on buttons for a cleaner, unified user experience. A single click on the reset button restores defaults for the active mode.
+- **Smart Auto-scale Controls Refinement**: Transformed section filling settings into two explicit controls (**Max. Line Height** and **Section Margin Cap**), both grouped directly inside the **Smart Auto-scale** section for intuitive layout tuning.
+- **Max Font Cap Space Distribution**: Refactored the Smart Auto-scale algorithm to intelligently distribute remaining layout space as stanza section padding (65%) and line margins (35%) whenever font size reaches its cap, avoiding uneven gaps or trailing voids.
+- **Smart Book Mode Page Numbering**:
+  - When **Book Mode is OFF**, page numbers default to **Right** (with the "Outer" choice hidden).
+  - When **Book Mode is ON**, page numbers default to **Outer (Alternating)** and dynamically adjust based on physical document page counts (Front Cover, ToC pages, etc.), placing numbers on outer edges (Recto = Right, Verso = Left).
 
 ---
 

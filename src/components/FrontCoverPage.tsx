@@ -13,9 +13,6 @@ interface FrontCoverPageProps {
   isDarkMode?: boolean;
 }
 
-export const DEFAULT_NOTATION_TEXT = `Tento zpěvník používá německou notaci - tóny C-C#-D-D#-E-F-F#-G-G#-A-B-H.
-Tón B odpovídá tónu A# nebo Hb.`;
-
 export const DEFAULT_FOOTER_TEXT = `Vytvořeno s ❤️ pomocí kytario.com | Vytvoř si zpěvník, sdílej ho a hraj. Posouvejte text živě společně, transponuj do libovolné tóniny nebo exportuj do PDF - zdarma pro tebe i tvé přátele. 🙂`;
 
 export function FrontCoverPage({
@@ -47,15 +44,10 @@ export function FrontCoverPage({
   const subtitle = isCustom ? settings.frontCoverSubtitle?.trim() : undefined;
   const showQr = settings.frontCoverShowQr !== false;
 
-  const showNotation = settings.frontCoverShowNotation !== false;
-  const notationText = (isCustom && settings.frontCoverNotationText !== undefined)
-    ? settings.frontCoverNotationText
-    : DEFAULT_NOTATION_TEXT;
-
-  const showFooter = settings.frontCoverShowFooter !== false;
-  const footerText = (isCustom && settings.frontCoverFooterText !== undefined)
+  const showFooter = Boolean(settings.frontCoverShowFooter);
+  const footerText = isCustom && settings.frontCoverFooterText !== undefined
     ? settings.frontCoverFooterText
-    : DEFAULT_FOOTER_TEXT;
+    : (settings.frontCoverFooterText || '');
 
   const customImage = settings.frontCoverCustomImage;
   const imagePosition = settings.frontCoverImagePosition || 'replace-qr';
@@ -189,31 +181,19 @@ export function FrontCoverPage({
       </div>
 
       {/* Lower / Footer Section */}
-      <div className={`w-full max-w-3xl ${alignment === 'center' ? 'mx-auto text-center' : 'text-left'} space-y-3 pt-4 shrink-0`}>
-        {/* German / Custom Notation Note */}
-        {showNotation && notationText && (
-          <p className="font-medium text-xs sm:text-sm leading-relaxed opacity-85 whitespace-pre-line max-w-2xl mx-auto">
-            {notationText}
-          </p>
-        )}
-
-        {/* Subtle Divider Line */}
-        {(showNotation || showFooter) && (
+      {showFooter && footerText && (
+        <div className={`w-full max-w-3xl ${alignment === 'center' ? 'mx-auto text-center' : 'text-left'} space-y-3 pt-4 shrink-0`}>
           <div
             className="h-px w-full bg-current opacity-20 my-2"
             style={{
               borderColor: settings.separatorLineColor || '#a1a1aa',
             }}
           />
-        )}
-
-        {/* Bottom Attribution Footer */}
-        {showFooter && footerText && (
-          <p className="text-[11px] sm:text-xs leading-relaxed opacity-75 max-w-2xl mx-auto">
+          <p className="text-[11px] sm:text-xs leading-relaxed opacity-75 max-w-2xl mx-auto whitespace-pre-line">
             {footerText}
           </p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

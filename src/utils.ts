@@ -42,25 +42,30 @@ export interface PageMarginsMm {
  * - Page 3 (index 2, odd): Outer is Left, Inner is Right
  */
 export function getPageMargins(settings?: Partial<PrintSettings>, pageIndex: number = 0): PageMarginsMm {
-  const top = settings?.pageMarginTop ?? settings?.pageMarginTopBottom ?? (settings?.pageMargin ? Math.round(settings.pageMargin * 1.2) : 6);
-  const bottom = settings?.pageMarginBottom ?? settings?.pageMarginTopBottom ?? (settings?.pageMargin ? Math.round(settings.pageMargin * 1.2) : 6);
+  const defaultTopBottom = 6;
+  const defaultLeftRight = 5;
+  const defaultInner = 15;
+  const defaultOuter = 5;
 
-  let left = 5;
-  let right = 5;
+  let top = settings?.pageMarginTop ?? settings?.pageMarginTopBottom ?? (settings?.pageMargin ? Math.round(settings.pageMargin * 1.2) : defaultTopBottom);
+  let bottom = settings?.pageMarginBottom ?? settings?.pageMarginTopBottom ?? (settings?.pageMargin ? Math.round(settings.pageMargin * 1.2) : defaultTopBottom);
+
+  let left = defaultLeftRight;
+  let right = defaultLeftRight;
   let inner: number | undefined;
   let outer: number | undefined;
 
   if (settings?.bookMode) {
-    inner = settings?.pageMarginInner ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? 5;
-    outer = settings?.pageMarginOuter ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? 5;
+    inner = settings?.pageMarginInner ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? defaultInner;
+    outer = settings?.pageMarginOuter ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? defaultOuter;
     // Page 1 (pageIndex 0, odd / recto): spine/binding is on the Left (Inner), outer edge is on the Right (Outer)
     // Page 2 (pageIndex 1, even / verso): outer edge is on the Left (Outer), spine/binding is on the Right (Inner)
     const isOddPage = pageIndex % 2 === 0;
     left = isOddPage ? inner : outer;
     right = isOddPage ? outer : inner;
   } else {
-    left = settings?.pageMarginLeft ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? 5;
-    right = settings?.pageMarginRight ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? 5;
+    left = settings?.pageMarginLeft ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? defaultLeftRight;
+    right = settings?.pageMarginRight ?? settings?.pageMarginLeftRight ?? settings?.pageMargin ?? defaultLeftRight;
   }
 
   return { top, bottom, left, right, inner, outer };
@@ -1290,11 +1295,10 @@ export function getOptimalColumnCount(
     }
   }
 
+  const averageLineLen = nonEmptyLineCount > 0 ? totalLineLen / nonEmptyLineCount : 0;
+
   // We keep 2 columns as the default, but for dense landscape songs with
   // moderate line lengths it is better to let the content spread into 3 columns.
-  // A hard 42-character cutoff was too strict for real songbooks, where longer
-  // but still compact choruses and verses can fit safely in landscape.
-  const averageLineLen = nonEmptyLineCount > 0 ? totalLineLen / nonEmptyLineCount : 0;
   const canUseThreeColumns = isLandscape &&
     nonEmptyLineCount >= 45 &&
     averageLineLen <= 32 &&
@@ -1322,6 +1326,8 @@ export function computeSmartFitScale(
     pageMarginTopBottom?: number;
     pageMarginLeftRight?: number;
     maxFontSizePx?: number;
+    maxLineHeight?: number;
+    sectionMarginCap?: number;
     showSectionLines?: boolean;
   },
   hasTitle: boolean = true,
@@ -1357,11 +1363,13 @@ export function computeSmartFitScale(
   const baseChordsSize = Number(settings.chordsFontSize) || 12;
 
   const titleBlockH = (hasTitle ? (Number(settings.titleFontSize) || 16) * 1.25 : 0) + 
-                     (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 18;
+                     (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 
+                     18;
   const availColH = Math.max(100, usableH - titleBlockH - 24);
 
   const colCount = getOptimalColumnCount(sections, settings);
-  const colWidth = (usableW - (colCount > 1 ? 24 : 0) * (colCount - 1)) / colCount;
+  const colGap = colCount > 1 ? 24 : 0;
+  const colWidth = (usableW - colGap * (colCount - 1)) / colCount;
 
   const hasMarkers = sections.some(s => !!s.marker?.trim());
   let maxMarkerLen = 0;
@@ -1403,10 +1411,10 @@ export function computeSmartFitScale(
   const calcHeightAtScale = (s: number): { height: number; maxWrapLines: number } => {
     const lSize = baseLyricsSize * s;
     const cSize = baseChordsSize * s;
-    const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * 0.54)));
+    const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * 0.48)));
 
     let maxWrapLines = 1;
-    const sectionHeights = sections.map((sec, idx) => {
+    const sectionHeights = sections.map((sec) => {
       let secH = 0;
 
       if (sec.marker && (!sec.parsedLines?.length || sec.parsedLines.every(l => l.isEmpty))) {
@@ -1421,7 +1429,7 @@ export function computeSmartFitScale(
         }
         secH += estimateLineHeight(line, s, lSize, cSize, charsPerCol, showChords);
       });
-      return secH + Math.max(14, Math.round(16 * Math.min(1.3, s)));
+      return secH + Math.max(12, Math.round(baseLyricsSize * s * 1.0));
     });
 
     const total = sectionHeights.reduce((a, b) => a + b, 0);
@@ -1449,19 +1457,21 @@ export function computeSmartFitScale(
 
   const linesPerCol = sections.reduce((acc, sec) => acc + sec.parsedLines.filter(l => !l.isEmpty).length, 0) / colCount;
 
-  const minScale = Math.max(0.55, MIN_READABLE_LYRICS_FONT_SIZE / baseLyricsSize);
+  const minReadableSize = MIN_READABLE_LYRICS_FONT_SIZE;
+  const minScale = Math.max(0.48, minReadableSize / baseLyricsSize);
 
-  // Maximum scale where long lines fit horizontally within the column without wrapping/splitting
+  // Maximum scale where long lines fit horizontally within the column without excessive wrapping
   const maxScaleWithoutWrap = maxRenderedWidth > 0
-    ? (effectiveColW / (maxRenderedWidth * baseLyricsSize * 0.54))
-    : 2.5;
+    ? (effectiveColW / (maxRenderedWidth * baseLyricsSize * 0.48))
+    : 3.5;
 
   const { height: baseHeight } = calcHeightAtScale(1.0);
 
   // 1. Check vertical overflow downscale
   let verticalScale = 1.0;
   if (baseHeight > availColH) {
-    verticalScale = Math.max(minScale, Math.min(0.98, (availColH * 0.96) / baseHeight));
+    const targetUtil = 0.96;
+    verticalScale = Math.max(minScale, Math.min(0.98, (availColH * targetUtil) / baseHeight));
   }
 
   // 2. Check horizontal long line wrapping downscale:
@@ -1478,28 +1488,24 @@ export function computeSmartFitScale(
   }
 
   if (!settings.smartFit) return 1.0;
-  const config = linesPerCol <= 12 ? { max: 2.25, util: 0.94 } :
-                 linesPerCol <= 18 ? { max: 1.95, util: 0.93 } :
-                 linesPerCol <= 25 ? { max: 1.70, util: 0.91 } :
-                                     { max: 1.50, util: 0.90 };
 
-  const maxPx = settings.maxFontSizePx || 32;
-  // Never upscale past the point where lines start wrapping
-  const upscaleLimit = Math.min(
-    config.max,
-    (maxPx * 0.75) / baseLyricsSize,
-    Math.max(1.0, Math.floor(maxScaleWithoutWrap * 100) / 100)
-  );
+  const maxPx = settings.maxFontSizePx || 16;
+  const upscaleLimit = Math.max(1.0, Math.min(3.5, maxPx / baseLyricsSize));
   if (upscaleLimit <= 1.0) return 1.0;
 
-  const targetMaxH = availColH * config.util;
+  const targetMaxH = availColH * 0.95;
+  const allowedWrapLines = linesPerCol <= 16 ? 2 : 1;
   let bestScale = 1.0, low = 1.0, high = upscaleLimit;
   
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 10; i++) {
     const mid = (low + high) / 2;
     const { height, maxWrapLines } = calcHeightAtScale(mid);
-    if (height <= targetMaxH && maxWrapLines <= 1) { bestScale = mid; low = mid; }
-    else { high = mid; }
+    if (height <= targetMaxH && maxWrapLines <= allowedWrapLines) { 
+      bestScale = mid; 
+      low = mid; 
+    } else { 
+      high = mid; 
+    }
   }
 
   return Math.round(bestScale * 100) / 100;
@@ -1557,7 +1563,8 @@ export function computeSmartColumnBalance(
   }
   const margins = getPageMargins(settings);
   const usableWidth = Math.max(200, totalPxWidth - (margins.left + margins.right) * mmToPx);
-  const colWidth = (usableWidth - (colCount > 1 ? 24 : 0) * (colCount - 1)) / colCount;
+  const colGap = colCount > 1 ? 24 : 0;
+  const colWidth = (usableWidth - colGap * (colCount - 1)) / colCount;
   const maxMarkerLen = sections.reduce((max, section) => {
     const markerLength = section.marker?.replace(/[\[\]]/g, '').trim().length || 0;
     return Math.max(max, markerLength);
@@ -1743,6 +1750,221 @@ export function partitionSectionsIntoColumns(
   return result.length > 0 ? result : [{ columnSections: sections, startIndex: 0 }];
 }
 
+export interface ColumnFillingInfo {
+  columnIndex: number;
+  sectionCount: number;
+  lineCount: number;
+  estimatedHeight: number;
+  extraLineSpacing: number; // in px between lines of lyrics
+  lineMargin: number;       // total effective line margin in px for this column
+  extraSectionGap: number;  // in px added between sections
+  sectionGap: number;       // total effective section gap in px for this column
+  extraWhitespacePerGap: number; // backward compatibility
+  showDecorativeSpacer: boolean;
+}
+
+export interface SmartSectionFillingPlan {
+  isSongShort: boolean;
+  hasUnevenColumns: boolean;
+  maxColHeight: number;
+  minColHeight: number;
+  targetColHeight: number;
+  availColH: number;
+  heightUtilization: number;
+  baseSectionGap: number;
+  columns: ColumnFillingInfo[];
+}
+
+/**
+ * Smart Section Filling Algorithm
+ * Detects if a song is short or has uneven column heights.
+ * Keeps space between sections strictly capped at a clean, uniform value (preventing sections from drifting far apart),
+ * completely removes dividers between sections, and allocates extra height to spacing between lines of lyrics.
+ */
+export function computeSmartSectionFilling(
+  columns: { columnSections: SongSection[]; startIndex: number }[],
+  settings: {
+    smartSectionFilling?: boolean;
+    maxLineHeight?: number;
+    sectionMarginCap?: number;
+    maxFontSizePx?: number;
+    lineHeight?: number;
+    sectionMargin?: number;
+    lyricsFontSize?: number;
+    chordsFontSize?: number;
+    showChords?: boolean;
+  },
+  availColH: number,
+  scale: number
+): SmartSectionFillingPlan {
+  const baseLyricsSize = (Number(settings.lyricsFontSize) || 12) * scale;
+  const lHeightMult = settings.lineHeight ?? 1.3;
+  const baseLineMargin = Math.max(3, Math.round(baseLyricsSize * (lHeightMult - 1) * 10) / 10);
+  const baseSectionGap = settings.sectionMargin ?? Math.max(12, Math.round(baseLyricsSize * 1.0));
+
+  if (!columns || columns.length === 0) {
+    return {
+      isSongShort: false,
+      hasUnevenColumns: false,
+      maxColHeight: 0,
+      minColHeight: 0,
+      targetColHeight: 0,
+      availColH,
+      heightUtilization: 0,
+      baseSectionGap,
+      columns: [],
+    };
+  }
+
+  const isEnabled = settings.smartSectionFilling !== false;
+  const baseChordsSize = (Number(settings.chordsFontSize) || 12) * scale;
+  const showChords = settings.showChords ?? true;
+
+  // Caps for smart auto-scaling
+  const maxLineHeightMult = typeof settings.maxLineHeight === 'number' ? settings.maxLineHeight : 1.6;
+  const sectionMarginCap = typeof settings.sectionMarginCap === 'number' ? settings.sectionMarginCap : 28;
+
+  // Maximum allowed line margin derived from maxLineHeight cap
+  const maxLineMargin = Math.max(baseLineMargin, Math.round(baseLyricsSize * (maxLineHeightMult - 1) * 10) / 10);
+  const maxExtraLine = Math.max(0, maxLineMargin - baseLineMargin);
+
+  // Maximum allowed extra section gap derived from sectionMarginCap
+  const maxExtraSectionGap = Math.max(0, sectionMarginCap - baseSectionGap);
+
+  // 1. Calculate visual height and line count of each column
+  const colLineCounts = columns.map((col) => {
+    return col.columnSections.reduce((acc, sec) => {
+      const nonEmpties = sec.parsedLines ? sec.parsedLines.filter((l) => !l.isEmpty).length : 0;
+      return acc + (nonEmpties > 0 ? nonEmpties : 1);
+    }, 0);
+  });
+
+  const colHeights = columns.map((col) => {
+    let colH = 0;
+    col.columnSections.forEach((sec, sIdx) => {
+      let secH = 0;
+      if (sec.marker && (!sec.parsedLines?.length || sec.parsedLines.every((l) => l.isEmpty))) {
+        secH += Math.round(baseLyricsSize + 6);
+      }
+      sec.parsedLines.forEach((line) => {
+        if (line.isEmpty) {
+          secH += 9;
+        } else if (line.isRepetitionLine) {
+          secH += baseChordsSize + 4;
+        } else if (line.hasChords && showChords) {
+          secH += baseChordsSize + 2 + baseLyricsSize + baseLineMargin;
+        } else {
+          secH += baseLyricsSize + baseLineMargin;
+        }
+      });
+      colH += secH;
+      if (sIdx < col.columnSections.length - 1) {
+        colH += baseSectionGap;
+      }
+    });
+    return colH;
+  });
+
+  const maxColH = Math.max(...colHeights, 1);
+  const minColH = Math.min(...colHeights, 1);
+  const heightUtilization = Math.round((maxColH / Math.max(1, availColH)) * 100);
+
+  // Detect if song has remaining vertical space (from Max Font Cap or naturally short song)
+  const isSongShort = heightUtilization < 90 || (availColH - maxColH > 24);
+  // Detect if columns have uneven heights (difference > 15px in multi-column layout)
+  const hasUnevenColumns = columns.length > 1 && (maxColH - minColH > 15);
+
+  // If disabled, return plan with default base line margin and base section gap
+  if (!isEnabled) {
+    return {
+      isSongShort,
+      hasUnevenColumns,
+      maxColHeight: Math.round(maxColH),
+      minColHeight: Math.round(minColH),
+      targetColHeight: Math.round(maxColH),
+      availColH: Math.round(availColH),
+      heightUtilization,
+      baseSectionGap,
+      columns: columns.map((col, idx) => ({
+        columnIndex: idx,
+        sectionCount: col.columnSections.length,
+        lineCount: colLineCounts[idx],
+        estimatedHeight: Math.round(colHeights[idx]),
+        extraLineSpacing: 0,
+        lineMargin: baseLineMargin,
+        extraSectionGap: 0,
+        sectionGap: baseSectionGap,
+        extraWhitespacePerGap: 0,
+        showDecorativeSpacer: false,
+      })),
+    };
+  }
+
+  // Determine target fill height
+  const spare = Math.max(0, availColH - maxColH);
+  const targetColHeight = Math.min(availColH * 0.95, maxColH + spare * 0.85);
+
+  // Allocate extra height intelligently:
+  // When font size is capped, distribute space across section padding (capped by sectionMarginCap)
+  // and line height (capped by maxLineHeight), ensuring uniform column baselines.
+  const columnInfos: ColumnFillingInfo[] = columns.map((col, idx) => {
+    const colH = colHeights[idx];
+    const lineCount = colLineCounts[idx];
+    const sectionCount = col.columnSections.length;
+    const deficit = Math.max(0, targetColHeight - colH);
+
+    let extraLineSpacing = 0;
+    let extraSectionGap = 0;
+
+    if (deficit > 2) {
+      if (sectionCount > 1) {
+        // Multi-section: allocate to section padding up to sectionMarginCap
+        const gapCount = sectionCount - 1;
+        extraSectionGap = Math.min(maxExtraSectionGap, Math.round(((deficit * 0.65) / gapCount) * 10) / 10);
+        
+        const usedByGaps = extraSectionGap * gapCount;
+        const remainingDeficit = Math.max(0, deficit - usedByGaps);
+        extraLineSpacing = lineCount > 1
+          ? Math.min(maxExtraLine, Math.round((remainingDeficit / Math.max(1, lineCount - 1)) * 10) / 10)
+          : 0;
+      } else {
+        // Single section: allocate to line height up to maxLineHeight
+        extraLineSpacing = lineCount > 1
+          ? Math.min(maxExtraLine, Math.round((deficit / Math.max(1, lineCount - 1)) * 10) / 10)
+          : 0;
+      }
+    }
+
+    const effectiveLineMargin = Math.min(maxLineMargin, Math.round((baseLineMargin + extraLineSpacing) * 10) / 10);
+    const effectiveSectionGap = Math.min(sectionMarginCap, Math.round((baseSectionGap + extraSectionGap) * 10) / 10);
+
+    return {
+      columnIndex: idx,
+      sectionCount,
+      lineCount,
+      estimatedHeight: Math.round(colH),
+      extraLineSpacing,
+      lineMargin: effectiveLineMargin,
+      extraSectionGap,
+      sectionGap: effectiveSectionGap,
+      extraWhitespacePerGap: extraSectionGap,
+      showDecorativeSpacer: false,
+    };
+  });
+
+  return {
+    isSongShort,
+    hasUnevenColumns,
+    maxColHeight: Math.round(maxColH),
+    minColHeight: Math.round(minColH),
+    targetColHeight: Math.round(targetColHeight),
+    availColH: Math.round(availColH),
+    heightUtilization,
+    baseSectionGap,
+    columns: columnInfos,
+  };
+}
+
 export function computeSongFitDebug(
   song: Song,
   index: number,
@@ -1925,6 +2147,8 @@ export function computeSongFitDebug(
   const baseEval = calcHeightAtScale(1.0);
   const isMinConstraintActive = baseEval.height > availColH && computedScale <= (minScaleFloor + 0.01);
   const colPlan = computeSmartColumnBalance(sections, settings, availColH, computedScale);
+  const colsData = partitionSectionsIntoColumns(sections, colPlan, colCount);
+  const fillingPlan = computeSmartSectionFilling(colsData, settings, availColH, computedScale);
 
   return {
     songIndex: index,
@@ -1952,6 +2176,14 @@ export function computeSongFitDebug(
     pageFormat: settings.pageFormat,
     orientation: settings.orientation,
     smartFitEnabled: Boolean(settings.smartFit),
+    smartSectionFilling: {
+      isSongShort: fillingPlan.isSongShort,
+      hasUnevenColumns: fillingPlan.hasUnevenColumns,
+      heightUtilization: fillingPlan.heightUtilization,
+      extraLineSpacing: fillingPlan.columns[0]?.extraLineSpacing || 0,
+      extraSectionGap: fillingPlan.columns[0]?.extraSectionGap || 0,
+      extraWhitespacePerGap: fillingPlan.columns[0]?.extraSectionGap || 0,
+    },
     sectionsDetail: resultAtScale.secDetails,
     columnBalancing: {
       isBalanced: true,
@@ -2231,6 +2463,8 @@ export function computeSmartFitLineMargin(
     pageMarginTopBottom?: number;
     pageMarginLeftRight?: number;
     maxFontSizePx?: number;
+    maxLineHeight?: number;
+    sectionMarginCap?: number;
     showSectionLines?: boolean;
   },
   hasTitle: boolean = true,
@@ -2267,11 +2501,13 @@ export function computeSmartFitLineMargin(
   const baseChordsSize = Number(settings.chordsFontSize) || 12;
 
   const titleBlockH = (hasTitle ? (Number(settings.titleFontSize) || 16) * 1.25 : 0) + 
-                     (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 18;
+                     (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 
+                     18;
   const availColH = Math.max(100, usableH - titleBlockH - 24);
 
   const colCount = getOptimalColumnCount(sections, settings);
-  const colWidth = (usableW - (colCount > 1 ? 24 : 0) * (colCount - 1)) / colCount;
+  const colGap = colCount > 1 ? 24 : 0;
+  const colWidth = (usableW - colGap * (colCount - 1)) / colCount;
 
   const hasMarkers = sections.some(s => !!s.marker?.trim());
   let maxMarkerLen = 0;
@@ -2303,6 +2539,7 @@ export function computeSmartFitLineMargin(
 
   const total = sectionHeights.reduce((a, b) => a + b, 0);
   const spareRatio = Math.max(0, (availColH - total) / availColH);
+
   if (spareRatio > 0.04) {
     const bonus = Math.min(10, Math.round(spareRatio * 18));
     return 5 + bonus;

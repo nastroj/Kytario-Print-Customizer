@@ -1,6 +1,42 @@
 # Release Notes
 
-## v1.4.9 - 2026-10-01
+## v1.5.0 - 2026-10-04
+
+### Local Settings Persistence & Streamlined System Actions
+
+- **Separated Light & Dark Mode Saved Settings**: Introduced a **Save Settings** button that explicitly saves current preferences to browser `localStorage` under `kytario-print-settings-v2_light` (for Light Mode) or `kytario-print-settings-v2_dark` (for Dark Mode).
+- **Single "Reset Defaults" Button**: Consolidated scattered section-level "Defaults" buttons across sidebar cards into **one single, centralized "Reset Defaults" button** that resets all settings for the active mode and clears saved `localStorage` overrides.
+- **Space-Saving Footer Relocation & Color Sync**: Relocated the Save Settings and Reset Defaults buttons to the footer action buttons area in the sidebar, freeing up massive vertical space at the top of the settings page. Styled both buttons in a matching, clean zinc theme with concise labels (removing redundant `(Light)` and `(Dark)` suffixes).
+
+### Smart Auto-scale & Layout Refinements
+
+- **Smart Auto-scale Controls**: Replaced single-toggle section filling with two precise steppers: **Max. Line Height** and **Section Margin Cap**, located directly under the **Smart Auto-scale** settings card.
+- **Max Font Cap Distribution**: When font size hits the user-configured **Max Font Cap**, remaining vertical column height is smoothly distributed across section padding (65%) and line margins (35%), maintaining uniform visual rhythm and eliminating bottom voids.
+
+### Book Mode & Page Number Positioning
+
+- **Default Page Positioning**:
+  - When **Book Mode is OFF**, page numbers default to **Right** and the "Outer (Alternating)" choice is hidden.
+  - When **Book Mode is ON**, page numbers default to **Outer (Alternating)**.
+- **Physical Page Accounting**: Updated page alternating logic to account for total preceding pages (Front Cover + Table of Contents page count), ensuring odd physical pages (recto) place numbers on the right and even physical pages (verso) place numbers on the left.
+- **PDF Parity**: Both web preview and background `pdfWorker` share exact page number positioning calculations.
+
+### Validation
+
+- `npm run lint` (`tsc --noEmit`)
+- `npm run build` (`vite build`)
+
+### Deployment
+
+This release is prepared for GitHub Pages deployment via the `.github/workflows/deploy.yml` workflow.
+
+### Release checklist
+
+- Version aligned across `package.json`, `package-lock.json`, `src/config.ts`, `README.md`, and `RELEASE_NOTES.md`: `1.5.0`
+- PDF export verified and aligned with browser preview
+- Ready to push to `main` for deployment
+
+---
 
 ### Import Flow Cleanup
 
