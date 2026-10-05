@@ -80,6 +80,8 @@ export function getChangedSettingsList(
   if (draft.lyricsColor !== applied.lyricsColor) changes.push({ key: 'lyricsColor', label: 'Lyrics Color', section: 'typography' });
   if (draft.chordsColor !== applied.chordsColor) changes.push({ key: 'chordsColor', label: 'Chords Color', section: 'typography' });
   if (draft.tocColor !== applied.tocColor) changes.push({ key: 'tocColor', label: 'ToC Color', section: 'typography' });
+  if (draft.tocArtistColor !== applied.tocArtistColor) changes.push({ key: 'tocArtistColor', label: 'ToC Author Color', section: 'typography' });
+  if (draft.tocPageColor !== applied.tocPageColor) changes.push({ key: 'tocPageColor', label: 'ToC Page Color', section: 'typography' });
   if (draft.markerColor !== applied.markerColor) changes.push({ key: 'markerColor', label: 'Marker Color', section: 'typography' });
   if (draft.sectionLineColor !== applied.sectionLineColor) changes.push({ key: 'sectionLineColor', label: 'Section Line Color', section: 'typography' });
   if (draft.separatorLineColor !== applied.separatorLineColor) changes.push({ key: 'separatorLineColor', label: 'Separator Line Color', section: 'typography' });

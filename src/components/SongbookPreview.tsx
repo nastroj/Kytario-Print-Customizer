@@ -302,11 +302,11 @@ const SongPagesList = memo(function SongPagesList({
                     {title}
                   </h1>
                   <p 
-                    className="text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
-                    style={{ marginTop: '2px', lineHeight: '16px' }}
+                    className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
+                    style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a', effectiveDarkMode) }}
                   >
                     <span>Obsah{tocPages.length > 1 ? ` • Strana 1 z ${tocPages.length}` : ''}</span>
-                    <span className="print:hidden normal-case font-normal text-[11px] text-zinc-400 dark:text-zinc-500">
+                    <span className="print:hidden normal-case font-normal text-[11px]" style={{ opacity: 0.8 }}>
                       • tap to jump
                     </span>
                   </p>
@@ -327,11 +327,11 @@ const SongPagesList = memo(function SongPagesList({
                     {title} <span className="text-zinc-400 dark:text-zinc-500 font-normal text-xs normal-case">(pokračování)</span>
                   </h2>
                   <p 
-                    className="text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
-                    style={{ marginTop: '2px', lineHeight: '16px' }}
+                    className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
+                    style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a', effectiveDarkMode) }}
                   >
                     <span>Obsah • Strana {tocPage.pageIndex} z {tocPages.length}</span>
-                    <span className="print:hidden normal-case font-normal text-[11px] text-zinc-400 dark:text-zinc-500">
+                    <span className="print:hidden normal-case font-normal text-[11px]" style={{ opacity: 0.8 }}>
                       • tap to jump
                     </span>
                   </p>
@@ -428,8 +428,8 @@ const SongPagesList = memo(function SongPagesList({
                                 <span 
                                   className="font-normal ml-1.5 toc-song-artist"
                                   style={{ 
-                                    color: getDisplayColor(settings.artistColor, effectiveDarkMode),
-                                    opacity: 0.75,
+                                    color: getDisplayColor(settings.tocArtistColor || settings.artistColor || '#52525b', effectiveDarkMode),
+                                    opacity: 0.85,
                                     fontSize: '0.92em'
                                   }}
                                 >
@@ -646,6 +646,8 @@ const areSettingsEquivalent = (prev: PrintSettings, next: PrintSettings): boolea
     prev.chordsColor === next.chordsColor &&
     prev.markerColor === next.markerColor &&
     prev.tocColor === next.tocColor &&
+    prev.tocArtistColor === next.tocArtistColor &&
+    prev.tocPageColor === next.tocPageColor &&
     Math.abs((prev.titleFontSize || 16) - (next.titleFontSize || 16)) < 0.05 &&
     Math.abs((prev.artistFontSize || 16) - (next.artistFontSize || 16)) < 0.05 &&
     Math.abs((prev.lyricsFontSize || 12) - (next.lyricsFontSize || 12)) < 0.05 &&

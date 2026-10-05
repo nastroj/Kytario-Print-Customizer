@@ -35,6 +35,8 @@ const defaultSettings: PrintSettings = {
   chordsColor: '#2563eb', // blue-600
   markerColor: '#27272a', // zinc-800
   tocColor: '#1c1917', // zinc-900
+  tocArtistColor: '#57534e', // zinc-500 (matches artistColor)
+  tocPageColor: '#71717a', // zinc-500 (matches colSubtle)
   sectionLineColor: '#a1a1aa', // zinc-400 (matches Kytario gray)
   refrainLineColor: '#2563eb', // blue-600 (matches Kytario blue)
   separatorLineColor: '#e4e4e7', // zinc-200
@@ -101,6 +103,8 @@ const defaultDarkSettings: PrintSettings = {
   chordsColor: '#60a5fa', // blue-400
   markerColor: '#f4f4f5', // zinc-100
   tocColor: '#f4f4f5', // zinc-100
+  tocArtistColor: '#a1a1aa', // zinc-400 (matches artistColor)
+  tocPageColor: '#a1a1aa', // zinc-400
   sectionLineColor: '#52525b', // zinc-600
   refrainLineColor: '#60a5fa', // blue-400
   separatorLineColor: '#3f3f46', // zinc-700

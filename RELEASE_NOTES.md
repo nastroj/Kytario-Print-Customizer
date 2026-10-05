@@ -8,6 +8,10 @@
 - **Single "Reset Defaults" Button**: Consolidated scattered section-level "Defaults" buttons across sidebar cards into **one single, centralized "Reset Defaults" button** that resets all settings for the active mode and clears saved `localStorage` overrides.
 - **Space-Saving Footer Relocation & Color Sync**: Relocated the Save Settings and Reset Defaults buttons to the footer action buttons area in the sidebar, freeing up massive vertical space at the top of the settings page. Styled both buttons in a matching, clean zinc theme with concise labels (removing redundant `(Light)` and `(Dark)` suffixes).
 
+### Fine-Grained Table of Contents Colors
+
+- **ToC Author Name & Page Number Color Customization**: Added specialized controls for **ToC Authors** (`tocArtistColor`) and **ToC Page Nums** (`tocPageColor`) in the Table of Contents Typography settings card. Users can now individually customize the colors of song titles, author names, and page numbers/headers in the Table of Contents, with full parity between the interactive on-screen preview and the generated PDF.
+
 ### Smart Auto-scale & Layout Refinements
 
 - **Smart Auto-scale Controls**: Replaced single-toggle section filling with two precise steppers: **Max. Line Height** and **Section Margin Cap**, located directly under the **Smart Auto-scale** settings card.

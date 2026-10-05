@@ -39,6 +39,8 @@ export interface PrintSettings {
   chordsColor: string;
   markerColor: string;
   tocColor: string;
+  tocArtistColor?: string;
+  tocPageColor?: string;
   titleFontSize: number;
   artistFontSize: number;
   lyricsFontSize: number;

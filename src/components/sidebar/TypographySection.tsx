@@ -125,6 +125,8 @@ const TYPO_KEYS: (keyof PrintSettings)[] = [
   'chordsColor',
   'markerColor',
   'tocColor',
+  'tocArtistColor',
+  'tocPageColor',
   'sectionLineColor',
   'refrainLineColor',
   'sectionSeparatorColor',
@@ -265,23 +267,41 @@ export const TypographySection = React.memo(function TypographySection({
 
           {/* Table of Contents Typography */}
           {(draftSettings.showTableOfContents !== false && draftSettings.showToc !== false && draftSettings.showIndex !== false) && (
-            <TypographyRowItem
-              id={`toc-${idSuffix}`}
-              label="ToC Items"
-              colorTitle="Change Table of Contents item color"
-              color={draftSettings.tocColor || '#18181b'}
-              onColorChange={(c) => onSettingChange('tocColor', c)}
-              italic={draftSettings.tocItalic || false}
-              italicTitle="Toggle italic style for Table of Contents items"
-              italicAriaLabel="Toggle ToC italic"
-              onItalicChange={(it) => onSettingChange('tocItalic', it)}
-              fontSize={draftSettings.tocFontSize ?? 11}
-              fontSizeMin={8}
-              fontSizeMax={24}
-              fontSizeDefault={11}
-              fontSizeAriaLabel="Table of Contents Font Size"
-              onFontSizeChange={(val) => onSettingChange('tocFontSize', val)}
-            />
+            <div className="space-y-2">
+              <TypographyRowItem
+                id={`toc-${idSuffix}`}
+                label="ToC Items"
+                colorTitle="Change Table of Contents item color"
+                color={draftSettings.tocColor || '#18181b'}
+                onColorChange={(c) => onSettingChange('tocColor', c)}
+                italic={draftSettings.tocItalic || false}
+                italicTitle="Toggle italic style for Table of Contents items"
+                italicAriaLabel="Toggle ToC italic"
+                onItalicChange={(it) => onSettingChange('tocItalic', it)}
+                fontSize={draftSettings.tocFontSize ?? 11}
+                fontSizeMin={8}
+                fontSizeMax={24}
+                fontSizeDefault={11}
+                fontSizeAriaLabel="Table of Contents Font Size"
+                onFontSizeChange={(val) => onSettingChange('tocFontSize', val)}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <AccentColorCard
+                  id={`tocArtistColor-${idSuffix}`}
+                  label="ToC Authors"
+                  color={draftSettings.tocArtistColor || '#52525b'}
+                  title="Author/artist name color in Table of Contents"
+                  onChange={(c) => onSettingChange('tocArtistColor', c)}
+                />
+                <AccentColorCard
+                  id={`tocPageColor-${idSuffix}`}
+                  label="ToC Page Nums"
+                  color={draftSettings.tocPageColor || '#71717a'}
+                  title="Page number and subtext color in Table of Contents"
+                  onChange={(c) => onSettingChange('tocPageColor', c)}
+                />
+              </div>
+            </div>
           )}
 
           {/* Line & Element Colors in Compact Grid */}

@@ -838,6 +838,8 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     const colSectionLine = hexToPdfRgb(settings.sectionLineColor, '#a1a1aa');
     const colRefrainLine = hexToPdfRgb(settings.refrainLineColor || settings.chordsColor, '#2563eb');
     const colToc = hexToPdfRgb(settings.tocColor || settings.lyricsColor, '#18181b');
+    const colTocArtist = hexToPdfRgb(settings.tocArtistColor || settings.artistColor, '#52525b');
+    const colTocPage = hexToPdfRgb(settings.tocPageColor, '#71717a');
     const colSubtle = hexToPdfRgb('#71717a');
     const colBadgeBg = hexToPdfRgb('#27272a');
     const colWhite = rgb(1, 1, 1);
@@ -1050,7 +1052,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           y: currentY - tocTitlePt - (12 * ptPerPx) - subPt,
           size: subPt,
           font: regularFont,
-          color: colSubtle,
+          color: colTocPage,
         });
 
         currentY -= headerH1Pt;
@@ -1073,7 +1075,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           y: currentY - tocTitleSubPt - (10 * ptPerPx) - subPt,
           size: subPt,
           font: regularFont,
-          color: colSubtle,
+          color: colTocPage,
         });
 
         currentY -= headerHSubPt;
@@ -1177,7 +1179,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
               y: rowY - tocItemPt,
               size: artistPt,
               font: regularFont,
-              color: colArtist,
+              color: colTocArtist,
             });
           }
 
