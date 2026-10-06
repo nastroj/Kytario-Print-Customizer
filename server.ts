@@ -25,6 +25,15 @@ async function createServer() {
   const isDev = process.env.npm_lifecycle_event === 'dev' || process.env.NODE_ENV === 'development';
   const isProd = !isDev && (process.env.NODE_ENV === 'production' || fs.existsSync(distPath));
 
+  const envBase = (process.env.BASE_PATH || process.env.BASE_URL || '').trim();
+  let expressBase = '/';
+  if (envBase && envBase !== './' && envBase !== '.') {
+    expressBase = envBase.startsWith('/') ? envBase : `/${envBase}`;
+    if (!expressBase.endsWith('/')) {
+      expressBase = `${expressBase}/`;
+    }
+  }
+
   // Health check for Cloud Run
   app.get('/health', (req, res) => res.status(200).send('OK'));
 
@@ -207,8 +216,12 @@ async function createServer() {
       }
     }
 
-    console.warn(`[Proxy] Songbook request failed for input "${rawInput}" (token "${token}"):`, lastError?.message);
     const status = lastError?.response?.status || 404;
+    if (status === 404) {
+      console.log(`[Proxy] Songbook not found (404) for input "${rawInput}" (token "${token}")`);
+    } else {
+      console.warn(`[Proxy] Songbook request failed for input "${rawInput}" (token "${token}"):`, lastError?.message);
+    }
     res.status(status).json({ 
       error: status === 404 
         ? `Songbook "${token || rawInput}" was not found on Kytario. Please check the URL or code.` 
@@ -235,8 +248,17 @@ async function createServer() {
     }
   } else {
     console.log(`Starting in production mode, serving from: ${distPath}`);
+    if (expressBase !== '/') {
+      app.use(expressBase, express.static(distPath));
+    }
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      // Avoid returning index.html for missing static files (like .js, .css, images)
+      const ext = path.extname(req.path);
+      if (ext && ext !== '.html') {
+        return res.status(404).send('Not Found');
+      }
+
       const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);

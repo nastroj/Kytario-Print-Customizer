@@ -186,3 +186,5 @@ export interface SongFitDebugInfo {
 }
 
 export type { SongSection } from './utils';
+
+export type ZoomMode = 'fit-width' | 'fit-page' | 'custom';

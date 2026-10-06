@@ -115,7 +115,7 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
   for (const targetUrl of candidateUrls) {
     // 1. Direct fetch (e.g. if CORS is permitted or user has a CORS browser extension)
     try {
-      const res = await fetch(targetUrl, { signal: AbortSignal.timeout(3000) });
+      const res = await fetch(targetUrl, { signal: AbortSignal.timeout(2000) });
       if (res.ok) {
         const data = await res.json();
         if (hasSongsPayload(data)) {
@@ -129,7 +129,7 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
     // Jina Reader supports large Kytario JSON responses and returns the body as text.
     try {
       const proxyUrl = `https://r.jina.ai/${targetUrl}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(20000) });
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4000) });
       if (res.ok) {
         const text = await res.text();
         const marker = 'Markdown Content:\n';
@@ -148,7 +148,7 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
     // 3. allorigins raw proxy
     try {
       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3000) });
       if (res.ok) {
         const text = await res.text();
         const data = JSON.parse(text);
@@ -163,7 +163,7 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
     // 4. allorigins get proxy (JSON wrapper)
     try {
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3000) });
       if (res.ok) {
         const wrapper = await res.json();
         if (wrapper && wrapper.contents) {
@@ -180,7 +180,7 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
     // 5. codetabs proxy
     try {
       const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3000) });
       if (res.ok) {
         const data = await res.json();
         if (hasSongsPayload(data)) {
@@ -217,12 +217,50 @@ async function enrichTitleInClient(data: any, token: string) {
   }
 }
 
+/**
+ * Fast control function to verify if a Kytario songbook URL/token exists before full fetching.
+ * If 404 or 400 is returned, fails immediately without freezing or hanging on slow proxies.
+ */
+export async function checkSongbookExists(tokenOrUrl: string): Promise<{ exists: boolean; status?: number; error?: string }> {
+  try {
+    const token = extractKytarioSlug(tokenOrUrl) || tokenOrUrl.trim();
+    if (!token) return { exists: false, error: 'Empty songbook token' };
+
+    const checkUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(token)}/sections`;
+    const res = await fetch(checkUrl, { 
+      method: 'GET',
+      signal: AbortSignal.timeout(4000) 
+    });
+
+    if (res.status === 404 || res.status === 400) {
+      return { exists: false, status: res.status, error: `Songbook "${token}" was not found (404).` };
+    }
+    return { exists: true, status: res.status };
+  } catch (err: any) {
+    // If network error or timeout, let main proxy / fallback handle it without blocking
+    return { exists: true };
+  }
+}
+
 export async function fetchSongbookFromKytario(url: string): Promise<any> {
   const cleanUrl = cleanKytarioUrl(url);
   const token = extractKytarioSlug(cleanUrl);
   
   if (!token && !/^https?:\/\//i.test(cleanUrl)) {
     throw new Error('Please enter a valid Kytario songbook URL or code.');
+  }
+
+  // Quick validation control function: check if songbook exists
+  if (token) {
+    const check = await checkSongbookExists(token);
+    if (!check.exists && (check.status === 404 || check.status === 400)) {
+      throw new KytarioFetchError(`Songbook "${token}" was not found (404). Please check the URL or code.`, {
+        isCorsOrStaticHost: false,
+        token,
+        apiUrl: `https://kytario.com/api/songbooks/${token}/sections`,
+        webUrl: `https://kytario.com/${token}`,
+      });
+    }
   }
 
   const isStaticHost = typeof window !== 'undefined' && (
@@ -245,6 +283,20 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
         return response.data;
       }
     } catch (err: any) {
+      if (err.response) {
+        const status = err.response.status;
+        const errMsg = err.response.data?.error || `Kytario proxy error (Status ${status})`;
+        
+        // If it's a 404 or 400, the songbook is genuinely missing or invalid. Do not attempt client-side fallbacks!
+        if (status === 404 || status === 400) {
+          throw new KytarioFetchError(errMsg, {
+            isCorsOrStaticHost: false,
+            token: token || '',
+            apiUrl: `https://kytario.com/api/songbooks/${token}/sections`,
+            webUrl: `https://kytario.com/${token}`,
+          });
+        }
+      }
       console.warn('Configured Kytario proxy not available, attempting client-side fallback strategies:', err?.message);
     }
   }

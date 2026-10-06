@@ -2418,28 +2418,9 @@ export function linkSectionReferences(sections: SongSection[]) {
 }
 
 /**
- * Adjusts or inverts color for legibility in dark mode preview while preserving original print colors.
+ * Returns original color (dark mode support removed).
  */
-export function getDisplayColor(colorHex: string, isDarkMode: boolean): string {
-  if (!isDarkMode) return colorHex;
-  if (!colorHex) return '#f4f4f5';
-  try {
-    let hex = colorHex.replace('#', '').trim();
-    if (hex.length === 3) {
-      hex = hex.split('').map(c => c + c).join('');
-    }
-    if (hex.length === 6) {
-      const r = parseInt(hex.substring(0, 2), 16);
-      const g = parseInt(hex.substring(2, 4), 16);
-      const b = parseInt(hex.substring(4, 6), 16);
-      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      if (luminance < 0.5) {
-        return `rgb(${255 - r}, ${255 - g}, ${255 - b})`;
-      }
-    }
-  } catch (e) {
-    // fallback
-  }
+export function getDisplayColor(colorHex: string): string {
   return colorHex;
 }
 

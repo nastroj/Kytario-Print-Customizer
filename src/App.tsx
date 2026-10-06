@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useDeferredValue, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useDeferredValue, useRef, useCallback, useMemo, startTransition } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { SongbookPreview } from './components/SongbookPreview';
 import { ProgressBar } from './components/ProgressBar';
@@ -6,8 +6,8 @@ import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
-import { SongbookData, PrintSettings } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Sun, Moon, Globe, ExternalLink, AlertTriangle } from 'lucide-react';
+import { SongbookData, PrintSettings, ZoomMode } from './types';
+import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Globe, ExternalLink, AlertTriangle, Minus, Plus, RotateCcw, Maximize2, BookOpen } from 'lucide-react';
 import { safeParseSongbookJson, normalizeSongbookData } from './utils';
 import { fetchSongbookFromKytario, cleanKytarioUrl, KytarioErrorDetails } from './utils/api';
 import { APP_CONFIG } from './config';
@@ -82,76 +82,29 @@ const defaultSettings: PrintSettings = {
   backCoverShowDedication: true,
 };
 
-const defaultDarkSettings: PrintSettings = {
-  pageFormat: 'A4',
-  orientation: 'landscape',
-  pageMargin: 5,
-  pageMarginTopBottom: 6,
-  pageMarginLeftRight: 5,
-  pageMarginTop: 6,
-  pageMarginBottom: 6,
-  pageMarginLeft: 5,
-  pageMarginRight: 5,
-  pageMarginInner: 15,
-  pageMarginOuter: 5,
-  bookMode: false,
-  pageNumberPosition: 'right',
-  columns: 2,
-  titleColor: '#f4f4f5', // zinc-100
-  artistColor: '#a1a1aa', // zinc-400
-  lyricsColor: '#f4f4f5', // zinc-100
-  chordsColor: '#60a5fa', // blue-400
-  markerColor: '#f4f4f5', // zinc-100
-  tocColor: '#f4f4f5', // zinc-100
-  tocArtistColor: '#a1a1aa', // zinc-400 (matches artistColor)
-  tocPageColor: '#a1a1aa', // zinc-400
-  sectionLineColor: '#52525b', // zinc-600
-  refrainLineColor: '#60a5fa', // blue-400
-  separatorLineColor: '#3f3f46', // zinc-700
-  sectionSeparatorColor: '#3f3f46', // zinc-700
-  showSectionLines: true,
-  titleFontSize: 16,
-  artistFontSize: 16,
-  lyricsFontSize: 12,
-  chordsFontSize: 12,
-  tocFontSize: 12,
-  titleItalic: false,
-  artistItalic: false,
-  lyricsItalic: false,
-  chordsItalic: true,
-  tocItalic: false,
-  showChords: true,
-  smartFit: true,
-  smartSectionFilling: true,
-  maxLineHeight: 1.6,
-  sectionMarginCap: 28,
-  lineHeight: 1.3,
-  maxFontSizePx: 16,
-  indexSortOrder: 'alphabetical',
-  tocAlphabeticalGrouping: true,
-  tocGroupDividers: true,
-  showToc: true,
-  showIndex: true,
-  fontFamily: 'Inter',
-  showFrontCover: true,
-  showTableOfContents: true,
-  frontCoverType: 'auto',
-  frontCoverShowQr: true,
-  frontCoverShowFooter: false,
-  frontCoverFooterText: '',
-  frontCoverDedication: '',
-  frontCoverShowDedication: true,
-  showBackCover: true,
-  backCoverType: 'auto',
-  backCoverShowQr: true,
-  backCoverShowFooter: false,
-  backCoverFooterText: '',
-  backCoverDedication: '',
-  backCoverShowDedication: true,
-};
-
 export default function App() {
-  const [songbookData, setSongbookData] = useState<SongbookData | null>(null);
+  const [songbookData, setSongbookData] = useState<SongbookData | null>(() => {
+    try {
+      const saved = localStorage.getItem('kytario-cached-songbook');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && (parsed.songs || parsed.items || parsed.sections)) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return null;
+  });
+
+  useEffect(() => {
+    try {
+      if (songbookData) {
+        localStorage.setItem('kytario-cached-songbook', JSON.stringify(songbookData));
+      } else {
+        localStorage.removeItem('kytario-cached-songbook');
+      }
+    } catch (e) {}
+  }, [songbookData]);
   const [pastedJson, setPastedJson] = useState('');
   const [kytarioUrl, setKytarioUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'upload' | 'paste' | 'url'>('url');
@@ -161,9 +114,36 @@ export default function App() {
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSongNavOpen, setIsSongNavOpen] = useState(false);
+  const [zoomMode, setZoomMode] = useState<ZoomMode>('fit-page');
+  const [customZoom, setCustomZoom] = useState<number>(1.0);
+  const [activeScale, setActiveScale] = useState<number>(1.0);
+
+  const handleZoomIn = useCallback(() => {
+    // Step zoom relative to currently rendered activeScale to prevent sudden jumps on fit modes
+    const baseScale = Math.round(activeScale * 10) / 10;
+    const nextScale = Math.min(3.0, baseScale + 0.1);
+    setCustomZoom(Math.round(nextScale * 100) / 100);
+    setZoomMode('custom');
+  }, [activeScale]);
+
+  const handleZoomOut = useCallback(() => {
+    // Step zoom relative to currently rendered activeScale to prevent sudden jumps on fit modes
+    const baseScale = Math.round(activeScale * 10) / 10;
+    const nextScale = Math.max(0.25, baseScale - 0.1);
+    setCustomZoom(Math.round(nextScale * 100) / 100);
+    setZoomMode('custom');
+  }, [activeScale]);
+
+  const handleResetZoom = useCallback(() => {
+    setCustomZoom(1.0);
+    setZoomMode('custom');
+  }, []);
+
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
   const [isLoadingJson, setIsLoadingJson] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [showAutoSaveIndicator, setShowAutoSaveIndicator] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clean up any stale legacy auto-save localStorage items
@@ -172,8 +152,6 @@ export default function App() {
       localStorage.removeItem('kytario-saved-songbook');
       localStorage.removeItem('kytario-last-saved-time');
       localStorage.removeItem('kytario-draft-settings');
-      localStorage.removeItem('kytario-draft-settings_light');
-      localStorage.removeItem('kytario-draft-settings_dark');
     } catch (e) {}
   }, []);
 
@@ -191,24 +169,10 @@ export default function App() {
     subtitle: 'Processing songs and Table of Contents...',
   });
 
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('kytario-dark-mode');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-
-  
-  const getInitialSettings = (isDark: boolean) => {
-    const key = isDark ? 'kytario-print-settings-v2_dark' : 'kytario-print-settings-v2_light';
+  const getInitialSettings = () => {
+    const key = 'kytario-print-settings-v2';
     let saved = localStorage.getItem(key);
-    if (!saved) {
-       saved = localStorage.getItem('kytario-print-settings-v2');
-    }
-    const baseDefaults = isDark ? defaultDarkSettings : defaultSettings;
+    const baseDefaults = defaultSettings;
     
     if (saved) {
       try {
@@ -229,23 +193,14 @@ export default function App() {
         if (typeof parsed.sectionMarginCap !== 'number') {
           parsed.sectionMarginCap = 28;
         }
-        const restoredOrientation = parsed.orientation || baseDefaults.orientation || 'landscape';
         return { ...baseDefaults, ...parsed, columns: 2 };
       } catch (e) {}
     }
     return baseDefaults;
   };
 
-  const lightSettingsRef = useRef<PrintSettings>(getInitialSettings(false));
-  const darkSettingsRef = useRef<PrintSettings>(getInitialSettings(true));
-
-  const [settings, setSettings] = useState<PrintSettings>(() => {
-    return isDarkMode ? darkSettingsRef.current : lightSettingsRef.current;
-  });
-  
-  const [draftSettings, setDraftSettings] = useState<PrintSettings>(() => {
-    return isDarkMode ? darkSettingsRef.current : lightSettingsRef.current;
-  });
+  const [settings, setSettings] = useState<PrintSettings>(getInitialSettings);
+  const [draftSettings, setDraftSettings] = useState<PrintSettings>(getInitialSettings);
 
   const unappliedChanges = useMemo(() => {
     return getChangedSettingsList(draftSettings, settings);
@@ -263,80 +218,34 @@ export default function App() {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem('kytario-dark-mode', JSON.stringify(isDarkMode));
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-  
-  useEffect(() => {
-    if (isDarkMode) {
-      darkSettingsRef.current = settings;
-    } else {
-      lightSettingsRef.current = settings;
-    }
-  }, [settings, isDarkMode]);
-
-  const handleToggleDarkMode = useCallback(() => {
-    if (isDarkMode) {
-      darkSettingsRef.current = settings;
-    } else {
-      lightSettingsRef.current = settings;
-    }
-
-    const nextMode = !isDarkMode;
-    setIsDarkMode(nextMode);
-    
-    const nextSettings = nextMode ? darkSettingsRef.current : lightSettingsRef.current;
-    
-    setSettings(nextSettings);
-    setDraftSettings(nextSettings);
-  }, [isDarkMode, settings]);
-
   const handleSaveSettings = useCallback(() => {
-    const key = isDarkMode ? 'kytario-print-settings-v2_dark' : 'kytario-print-settings-v2_light';
+    const key = 'kytario-print-settings-v2';
     const settingsToSave: PrintSettings = {
-      ...(isDarkMode ? defaultDarkSettings : defaultSettings),
+      ...defaultSettings,
       ...draftSettings,
       columns: 2,
     };
 
     try {
       localStorage.setItem(key, JSON.stringify(settingsToSave));
-      if (isDarkMode) {
-        darkSettingsRef.current = settingsToSave;
-      } else {
-        lightSettingsRef.current = settingsToSave;
-      }
       setSettings(settingsToSave);
       setDraftSettings(settingsToSave);
-      showToast(`Settings saved locally for ${isDarkMode ? 'Dark' : 'Light'} Mode!`, 'success');
+      showToast('Settings saved locally!', 'success');
     } catch (e) {
       showToast('Failed to save settings to local storage', 'error');
     }
-  }, [draftSettings, isDarkMode, showToast]);
+  }, [draftSettings, showToast]);
 
   const handleResetToDefaults = useCallback(() => {
-    const key = isDarkMode ? 'kytario-print-settings-v2_dark' : 'kytario-print-settings-v2_light';
-    const baseDefaults = isDarkMode ? defaultDarkSettings : defaultSettings;
-
+    const key = 'kytario-print-settings-v2';
     try {
       localStorage.removeItem(key);
     } catch (e) {}
 
-    if (isDarkMode) {
-      darkSettingsRef.current = baseDefaults;
-    } else {
-      lightSettingsRef.current = baseDefaults;
-    }
-
-    setSettings(baseDefaults);
-    setDraftSettings(baseDefaults);
-    showToast(`Settings reset to default (${isDarkMode ? 'Dark' : 'Light'} Mode)`, 'info');
-  }, [isDarkMode, showToast]);
+    setSettings(defaultSettings);
+    setDraftSettings(defaultSettings);
+    showToast('Settings reset to defaults', 'info');
+  }, [showToast]);
 
 
   const updateTimersRef = useRef<{ applyTimer?: ReturnType<typeof setTimeout>; finishTimer?: ReturnType<typeof setTimeout> }>({});
@@ -399,6 +308,7 @@ export default function App() {
 
     // Otherwise, generate fresh PDF via Web Worker with current state fingerprint
     try {
+      showToast('Starting PDF generation... compiling pages in background thread.', 'info');
       await generateWorkerPdf(songbookData, settings, currentFingerprint);
     } catch (err: any) {
       showToast(err?.message || 'Background PDF generation failed', 'error');
@@ -443,9 +353,8 @@ export default function App() {
     if (!newSettings || typeof newSettings !== 'object' || 'nativeEvent' in newSettings) {
       return;
     }
-    const orientation = newSettings.orientation || (isDarkMode ? defaultDarkSettings.orientation : defaultSettings.orientation);
     const safeSettings: PrintSettings = {
-      ...(isDarkMode ? defaultDarkSettings : defaultSettings),
+      ...defaultSettings,
       ...newSettings,
       columns: 2,
     };
@@ -466,6 +375,20 @@ export default function App() {
       // 3. Now start applying changes
       setSettings(safeSettings);
       setDraftSettings(safeSettings);
+
+      // Automatically save settings to local storage on update/apply
+      const key = 'kytario-print-settings-v2';
+      try {
+        localStorage.setItem(key, JSON.stringify(safeSettings));
+        
+        // Show automated auto-save indicator briefly
+        setShowAutoSaveIndicator(true);
+        setTimeout(() => {
+          setShowAutoSaveIndicator(false);
+        }, 2200);
+      } catch (err) {
+        console.warn('Auto-save settings error:', err);
+      }
 
       // 4. Keep the updating status active until layout rendering completes, then dismiss
       updateTimersRef.current.finishTimer = setTimeout(() => {
@@ -566,7 +489,7 @@ export default function App() {
                 progress: 100,
               });
 
-              // Give user 300ms to clearly see the progress bar reach the 100% end
+              // Give user 2000ms to clearly see the progress bar reach the 100% end
               setTimeout(() => {
                 setIsLoadingJson(false);
                 const songCount = songs.length;
@@ -582,7 +505,7 @@ export default function App() {
                 } else {
                   showToast(`Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`);
                 }
-              }, 300);
+              }, 800);
             }, 100);
           });
         }, 80);
@@ -737,11 +660,11 @@ export default function App() {
     } catch (err: any) {
       clearTimeout(downloadTimer);
       console.warn('Kytario import:', err?.message || err);
-      setIsLoadingJson(false);
       setErrorMessage(err.message || 'Failed to import from Kytario.');
       if (err.details) {
         setKytarioFetchDetails(err.details);
       }
+      setIsLoadingJson(false);
     }
   };
 
@@ -752,6 +675,9 @@ export default function App() {
     setRecoveryNotice(null);
     setIsLoadingJson(false);
     setIsMobileSidebarOpen(false);
+    try {
+      localStorage.removeItem('kytario-cached-songbook');
+    } catch (e) {}
     showToast('Songbook reset', 'info');
   };
 
@@ -872,7 +798,7 @@ export default function App() {
                 </p>
                 <p className="text-[12px] sm:text-sm text-zinc-500 mb-6 font-medium">Supports standard and large songbook exports</p>
                 
-                <label className={`inline-flex items-center gap-2 text-white text-xs sm:text-sm font-semibold px-5 sm:px-6 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
+                <label className={`inline-flex items-center gap-2 text-white text-xs sm:text-sm font-bold px-5 sm:px-6 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
                   isLoadingJson
                     ? 'bg-zinc-800 pointer-events-none'
                     : 'bg-zinc-900 hover:bg-zinc-800 hover:shadow-md cursor-pointer'
@@ -926,7 +852,7 @@ export default function App() {
               <button
                 onClick={handleKytarioUrlSubmit}
                 disabled={isLoadingJson}
-                className={`w-full text-white text-xs sm:text-sm font-medium py-2.5 sm:py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm ${
+                className={`w-full text-white text-xs sm:text-sm font-bold py-2.5 sm:py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm ${
                   isLoadingJson
                     ? 'bg-zinc-800 pointer-events-none'
                     : 'bg-zinc-900 hover:bg-zinc-800 cursor-pointer'
@@ -941,24 +867,24 @@ export default function App() {
               </button>
 
               {kytarioFetchDetails && (
-                <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-3 text-left">
+                <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3 text-left">
                   <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-200">
+                      <h4 className="text-xs sm:text-sm font-bold text-amber-900">
                         GitHub Pages Static Hosting Notice
                       </h4>
-                      <p className="text-xs text-amber-700 dark:text-amber-300/90 mt-0.5 leading-relaxed">
+                      <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
                         Automatic import tried public CORS relays but could not fetch this songbook. If relays are unavailable, configure the optional Cloudflare Worker proxy or use the manual JSON steps below.
                       </p>
                     </div>
                   </div>
 
-                  <div className="p-3 bg-white dark:bg-zinc-900/90 rounded-lg border border-amber-200/70 dark:border-amber-900/50 space-y-2">
-                    <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                  <div className="p-3 bg-white rounded-lg border border-amber-200/70 space-y-2">
+                    <div className="text-xs font-bold text-zinc-900">
                       ⚡ Quick 2-Step Import:
                     </div>
-                    <ol className="text-xs text-zinc-600 dark:text-zinc-400 list-decimal list-inside space-y-1.5 leading-relaxed">
+                    <ol className="text-xs text-zinc-600 list-decimal list-inside space-y-1.5 leading-relaxed">
                       <li>
                         Click below to open the songbook JSON data directly in your browser:
                         <div className="mt-1">
@@ -966,7 +892,7 @@ export default function App() {
                             href={kytarioFetchDetails.apiUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800 font-mono text-[11px] font-semibold hover:bg-blue-100 transition-colors"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded border border-blue-200 font-mono text-[11px] font-semibold hover:bg-blue-100 transition-colors"
                           >
                             <span>Open {kytarioFetchDetails.token} JSON Data</span>
                             <ExternalLink className="w-3 h-3" />
@@ -974,7 +900,7 @@ export default function App() {
                         </div>
                       </li>
                       <li>
-                        Press <kbd className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded font-mono text-[10px] font-semibold">Ctrl+A</kbd> then <kbd className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded font-mono text-[10px] font-semibold">Ctrl+C</kbd> to copy all text.
+                        Press <kbd className="px-1.5 py-0.5 bg-zinc-100 border border-zinc-200 rounded font-mono text-[10px] font-semibold">Ctrl+A</kbd> then <kbd className="px-1.5 py-0.5 bg-zinc-100 border border-zinc-200 rounded font-mono text-[10px] font-semibold">Ctrl+C</kbd> to copy all text.
                       </li>
                       <li>
                         Switch to the{' '}
@@ -984,11 +910,11 @@ export default function App() {
                             setActiveTab('paste');
                             setKytarioFetchDetails(null);
                           }}
-                          className="text-blue-600 dark:text-blue-400 font-bold underline cursor-pointer"
+                          className="text-blue-600 font-bold underline cursor-pointer"
                         >
                           Paste JSON tab
                         </button>{' '}
-                        and press <kbd className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded font-mono text-[10px] font-semibold">Ctrl+V</kbd>.
+                        and press <kbd className="px-1.5 py-0.5 bg-zinc-100 border border-zinc-200 rounded font-mono text-[10px] font-semibold">Ctrl+V</kbd>.
                       </li>
                     </ol>
                   </div>
@@ -1009,7 +935,7 @@ export default function App() {
                         setActiveTab('paste');
                         setKytarioFetchDetails(null);
                       }}
-                      className="flex-1 min-w-[130px] px-3 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                      className="flex-1 min-w-[130px] px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors"
                     >
                       <Clipboard className="w-3.5 h-3.5" />
                       <span>2. Go to Paste Tab</span>
@@ -1033,7 +959,7 @@ export default function App() {
               <button
                 onClick={handlePasteSubmit}
                 disabled={isLoadingJson}
-                className={`w-full text-white text-xs sm:text-sm font-medium py-2.5 sm:py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm ${
+                className={`w-full text-white text-xs sm:text-sm font-bold py-2.5 sm:py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm ${
                   isLoadingJson
                     ? 'bg-zinc-800 pointer-events-none'
                     : 'bg-zinc-900 hover:bg-zinc-800 cursor-pointer'
@@ -1057,7 +983,7 @@ export default function App() {
   const songbookTitle = songbookData.title || songbookData.name || 'Songbook';
 
   return (
-    <div className="flex h-screen h-[100dvh] min-h-[100dvh] bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans relative print:h-auto print:min-h-0 print:overflow-visible print:block print:bg-white print:text-black print:p-0 print:m-0">
+    <div className="flex h-screen h-[100dvh] min-h-[100dvh] bg-zinc-50 text-zinc-900 overflow-hidden font-sans relative print:h-auto print:min-h-0 print:overflow-visible print:block print:bg-white print:text-black print:p-0 print:m-0">
       {/* Full-screen Loading Spinner Overlay while parsing or loading a new songbook */}
       <ProgressBar
         active={isLoadingJson}
@@ -1089,81 +1015,14 @@ export default function App() {
         onToggleCollapse={setIsDesktopSidebarCollapsed}
         isUpdatingLayout={isUpdatingLayout}
         isLoadingJson={isLoadingJson}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={handleToggleDarkMode}
       />
 
       <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden print:h-auto print:min-h-0 print:overflow-visible print:block print:p-0 print:m-0">
-        {/* Mobile Header Bar */}
-        <header className="md:hidden bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-black/5 dark:border-zinc-800 px-3 py-2 flex items-center justify-between shrink-0 print:hidden z-20 shadow-xs gap-2">
-          <button
-            id="mobile-open-settings-btn"
-            onClick={handleOpenMobileSidebar}
-            className="relative p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer shrink-0"
-            title={hasUnappliedSettings ? `Settings (${unappliedChanges.length} unapplied changes pending)` : "Settings"}
-            aria-label="Settings"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            {hasUnappliedSettings && (
-              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-              </span>
-            )}
-          </button>
-
-          <div className="text-center px-1 truncate min-w-0 flex-1">
-            <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">{songbookTitle}</p>
-            <div className="flex items-center justify-center gap-1.5 truncate">
-              <p className={`text-[10px] font-medium truncate ${hasUnappliedSettings ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-zinc-500 dark:text-zinc-400'}`}>
-                {songCount} songs • {hasUnappliedSettings ? 'Changes pending' : settings.pageFormat}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <PWAInstallButton variant="minimal" />
-            <button
-              onClick={() => setIsConfirmResetOpen(true)}
-              className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
-              title="Change Songbook (load different JSON)"
-              aria-label="Change Songbook"
-            >
-              <FolderOpen className="w-4 h-4" />
-            </button>
-
-            <button
-              id="mobile-header-download-pdf-btn"
-              onClick={() => handleDownloadPdf()}
-              disabled={isDownloadingPdf || isGeneratingWorkerPdf}
-              className={`p-2 rounded-lg border shadow-2xs transition-all cursor-pointer disabled:opacity-50 relative ${
-                isPdfReady
-                  ? 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 border-emerald-500/40 dark:border-emerald-500/40'
-                  : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 border-black/5 dark:border-zinc-700/60'
-              }`}
-              title={isPdfReady ? "PDF is ready! Click to download again instantly" : "Download as PDF (Client-Side Web Worker)"}
-              aria-label={isPdfReady ? "Download Ready PDF" : "Download as PDF"}
-            >
-              {isDownloadingPdf || isGeneratingWorkerPdf ? (
-                <Loader2 className="w-4 h-4 animate-spin text-zinc-600 dark:text-zinc-300" />
-              ) : (
-                <div className="relative flex items-center justify-center">
-                  <FileDown className={`w-4 h-4 ${isPdfReady ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
-                  {isPdfReady && (
-                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 ring-1 ring-white dark:ring-zinc-900" />
-                    </span>
-                  )}
-                </div>
-              )}
-            </button>
-          </div>
-        </header>
 
         {/* Confirmation Dialog for Changing Songbook */}
         {isConfirmResetOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:hidden">
-            <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-xs animate-in fade-in" onClick={() => setIsConfirmResetOpen(false)} />
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-in fade-in" onClick={() => setIsConfirmResetOpen(false)} />
             <div className="relative bg-white rounded-2xl shadow-2xl border border-black/10 max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 z-10">
               <h3 className="text-base font-bold text-zinc-900">Change Songbook?</h3>
               <p className="text-xs sm:text-sm text-zinc-600">
@@ -1173,7 +1032,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setIsConfirmResetOpen(false)}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-lg text-xs font-bold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1224,8 +1083,14 @@ export default function App() {
           settings={settings}
           isUpdatingLayout={isUpdatingLayout}
           onDownloadStatusChange={setIsDownloadingPdf}
-          isDarkMode={isDarkMode}
           onOpenSettings={handleOpenSettings}
+          zoomMode={zoomMode}
+          setZoomMode={setZoomMode}
+          customZoom={customZoom}
+          setCustomZoom={setCustomZoom}
+          onScaleChange={setActiveScale}
+          isSongNavOpen={isSongNavOpen}
+          setIsSongNavOpen={setIsSongNavOpen}
         />
 
         {/* Background Web Worker PDF Generation Status Modal */}
@@ -1242,6 +1107,147 @@ export default function App() {
           onClearLastGenerated={clearWorkerPdfLastGenerated}
         />
 
+        {/* Floating Bottom Menu Bar */}
+        <div 
+          className="fixed left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-white/95 backdrop-blur-md border border-zinc-200/80 shadow-2xl rounded-2xl h-16 px-4 flex items-center justify-between print:hidden select-none"
+          style={{ bottom: 'max(1rem, calc(0.75rem + env(safe-area-inset-bottom, 0px)))' }}
+        >
+          {/* Change Songbook */}
+          <button
+            onClick={() => setIsConfirmResetOpen(true)}
+            className="flex flex-col items-center justify-center w-14 h-12 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/50 transition-colors cursor-pointer shrink-0"
+            title="Change Songbook (load different JSON)"
+          >
+            <FolderOpen className="w-5 h-5" />
+            <span className="text-[10px] font-bold mt-1 tracking-tight">Change</span>
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-zinc-200 mx-1 shrink-0" />
+
+          {/* Zoom Section */}
+          <div className="flex items-center gap-1">
+            {/* Zoom Out */}
+            <button
+              onClick={handleZoomOut}
+              disabled={customZoom <= 0.25}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 active:bg-zinc-200 text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+              title="Zoom Out"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+
+            {/* Reset Zoom & Dynamic Mode Display */}
+            <button
+              onClick={handleResetZoom}
+              className="flex flex-col items-center justify-center min-w-[3.5rem] h-10 rounded-lg hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-900 transition-colors cursor-pointer"
+              title="Reset Zoom to 100%"
+            >
+              <span className="text-xs font-mono font-bold tracking-tight">
+                {Math.round(activeScale * 100)}%
+              </span>
+              <span className="text-[8px] font-bold text-zinc-400 flex items-center gap-0.5">
+                <RotateCcw className="w-2.5 h-2.5" />
+                reset
+              </span>
+            </button>
+
+            {/* Zoom In */}
+            <button
+              onClick={handleZoomIn}
+              disabled={customZoom >= 3.0}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 active:bg-zinc-200 text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+              title="Zoom In"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+
+            {/* Fit View (Toggles between fit-width and fit-page) - Moved after Plus button */}
+            <button
+              onClick={() => setZoomMode((prev) => prev === 'fit-width' ? 'fit-page' : 'fit-width')}
+              className={`flex flex-col items-center justify-center w-11 h-12 rounded-xl transition-colors cursor-pointer shrink-0 ${
+                zoomMode === 'fit-width' || zoomMode === 'fit-page'
+                  ? 'text-blue-600 font-bold bg-blue-500/10'
+                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/50'
+              }`}
+              title={zoomMode === 'fit-width' ? "Switch to Fit Page" : "Switch to Fit Width"}
+            >
+              <Maximize2 className="w-4 h-4" />
+              <span className="text-[10px] font-bold mt-1 tracking-tight">Fit</span>
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-zinc-200 mx-1 shrink-0" />
+
+          {/* Settings button */}
+          <button
+            onClick={handleOpenMobileSidebar}
+            className="flex flex-col items-center justify-center w-14 h-12 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/50 transition-colors relative cursor-pointer shrink-0"
+            title={hasUnappliedSettings ? `Settings (${unappliedChanges.length} unapplied changes pending)` : "Open Settings"}
+          >
+            <SlidersHorizontal className="w-5 h-5" />
+            <span className="text-[10px] font-bold mt-1 tracking-tight">Settings</span>
+            {hasUnappliedSettings && (
+              <span className="absolute top-1.5 right-2.5 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+              </span>
+            )}
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-zinc-200 mx-1 shrink-0" />
+
+          {/* Song Navigation button (Nav) */}
+          <button
+            id="floating-nav-btn"
+            onClick={() => {
+              setIsSongNavOpen((prev) => !prev);
+            }}
+            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-colors cursor-pointer shrink-0 ${
+              isSongNavOpen
+                ? 'text-blue-600 font-bold bg-blue-500/10'
+                : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/50'
+            }`}
+            title="Jump to Song (Navigation)"
+          >
+            <BookOpen className="w-5 h-5" />
+            <span className="text-[10px] font-bold mt-1 tracking-tight">Nav</span>
+          </button>
+
+          {/* Divider between Nav and Export */}
+          <div className="w-px h-8 bg-zinc-200 mx-1 shrink-0" />
+
+          {/* Download/Export PDF */}
+          <button
+            onClick={() => handleDownloadPdf()}
+            disabled={isDownloadingPdf || isGeneratingWorkerPdf}
+            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all cursor-pointer shrink-0 relative ${
+              isPdfReady
+                ? 'text-emerald-600 hover:text-emerald-700 font-bold hover:bg-emerald-500/10'
+                : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/50'
+            }`}
+            title={isPdfReady ? "PDF is ready! Click to download again instantly" : "Export and download as PDF"}
+          >
+            {isDownloadingPdf || isGeneratingWorkerPdf ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <div className="relative">
+                <FileDown className="w-5 h-5" />
+                {isPdfReady && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                )}
+              </div>
+            )}
+            <span className="text-[10px] font-bold mt-1 tracking-tight">
+              {isPdfReady ? 'Save PDF' : 'Export'}
+            </span>
+          </button>
+        </div>
+
         {/* Offline Indicator */}
         <OfflineIndicator />
 
@@ -1253,8 +1259,8 @@ export default function App() {
           >
             <div className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-medium ${
               toast.type === 'error'
-                ? 'bg-red-900 dark:bg-red-950 text-white border-red-700/50'
-                : 'bg-zinc-900 dark:bg-zinc-800 text-white border-white/10'
+                ? 'bg-red-900 text-white border-red-700/50'
+                : 'bg-zinc-900 text-white border-white/10'
             }`}>
               {toast.type === 'error' ? (
                 <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
@@ -1269,6 +1275,19 @@ export default function App() {
               >
                 ✕
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Auto-save Brief Notification */}
+        {showAutoSaveIndicator && (
+          <div className="fixed top-4 right-4 z-[100] print:hidden animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-none select-none">
+            <div className="bg-zinc-950/95 text-white border border-zinc-700/50 rounded-full py-2 px-4 shadow-2xl flex items-center gap-2.5 text-xs font-semibold">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span>Changes auto-saved</span>
             </div>
           </div>
         )}

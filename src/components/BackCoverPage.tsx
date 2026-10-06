@@ -11,7 +11,6 @@ interface BackCoverPageProps {
   shortUrl?: string;
   slug?: string;
   settings: PrintSettings;
-  isDarkMode?: boolean;
 }
 
 export function BackCoverPage({
@@ -20,7 +19,6 @@ export function BackCoverPage({
   shortUrl,
   slug,
   settings,
-  isDarkMode = false,
 }: BackCoverPageProps) {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
 
@@ -73,7 +71,6 @@ export function BackCoverPage({
       });
   }, [qrTarget, showQr]);
 
-  const effectiveDarkMode = isDarkMode;
 
   const qrSizeClass = isLandscape
     ? 'w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40'
@@ -85,9 +82,7 @@ export function BackCoverPage({
 
   return (
     <div
-      className={`w-full h-full flex flex-col justify-between p-6 sm:p-8 md:p-10 ${
-        effectiveDarkMode ? 'text-zinc-100 bg-zinc-900' : 'text-zinc-900 bg-white'
-      } print:text-black print:bg-white select-none`}
+      className={`w-full h-full flex flex-col justify-between p-6 sm:p-8 md:p-10 text-zinc-900 bg-white print:text-black print:bg-white select-none`}
       style={{
         textAlign: alignment,
         fontFamily: settings.fontFamily || 'Inter, sans-serif',
@@ -107,9 +102,7 @@ export function BackCoverPage({
 
         <div className="w-full max-w-4xl px-2">
           <h1
-            className={`${titleSizeClass} font-black uppercase tracking-tight leading-tight ${
-              effectiveDarkMode ? 'text-zinc-100' : 'text-zinc-900'
-            } print:text-black`}
+            className={`${titleSizeClass} font-black uppercase tracking-tight leading-tight text-zinc-900 print:text-black`}
             style={settings.titleColor ? { color: settings.titleColor } : {}}
           >
             {displayTitle}
@@ -122,7 +115,7 @@ export function BackCoverPage({
           )}
 
           {settings.backCoverShowDedication !== false && settings.backCoverDedication?.trim() && (
-            <div className="mt-4 mb-2 max-w-xl mx-auto px-4 py-2.5 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 italic text-sm sm:text-base font-serif opacity-90 leading-relaxed shadow-2xs">
+            <div className="mt-4 mb-2 max-w-xl mx-auto px-4 py-2.5 rounded-lg bg-black/5 border border-black/10 italic text-sm sm:text-base font-serif opacity-90 leading-relaxed shadow-2xs">
               "{settings.backCoverDedication.trim()}"
             </div>
           )}
@@ -137,7 +130,7 @@ export function BackCoverPage({
 
         <div className="flex flex-col items-center justify-center pt-1">
           {customImage && (imagePosition === 'replace-qr' || !showQr) ? (
-            <div className="p-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-black/5 dark:border-white/10 print:border-none print:shadow-none print:bg-transparent">
+            <div className="p-3 bg-white rounded-2xl shadow-sm border border-black/5 print:border-none print:shadow-none print:bg-transparent">
               <img
                 src={customImage}
                 alt="Custom Back Cover Art"

@@ -1,25 +1,24 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.5.0  
+**Version:** 1.6.0  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.5.0 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.6.0 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
 
 ---
 
-## 🌟 What's New in v1.5.0
+## 🌟 What's New in v1.6.0
 
-- **Local Settings Persistence (Light & Dark Mode)**: Added highly compact, matching zinc-colored **Save Settings** and **Reset Defaults** action buttons in the sidebar's footer, freeing up vertical space at the top of the settings page so layout sections are immediately visible. Settings persist in the browser separately for **Light Mode** (`kytario-print-settings-v2_light`) and **Dark Mode** (`kytario-print-settings-v2_dark`).
-- **Fine-Grained Table of Contents Colors**: Added specialized controls for **ToC Authors** (`tocArtistColor`) and **ToC Page Nums** (`tocPageColor`) in the Table of Contents Typography settings card. This allows users to individually customize the colors of song titles, author names, and page numbers/headers in the Table of Contents, with full parity between the interactive on-screen preview and the generated PDF.
-- **Unified & Streamlined Action Buttons**: Consolidated scattered section-level reset buttons and removed redundant mode name suffixes (like `(Light)` or `(Dark)`) on buttons for a cleaner, unified user experience. A single click on the reset button restores defaults for the active mode.
-- **Smart Auto-scale Controls Refinement**: Transformed section filling settings into two explicit controls (**Max. Line Height** and **Section Margin Cap**), both grouped directly inside the **Smart Auto-scale** section for intuitive layout tuning.
-- **Max Font Cap Space Distribution**: Refactored the Smart Auto-scale algorithm to intelligently distribute remaining layout space as stanza section padding (65%) and line margins (35%) whenever font size reaches its cap, avoiding uneven gaps or trailing voids.
-- **Smart Book Mode Page Numbering**:
-  - When **Book Mode is OFF**, page numbers default to **Right** (with the "Outer" choice hidden).
-  - When **Book Mode is ON**, page numbers default to **Outer (Alternating)** and dynamically adjust based on physical document page counts (Front Cover, ToC pages, etc.), placing numbers on outer edges (Recto = Right, Verso = Left).
+- **Streamlined Monotheme Experience**: Removed dark mode to provide a clean, high-contrast interface that perfectly mirrors the final print output. All settings and previews now use a unified light theme optimized for clarity and accuracy.
+- **Redesigned Sidebar Header**: The app name is now prominently featured at the top of the sidebar, followed by a refined settings menu, creating a more professional and branded layout.
+- **Improved Sidebar Organization**: Removed redundant headers and restyled the **Smart Auto-scale** section to be collapsible and collapsed by default, ensuring a focused and uncluttered settings experience.
+- **Floating Bar Navigation**: The **Table of Contents (Nav)** button has been moved to the floating bottom bar for better ergonomics and quick access during layout tuning.
+- **Persistent Songbook Caching**: Your imported songbooks are now cached in `localStorage`, surviving page refreshes and environment changes so you don't have to re-import your data every session.
+- **Robust Navigation Fixes**: Resolved a critical bug that caused the song navigation menu to close prematurely, ensuring smooth and reliable document browsing.
+- **Enhanced Progress Feedback**: Fine-tuned the import progress modal to provide better visual confirmation upon successful songbook loading.
 
 ---
 
@@ -50,7 +49,7 @@ A modern, high-performance web application designed to transform Kytario songboo
 ### 🎨 Custom Covers & Theme Profiles
 - **Front & Back Cover Pages:** Configurable title, subtitle, dedication, notation guide, and custom artwork or logo uploads with in-browser image optimization.
 - **Dynamic QR Codes:** Automatically generates vector QR codes linking directly to the online digital songbook for mobile play-along.
-- **Dual Theme Profiles:** Independent custom color palettes and typography settings for Light Mode and Dark Mode.
+- **Customized Styling:** Fine-tuned controls for typography, colors, and layout balancing.
 
 ### 📱 Offline Progressive Web App (PWA)
 - **Fully Installable:** Install as a native-like standalone app on macOS, Windows, Linux, iOS, and Android.
@@ -144,6 +143,18 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 
 ## 📝 Release History
 
+### v1.6.0 (2026-10-05)
+- Removed dark mode for a unified light-theme print-accurate experience.
+- Redesigned sidebar header with prominent app name and refined branding.
+- Moved Table of Contents (Nav) button to the floating action bar for better accessibility.
+- Implemented persistent songbook caching in `localStorage`.
+- Fixed Nav menu toggle bug and improved import progress feedback.
+
+### v1.5.0 (2026-10-04)
+- **Local Settings Persistence**: Introduced Save Settings and Reset Defaults buttons in the sidebar footer.
+- **Fine-Grained ToC Colors**: Added specialized controls for ToC Authors and Page Numbers.
+- **Smart Auto-scale Refinements**: Introduced Max. Line Height and Section Margin Cap controls.
+
 ### v1.4.9 (2026-10-01)
 - Removed unreliable PDF import and its `pdfjs-dist` dependency.
 - Reordered import tabs to Kytario URL, Paste JSON, then JSON File; Kytario URL is selected by default.
@@ -186,8 +197,8 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 - Synchronized Web Worker PDF generation with on-screen DOM metrics.
 
 ### v1.1.0 (2026-09-18)
-- Introduced background native vector PDF engine using `pdf-lib` and `@pdf-lib/fontkit`.
-- Added theme-aware persistent settings profiles for Light and Dark modes.
+- Added background native vector PDF engine using `pdf-lib` and `@pdf-lib/fontkit`.
+- Added persistent settings profiles for layout and typography.
 
 ---
 

@@ -59,15 +59,15 @@ export const ColorDotInput = React.memo(function ColorDotInput({
   };
 
   const sizeClasses = {
-    sm: 'w-4 h-4',
-    md: 'w-5 h-5',
-    lg: 'w-6 h-6',
+    sm: 'w-6 h-6',
+    md: 'w-8 h-8',
+    lg: 'w-10 h-10',
   }[size];
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <div
-        className={`relative ${sizeClasses} rounded-full border border-black/15 dark:border-zinc-600 shrink-0 hover:scale-110 active:scale-95 transition-transform overflow-hidden shadow-2xs ${
+        className={`relative ${sizeClasses} rounded-full border border-black/15 shrink-0 hover:scale-110 active:scale-95 transition-transform overflow-hidden shadow-2xs ${
           disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
         }`}
         style={{ backgroundColor: localColor }}
@@ -88,7 +88,7 @@ export const ColorDotInput = React.memo(function ColorDotInput({
       {label && (
         <label
           htmlFor={id}
-          className={`text-xs font-semibold text-zinc-800 dark:text-zinc-200 select-none truncate ${
+          className={`text-xs font-semibold text-zinc-800 select-none truncate ${
             disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
           }`}
           title={title}

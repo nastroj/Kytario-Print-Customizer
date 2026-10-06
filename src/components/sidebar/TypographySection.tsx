@@ -47,7 +47,7 @@ const TypographyRowItem = React.memo(function TypographyRowItem({
   onFontSizeChange,
 }: TypographyRowItemProps) {
   return (
-    <div className="flex items-center justify-between p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
+    <div className="flex items-center justify-between p-2 bg-zinc-50 rounded-lg border border-black/5">
       <ColorDotInput
         id={`color-${id}`}
         value={color}
@@ -59,15 +59,15 @@ const TypographyRowItem = React.memo(function TypographyRowItem({
         <button
           type="button"
           onClick={() => onItalicChange(!italic)}
-          className={`p-1.5 rounded-md border transition-colors cursor-pointer ${
+          className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors cursor-pointer ${
             italic
-              ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900 border-transparent shadow-2xs font-bold'
-              : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-500 border-black/5 dark:border-zinc-700'
+              ? 'bg-zinc-800 text-white border-transparent shadow-2xs font-bold'
+              : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-500 border-black/5'
           }`}
           title={italicTitle}
           aria-label={italicAriaLabel}
         >
-          <Italic className="w-3.5 h-3.5" />
+          <Italic className="w-4 h-4" />
         </button>
         <Stepper
           id={`size-${id}`}
@@ -101,8 +101,8 @@ const AccentColorCard = React.memo(function AccentColorCard({
   onChange,
 }: AccentColorCardProps) {
   return (
-    <div className="p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 flex items-center justify-between">
-      <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{label}</span>
+    <div className="p-2 bg-zinc-50 rounded-lg border border-black/5 flex items-center justify-between">
+      <span className="text-xs font-semibold text-zinc-800">{label}</span>
       <ColorDotInput
         id={id}
         value={color}
@@ -162,29 +162,7 @@ export const TypographySection = React.memo(function TypographySection({
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div className="space-y-3 pt-3 border-t border-black/5 dark:border-zinc-800">
-      {/* Section Header */}
-      <div 
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center justify-between cursor-pointer group select-none py-0.5"
-      >
-        <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors">
-          <Type className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-          Typography & Colors
-          {hasTypoChanges && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/20 px-1.5 py-0.2 rounded-md normal-case">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Modified
-            </span>
-          )}
-        </h3>
-        <div className="flex items-center gap-1.5">
-          <div className="p-0.5 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200 transition-colors">
-            {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-3 pt-3 border-t border-black/5">
       {isOpen && (
         <div className="space-y-2 animate-in fade-in duration-150">
         {/* Typography Rows with Font Size Steppers & Color Dots */}
@@ -305,8 +283,8 @@ export const TypographySection = React.memo(function TypographySection({
           )}
 
           {/* Line & Element Colors in Compact Grid */}
-          <div className="pt-2 border-t border-black/5 dark:border-zinc-700/60">
-            <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mb-1.5">
+          <div className="pt-2 border-t border-black/5">
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block mb-1.5">
               Accents & Guide Lines
             </span>
             <div className="grid grid-cols-2 gap-2">

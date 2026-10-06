@@ -11,8 +11,6 @@ import {
   X, 
   Loader2, 
   RefreshCw,
-  Sun,
-  Moon,
   Save,
   RotateCcw,
 } from 'lucide-react';
@@ -42,8 +40,6 @@ interface SidebarProps {
   isLoadingJson?: boolean;
   isCollapsed?: boolean;
   onToggleCollapse?: (collapsed: boolean) => void;
-  isDarkMode?: boolean;
-  onToggleDarkMode?: () => void;
 }
 
 interface SidebarContentProps {
@@ -61,8 +57,6 @@ interface SidebarContentProps {
   onDiscardChanges: () => void;
   onApplyChanges: (isDrawer: boolean) => void;
   onClose?: () => void;
-  isDarkMode?: boolean;
-  onToggleDarkMode?: () => void;
   onResetSongbook?: () => void;
   onFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadPdf?: () => void;
@@ -87,8 +81,6 @@ const SidebarContent = memo(function SidebarContent({
   onDiscardChanges,
   onApplyChanges,
   onClose,
-  isDarkMode = false,
-  onToggleDarkMode,
   onResetSongbook,
   onDownloadPdf,
   isDownloadingPdf = false,
@@ -98,52 +90,24 @@ const SidebarContent = memo(function SidebarContent({
 }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full gap-3.5">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-black/5 dark:border-zinc-800 shrink-0">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-              <Settings2 className="w-4 h-4 text-zinc-800 dark:text-zinc-200" />
-              Settings
-            </h2>
-          </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Page layout, fonts & colors</p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {onToggleDarkMode && (
-            <button 
-              onClick={onToggleDarkMode} 
-              className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer" 
-              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-            </button>
-          )}
-          {isDrawer ? (
-            <button 
-              onClick={onClose} 
-              className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer" 
-              title="Close Settings"
-              aria-label="Close Settings"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          ) : (
-            <button 
-              onClick={onClose} 
-              className="p-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer" 
-              title="Collapse Sidebar"
-              aria-label="Collapse Sidebar"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          )}
+      {/* Header Area */}
+      <div className="pb-3 border-b border-black/5 shrink-0">
+        <h1 className="text-xl font-bold text-zinc-900 mb-1">
+          Kytario Print Customizer
+        </h1>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-zinc-500 flex items-center gap-2 tracking-tight">
+            <Settings2 className="w-4 h-4" />
+            Settings
+          </h2>
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-400 border border-black/5">
+            v{APP_CONFIG.APP_VERSION}
+          </span>
         </div>
       </div>
 
       {/* Modular Settings Sections */}
-      <div className="space-y-4 flex-1 overflow-y-auto pr-1">
+      <div className="space-y-5 flex-1 overflow-y-auto pr-1">
         {/* SECTION 1: Page Layout */}
         <PageLayoutSection
           idSuffix={idSuffix}
@@ -170,31 +134,31 @@ const SidebarContent = memo(function SidebarContent({
       </div>
 
       {/* Footer / Actions Area */}
-      <div className="pt-3 border-t border-black/5 dark:border-zinc-800 shrink-0 space-y-2.5">
+      <div className="pt-3 border-t border-black/5 shrink-0 space-y-3">
         {/* PWA Install Button */}
         <PWAInstallButton />
 
         {/* Unapplied Changes Bar in Sidebar */}
         {hasChanges && (
-          <div className="p-2.5 bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 rounded-xl space-y-2 animate-in fade-in duration-200">
+          <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 animate-in fade-in duration-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
-                <span className="text-xs font-bold text-amber-900 dark:text-amber-200 truncate">
+                <span className="text-xs font-bold text-amber-900 truncate">
                   {changes.length} {changes.length === 1 ? 'change' : 'changes'} pending
                 </span>
               </div>
+            </div>
+
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={onDiscardChanges}
-                className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 underline decoration-zinc-400/50 cursor-pointer"
+                className="flex-1 py-2 px-3 bg-zinc-200/80 hover:bg-zinc-200 text-zinc-700 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 title="Discard changes and revert to current preview"
               >
                 Discard
               </button>
-            </div>
-
-            <div className="flex gap-1.5">
               <button
                 type="button"
                 id={`sidebar-apply-btn-${idSuffix}`}
@@ -219,78 +183,88 @@ const SidebarContent = memo(function SidebarContent({
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex flex-col gap-2">
-          {/* Save Settings & Reset Defaults Row */}
+        {/* Action Buttons Area - Reorganized */}
+        <div className="space-y-2">
+          {/* Row 1: Primary Actions */}
           <div className="flex items-center gap-2">
+            {onResetSongbook && (
+              <button
+                type="button"
+                id={`sidebar-switch-songbook-btn-${idSuffix}`}
+                onClick={onResetSongbook}
+                disabled={isLoadingJson}
+                className="flex-1 h-11 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-xs font-bold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer border border-black/5"
+                title="Import a different songbook"
+              >
+                {isLoadingJson ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FolderOpen className="w-4 h-4 text-zinc-500 shrink-0" />
+                )}
+                <span>Change</span>
+              </button>
+            )}
+
             <button
               type="button"
-              id={`save-settings-btn-${idSuffix}`}
-              onClick={onSaveSettings}
-              className="flex-1 py-2 px-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5 dark:border-zinc-700/60"
-              title={`Save settings locally in browser for ${isDarkMode ? 'Dark Mode' : 'Light Mode'}`}
+              id={`sidebar-pdf-download-btn-${idSuffix}`}
+              onClick={() => onDownloadPdf?.()}
+              disabled={isDownloadingPdf}
+              className={`flex-[1.5] h-11 rounded-xl text-xs font-bold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border ${
+                isPdfReady
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-sm'
+                  : 'bg-zinc-900 hover:bg-black text-white border-transparent'
+              }`}
+              title={isPdfReady ? "PDF generated! Click to save" : "Export and download as PDF"}
             >
-              <Save className="w-3.5 h-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
-              <span className="truncate">Save Settings</span>
+              {isDownloadingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  <span>Building PDF...</span>
+                </>
+              ) : (
+                <>
+                  <FileDown className="w-4 h-4 shrink-0" />
+                  <span>{isPdfReady ? 'Save PDF' : 'Export'}</span>
+                </>
+              )}
             </button>
+
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-11 h-11 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl transition-all flex items-center justify-center cursor-pointer border border-black/5 shrink-0"
+                title="Close Settings"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+
+          {/* Row 2: Secondary / Maintenance Actions */}
+          <div className="flex items-center gap-2">
             <button
               type="button"
               id={`reset-settings-btn-${idSuffix}`}
               onClick={onResetToDefaults}
-              className="flex-1 py-2 px-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5 dark:border-zinc-700/60"
-              title={`Reset all settings to default for ${isDarkMode ? 'Dark Mode' : 'Light Mode'}`}
+              className="flex-1 py-2 px-2.5 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5"
+              title="Reset all settings to default"
             >
-              <RotateCcw className="w-3.5 h-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
-              <span className="truncate">Reset Defaults</span>
+              <RotateCcw className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
+              <span>Reset defaults</span>
             </button>
-          </div>
-
-          {onResetSongbook && (
             <button
               type="button"
-              id={`sidebar-switch-songbook-btn-${idSuffix}`}
-              onClick={onResetSongbook}
-              disabled={isLoadingJson}
-              className="w-full py-2 px-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-lg text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5 dark:border-zinc-700/60"
-              title="Import a different songbook from URL, PDF, or JSON"
+              id={`save-settings-btn-${idSuffix}`}
+              onClick={onSaveSettings}
+              className="flex-1 py-2 px-2.5 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-black/5"
+              title="Save settings locally in browser"
             >
-              {isLoadingJson ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-              )}
-              <span className="truncate">Switch Songbook</span>
+              <Save className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
+              <span>Save settings</span>
             </button>
-          )}
-
-          <button
-            type="button"
-            id={`sidebar-pdf-download-btn-${idSuffix}`}
-            onClick={() => {
-              if (onDownloadPdf) {
-                onDownloadPdf();
-              }
-            }}
-            disabled={isDownloadingPdf}
-            className={`w-full py-2.5 px-3 rounded-lg text-xs font-bold shadow-2xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 border ${
-              isPdfReady
-                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-sm'
-                : 'bg-zinc-900 hover:bg-black text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 border-transparent'
-            }`}
-            title={isPdfReady ? "PDF generated! Click to save" : "Export and download as PDF"}
-          >
-            {isDownloadingPdf ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Building...</span>
-              </>
-            ) : (
-              <>
-                <FileDown className="w-4 h-4" />
-                <span>{isPdfReady ? 'Save PDF' : 'Download PDF'}</span>
-              </>
-            )}
-          </button>
+          </div>
         </div>
       </div>
     </div>
@@ -318,8 +292,6 @@ export const Sidebar = memo(function Sidebar({
   isLoadingJson = false,
   isCollapsed: controlledCollapsed,
   onToggleCollapse,
-  isDarkMode = false,
-  onToggleDarkMode,
 }: SidebarProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
@@ -403,152 +375,14 @@ export const Sidebar = memo(function Sidebar({
 
   return (
     <>
-      {/* Mobile Drawer Backdrop and Modal with high-performance CSS transition (no backdrop-blur) */}
-      <div 
-        className={`fixed inset-0 z-50 md:hidden flex print:hidden transition-all duration-200 ease-in-out ${
-          isMobileOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
-        }`}
-        aria-hidden={!isMobileOpen}
-      >
-        {/* Backdrop (solid translucent black, instant render) */}
-        <div 
-          className={`fixed inset-0 bg-black/50 transition-opacity duration-200 ease-in-out ${
-            isMobileOpen ? 'opacity-100' : 'opacity-0'
-          }`}
-          onClick={onMobileClose}
-        />
-        {/* Drawer */}
-        <div 
-          className={`relative w-84 max-w-[88vw] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 border-r border-black/10 dark:border-zinc-800 h-full shadow-2xl p-4 z-10 flex flex-col transform transition-transform duration-200 ease-out will-change-transform ${
-            isMobileOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
-        >
-          {isMobileOpen && (
-            <SidebarContent
-              idSuffix="mobile"
-              isDrawer={true}
-              draftSettings={draftSettings}
-              changes={changes}
-              hasChanges={hasChanges}
-              hasLayoutChanges={hasLayoutChanges}
-              hasCoverChanges={hasCoverChanges}
-              hasTypographyChanges={hasTypographyChanges}
-              onSettingChange={handleSettingChange}
-              onSaveSettings={onSaveSettings}
-              onResetToDefaults={onResetToDefaults}
-              onDiscardChanges={handleDiscardChanges}
-              onApplyChanges={handleApplyChanges}
-              onClose={onMobileClose}
-              isDarkMode={isDarkMode}
-              onToggleDarkMode={onToggleDarkMode}
-              onResetSongbook={onResetSongbook}
-              onFileUpload={onFileUpload}
-              onDownloadPdf={onDownloadPdf}
-              isDownloadingPdf={isDownloadingPdf}
-              isPdfReady={isPdfReady}
-              isUpdatingLayout={isUpdatingLayout}
-              isLoadingJson={isLoadingJson}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Desktop Sidebar (instant width switch, no 300ms layout thrashing reflows or heavy GPU blur) */}
+      {/* Desktop Docked Sidebar (Hidden on print) */}
       <aside 
-        className={`hidden md:flex flex-col h-screen shrink-0 print:hidden shadow-sm border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 overflow-hidden relative ${
-          isCollapsed ? 'w-16' : 'w-80'
+        className={`hidden md:flex flex-col h-full bg-white border-r border-black/5 transition-all duration-300 ease-in-out relative z-30 print:hidden ${
+          isCollapsed ? 'w-0 overflow-hidden' : 'w-[320px] lg:w-[360px]'
         }`}
       >
-        {isCollapsed ? (
-          /* Collapsed view content (64px width) - Lightweight icon bar */
-          <div className="flex-1 flex flex-col items-center py-6 px-2.5 gap-4">
-            <button 
-              id="desktop-expand-sidebar-btn"
-              onClick={() => setCollapsed(false)} 
-              className="relative p-2 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer" 
-              title={hasChanges ? `Open Settings (${changes.length} unapplied changes pending)` : "Open Settings Panel"}
-            >
-              <ChevronRight className="w-5 h-5" />
-              {hasChanges && (
-                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setCollapsed(false)}
-              className="relative p-2 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800 rounded-lg border border-transparent hover:border-black/5 dark:hover:border-zinc-700/60 hover:shadow-2xs transition-all cursor-pointer"
-              title={hasChanges ? `Settings (${changes.length} unapplied changes pending)` : "Settings"}
-            >
-              <Settings2 className="w-4 h-4" />
-              {hasChanges && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-                </span>
-              )}
-            </button>
-
-            {onToggleDarkMode && (
-              <button
-                onClick={onToggleDarkMode}
-                className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
-                title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              >
-                {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-              </button>
-            )}
-
-            <div className="flex-1" />
-
-            {/* Action buttons in collapsed state */}
-            <div className="flex flex-col items-center gap-2 pb-2">
-              {onResetSongbook && (
-                <button
-                  type="button"
-                  onClick={onResetSongbook}
-                  className="p-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 rounded-lg border border-black/5 dark:border-zinc-700/60 shadow-2xs transition-colors cursor-pointer"
-                  title="Change Songbook (load different JSON)"
-                  aria-label="Change Songbook"
-                >
-                  <FolderOpen className="w-4 h-4" />
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  if (onDownloadPdf) {
-                    onDownloadPdf();
-                  }
-                }}
-                disabled={isDownloadingPdf}
-                className={`p-2 rounded-lg border shadow-2xs transition-all cursor-pointer disabled:opacity-50 relative ${
-                  isPdfReady
-                    ? 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 border-emerald-500/40 dark:border-emerald-500/40'
-                    : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 border-black/5 dark:border-zinc-700/60'
-                }`}
-                title={isPdfReady ? "PDF is ready! Click to download again instantly" : "Download as PDF"}
-                aria-label={isPdfReady ? "Download Ready PDF" : "Download as PDF"}
-              >
-                {isDownloadingPdf ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-zinc-600 dark:text-zinc-300" />
-                ) : (
-                  <div className="relative flex items-center justify-center">
-                    <FileDown className={`w-4 h-4 ${isPdfReady ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
-                    {isPdfReady && (
-                      <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 ring-1 ring-white dark:ring-zinc-900" />
-                      </span>
-                    )}
-                  </div>
-                )}
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Expanded view content (320px width) */
-          <div className="w-80 h-full p-5 flex flex-col">
+        {!isCollapsed && (
+          <div className="flex-1 flex flex-col min-h-0 p-5 lg:p-6 overflow-hidden animate-in fade-in slide-in-from-left-4 duration-300">
             <SidebarContent
               idSuffix="desktop"
               isDrawer={false}
@@ -563,9 +397,6 @@ export const Sidebar = memo(function Sidebar({
               onResetToDefaults={onResetToDefaults}
               onDiscardChanges={handleDiscardChanges}
               onApplyChanges={handleApplyChanges}
-              onClose={() => setCollapsed(true)}
-              isDarkMode={isDarkMode}
-              onToggleDarkMode={onToggleDarkMode}
               onResetSongbook={onResetSongbook}
               onFileUpload={onFileUpload}
               onDownloadPdf={onDownloadPdf}
@@ -576,7 +407,71 @@ export const Sidebar = memo(function Sidebar({
             />
           </div>
         )}
+
+        {/* Desktop Collapse Toggle Handle Overlay */}
+        <button
+          onClick={() => setCollapsed(!isCollapsed)}
+          className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-white border border-black/5 shadow-sm rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-all hover:scale-110 active:scale-95 cursor-pointer z-40 ${
+            isCollapsed ? 'rotate-180 -right-7' : ''
+          }`}
+          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
       </aside>
+
+      {/* Settings Bottom Sheet Backdrop (translucent, animated) */}
+      <div 
+        className={`fixed inset-0 z-50 flex print:hidden transition-all duration-300 ease-in-out ${
+          isMobileOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
+        }`}
+        aria-hidden={!isMobileOpen}
+      >
+        {/* Backdrop (backdrop blur and fade) */}
+        <div 
+          className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${
+            isMobileOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={onMobileClose}
+        />
+        {/* Bottom Sheet Container */}
+        <div 
+          className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full md:max-w-2xl h-[85vh] md:h-[75vh] bg-white text-zinc-900 border-t border-black/10 rounded-t-3xl shadow-2xl p-5 z-50 flex flex-col transform transition-transform duration-300 ease-out will-change-transform ${
+            isMobileOpen ? 'translate-y-0' : 'translate-y-full'
+          }`}
+        >
+          {/* Drag/Grab Handle Affordance */}
+          <div className="w-12 h-1.5 bg-zinc-300 rounded-full mx-auto mb-4 shrink-0 cursor-pointer" onClick={onMobileClose} />
+
+          {isMobileOpen && (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <SidebarContent
+                idSuffix="bottom-sheet"
+                isDrawer={true}
+                draftSettings={draftSettings}
+                changes={changes}
+                hasChanges={hasChanges}
+                hasLayoutChanges={hasLayoutChanges}
+                hasCoverChanges={hasCoverChanges}
+                hasTypographyChanges={hasTypographyChanges}
+                onSettingChange={handleSettingChange}
+                onSaveSettings={onSaveSettings}
+                onResetToDefaults={onResetToDefaults}
+                onDiscardChanges={handleDiscardChanges}
+                onApplyChanges={handleApplyChanges}
+                onClose={onMobileClose}
+                onResetSongbook={onResetSongbook}
+                onFileUpload={onFileUpload}
+                onDownloadPdf={onDownloadPdf}
+                isDownloadingPdf={isDownloadingPdf}
+                isPdfReady={isPdfReady}
+                isUpdatingLayout={isUpdatingLayout}
+                isLoadingJson={isLoadingJson}
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </>
   );
 });

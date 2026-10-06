@@ -59,6 +59,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
   onSettingChange,
 }: PageLayoutSectionProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const [isSmartFitOpen, setIsSmartFitOpen] = useState(false);
 
   const handleOrientationToggle = (newOrientation: 'portrait' | 'landscape') => {
     onSettingChange('orientation', newOrientation);
@@ -72,38 +73,16 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
 
   return (
     <div className="space-y-3">
-      {/* Section Header */}
-      <div 
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center justify-between cursor-pointer group select-none py-0.5"
-      >
-        <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors">
-          <LayoutTemplate className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-          Page & Layout
-          {hasLayoutChanges && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/20 px-1.5 py-0.2 rounded-md normal-case">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Modified
-            </span>
-          )}
-        </h3>
-        <div className="flex items-center gap-1.5">
-          <div className="p-0.5 text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-200 transition-colors">
-            {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-          </div>
-        </div>
-      </div>
-
       {isOpen && (
         <div className="space-y-2 animate-in fade-in duration-150">
         {/* Paper Format */}
-        <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60">
-          <label htmlFor={`pageFormat-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 shrink-0">
+        <div className="flex items-center justify-between gap-2 p-2 bg-zinc-50 rounded-lg border border-black/5">
+          <label htmlFor={`pageFormat-${idSuffix}`} className="text-xs font-semibold text-zinc-800 shrink-0">
             Paper Format
           </label>
           <select
             id={`pageFormat-${idSuffix}`}
-            className="w-36 rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+            className="w-36 rounded-md border border-black/10 shadow-2xs bg-white px-2 py-1 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
             value={draftSettings.pageFormat}
             onChange={(e) => handlePaperFormatChange(e.target.value as any)}
           >
@@ -114,19 +93,19 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
         </div>
 
         {/* Orientation Toggle: Portrait vs Landscape */}
-        <div className="p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 space-y-1.5">
-          <span className="block text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+        <div className="p-2 bg-zinc-50 rounded-lg border border-black/5 space-y-1.5">
+          <span className="block text-xs font-semibold text-zinc-800">
             Orientation
           </span>
-          <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-200/70 dark:bg-zinc-900/80 rounded-lg">
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-200/70 rounded-lg">
             <button
               type="button"
               id={`orientation-portrait-btn-${idSuffix}`}
               onClick={() => handleOrientationToggle('portrait')}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-all cursor-pointer ${
                 draftSettings.orientation === 'portrait'
-                  ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold shadow-2xs'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                  ? 'bg-white text-zinc-900 font-semibold shadow-2xs'
+                  : 'text-zinc-600 hover:text-zinc-900'
               }`}
               title="Vertical Portrait layout (standard document page)"
               aria-pressed={draftSettings.orientation === 'portrait'}
@@ -140,8 +119,8 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
               onClick={() => handleOrientationToggle('landscape')}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-all cursor-pointer ${
                 draftSettings.orientation === 'landscape'
-                  ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold shadow-2xs'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                  ? 'bg-white text-zinc-900 font-semibold shadow-2xs'
+                  : 'text-zinc-600 hover:text-zinc-900'
               }`}
               title="Horizontal Landscape layout (wide spread)"
               aria-pressed={draftSettings.orientation === 'landscape'}
@@ -153,13 +132,13 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
         </div>
 
         {/* Book Mode Switch */}
-        <div className="p-2.5 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 space-y-1.5">
+        <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
-              <BookOpen className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400 shrink-0" />
+              <BookOpen className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
               <label
                 htmlFor={`bookMode-${idSuffix}`}
-                className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none truncate"
+                className="text-xs font-semibold text-zinc-800 cursor-pointer select-none truncate"
               >
                 Book Mode
               </label>
@@ -182,24 +161,24 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
               }}
             />
           </div>
-          <p className="text-[10.5px] text-zinc-500 dark:text-zinc-400 leading-tight">
+          <p className="text-[10.5px] text-zinc-500 leading-tight">
             Facing pages for binding: margins switch to Inner/Outer and page numbers alternate.
           </p>
         </div>
 
         {/* Page Number Position (Top) */}
-        <div className="p-2.5 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 space-y-2">
+        <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-2">
           <div className="flex items-center justify-between gap-2 min-w-0">
             <label 
               htmlFor={`pageNumberPosition-${idSuffix}`}
-              className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5 shrink-0"
+              className="text-xs font-semibold text-zinc-800 flex items-center gap-1.5 shrink-0"
             >
               <Hash className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
               <span>Page Numbers</span>
             </label>
             <select
               id={`pageNumberPosition-${idSuffix}`}
-              className="w-36 sm:w-40 min-w-0 max-w-full truncate rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+              className="w-36 sm:w-40 min-w-0 max-w-full truncate rounded-md border border-black/10 shadow-2xs bg-white px-2 py-1.5 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
               value={draftSettings.bookMode ? (draftSettings.pageNumberPosition ?? 'outer') : ((draftSettings.pageNumberPosition === 'outer' || !draftSettings.pageNumberPosition) ? 'right' : draftSettings.pageNumberPosition)}
               onChange={(e) => onSettingChange('pageNumberPosition', e.target.value as any)}
             >
@@ -211,7 +190,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
               <option value="none">Hidden / None</option>
             </select>
           </div>
-          <p className="text-[10.5px] text-zinc-500 dark:text-zinc-400 leading-tight">
+          <p className="text-[10.5px] text-zinc-500 leading-tight">
             {draftSettings.bookMode
               ? ((draftSettings.pageNumberPosition ?? 'outer') === 'outer'
                   ? 'Alternates based on book spread: outer right on recto pages, outer left on verso pages.'
@@ -229,9 +208,9 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
         </div>
 
         {/* Granular Separate Margins */}
-        <div className="p-2.5 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 space-y-2.5">
+        <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="block text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+            <span className="block text-xs font-semibold text-zinc-800">
               Page Margins {draftSettings.bookMode ? '(Book Layout)' : '(Standard)'}
             </span>
           </div>
@@ -241,7 +220,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
             <div className="space-y-1">
               <label 
                 htmlFor={`pageMarginTop-${idSuffix}`} 
-                className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 flex items-center gap-1 truncate"
+                className="text-[11px] font-medium text-zinc-600 flex items-center gap-1 truncate"
                 title="Top page margin"
               >
                 <ArrowUp className="w-3 h-3 text-zinc-500 shrink-0" />
@@ -249,7 +228,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
               </label>
               <select
                 id={`pageMarginTop-${idSuffix}`}
-                className="w-full rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                className="w-full rounded-md border border-black/10 shadow-2xs bg-white px-2 py-1.5 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                 value={draftSettings.pageMarginTop ?? draftSettings.pageMarginTopBottom ?? (draftSettings.pageMargin ? Math.round(draftSettings.pageMargin * 1.2) : 6)}
                 onChange={(e) => onSettingChange('pageMarginTop', parseInt(e.target.value, 10))}
               >
@@ -275,7 +254,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
             <div className="space-y-1">
               <label 
                 htmlFor={`pageMarginBottom-${idSuffix}`} 
-                className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 flex items-center gap-1 truncate"
+                className="text-[11px] font-medium text-zinc-600 flex items-center gap-1 truncate"
                 title="Bottom page margin"
               >
                 <ArrowDown className="w-3 h-3 text-zinc-500 shrink-0" />
@@ -283,7 +262,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
               </label>
               <select
                 id={`pageMarginBottom-${idSuffix}`}
-                className="w-full rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                className="w-full rounded-md border border-black/10 shadow-2xs bg-white px-2 py-1.5 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                 value={draftSettings.pageMarginBottom ?? draftSettings.pageMarginTopBottom ?? (draftSettings.pageMargin ? Math.round(draftSettings.pageMargin * 1.2) : 6)}
                 onChange={(e) => onSettingChange('pageMarginBottom', parseInt(e.target.value, 10))}
               >
@@ -311,7 +290,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                 <div className="space-y-1">
                   <label 
                     htmlFor={`pageMarginInner-${idSuffix}`} 
-                    className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 flex items-center gap-1 truncate"
+                    className="text-[11px] font-medium text-zinc-600 flex items-center gap-1 truncate"
                     title="Inner margin (binding gutter between facing pages)"
                   >
                     <ArrowLeftRight className="w-3 h-3 text-zinc-500 shrink-0" />
@@ -319,7 +298,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                   </label>
                   <select
                     id={`pageMarginInner-${idSuffix}`}
-                    className="w-full rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                    className="w-full rounded-md border border-black/10 shadow-2xs bg-white px-2 py-1.5 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                     value={draftSettings.pageMarginInner ?? draftSettings.pageMarginLeftRight ?? (draftSettings.pageMargin ?? 15)}
                     onChange={(e) => onSettingChange('pageMarginInner', parseInt(e.target.value, 10))}
                   >
@@ -345,7 +324,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                 <div className="space-y-1">
                   <label 
                     htmlFor={`pageMarginOuter-${idSuffix}`} 
-                    className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 flex items-center gap-1 truncate"
+                    className="text-[11px] font-medium text-zinc-600 flex items-center gap-1 truncate"
                     title="Outer margin (external edge of the book)"
                   >
                     <ArrowLeftRight className="w-3 h-3 text-zinc-500 shrink-0" />
@@ -353,7 +332,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                   </label>
                   <select
                     id={`pageMarginOuter-${idSuffix}`}
-                    className="w-full rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                    className="w-full rounded-md border border-black/10 shadow-2xs bg-white px-2 py-1.5 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                     value={draftSettings.pageMarginOuter ?? draftSettings.pageMarginLeftRight ?? (draftSettings.pageMargin ?? 5)}
                     onChange={(e) => onSettingChange('pageMarginOuter', parseInt(e.target.value, 10))}
                   >
@@ -381,7 +360,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                 <div className="space-y-1">
                   <label 
                     htmlFor={`pageMarginLeft-${idSuffix}`} 
-                    className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 flex items-center gap-1 truncate"
+                    className="text-[11px] font-medium text-zinc-600 flex items-center gap-1 truncate"
                     title="Left page margin"
                   >
                     <ArrowLeft className="w-3 h-3 text-zinc-500 shrink-0" />
@@ -389,7 +368,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                   </label>
                   <select
                     id={`pageMarginLeft-${idSuffix}`}
-                    className="w-full rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                    className="w-full rounded-md border border-black/10 shadow-2xs bg-white px-2 py-1.5 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                     value={draftSettings.pageMarginLeft ?? draftSettings.pageMarginLeftRight ?? (draftSettings.pageMargin ?? 5)}
                     onChange={(e) => onSettingChange('pageMarginLeft', parseInt(e.target.value, 10))}
                   >
@@ -415,7 +394,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                 <div className="space-y-1">
                   <label 
                     htmlFor={`pageMarginRight-${idSuffix}`} 
-                    className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 flex items-center gap-1 truncate"
+                    className="text-[11px] font-medium text-zinc-600 flex items-center gap-1 truncate"
                     title="Right page margin"
                   >
                     <ArrowRight className="w-3 h-3 text-zinc-500 shrink-0" />
@@ -423,7 +402,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                   </label>
                   <select
                     id={`pageMarginRight-${idSuffix}`}
-                    className="w-full rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                    className="w-full rounded-md border border-black/10 shadow-2xs bg-white px-2 py-1.5 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                     value={draftSettings.pageMarginRight ?? draftSettings.pageMarginLeftRight ?? (draftSettings.pageMargin ?? 5)}
                     onChange={(e) => onSettingChange('pageMarginRight', parseInt(e.target.value, 10))}
                   >
@@ -450,14 +429,14 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
         </div>
 
         {/* Table of Contents Ordering */}
-        <div className="p-2 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 space-y-2">
+        <div className="p-2 bg-zinc-50 rounded-lg border border-black/5 space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <label htmlFor={`indexSortOrder-${idSuffix}`} className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 shrink-0">
+            <label htmlFor={`indexSortOrder-${idSuffix}`} className="text-xs font-semibold text-zinc-800 shrink-0">
               ToC Sort Order
             </label>
             <select
               id={`indexSortOrder-${idSuffix}`}
-              className="w-36 rounded-md border border-black/10 dark:border-zinc-600 shadow-2xs bg-white dark:bg-zinc-900 px-2 py-1 text-xs font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+              className="w-36 rounded-md border border-black/10 shadow-2xs bg-white px-2 py-1 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
               value={draftSettings.indexSortOrder}
               onChange={(e) => onSettingChange('indexSortOrder', e.target.value)}
             >
@@ -467,12 +446,12 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
           </div>
 
           {draftSettings.indexSortOrder === 'alphabetical' && (
-            <div className="pt-2 border-t border-black/5 dark:border-zinc-700/50 space-y-2">
+            <div className="pt-2 border-t border-black/5 space-y-2">
               <div
                 onClick={() => onSettingChange('tocAlphabeticalGrouping', !draftSettings.tocAlphabeticalGrouping)}
                 className="flex items-center justify-between cursor-pointer select-none"
               >
-                <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
+                <span className="text-xs text-zinc-700 font-medium">
                   Group by Starting Letter
                 </span>
                 <MaterialToggle
@@ -487,9 +466,9 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
               {draftSettings.tocAlphabeticalGrouping && (
                 <div
                   onClick={() => onSettingChange('tocGroupDividers', !(draftSettings.tocGroupDividers ?? true))}
-                  className="flex items-center justify-between pl-3 border-l-2 border-zinc-200 dark:border-zinc-700 cursor-pointer select-none"
+                  className="flex items-center justify-between pl-3 border-l-2 border-zinc-200 cursor-pointer select-none"
                 >
-                  <span className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                  <span className="text-[11px] text-zinc-600">
                     Letter Group Dividers
                   </span>
                   <MaterialToggle
@@ -508,13 +487,13 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
         {/* Song Layout Toggles */}
         <div
           onClick={() => onSettingChange('showChords', !draftSettings.showChords)}
-          className="flex items-center justify-between p-2.5 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 cursor-pointer hover:bg-zinc-100/60 dark:hover:bg-zinc-800/90 transition-colors select-none"
+          className="flex items-center justify-between p-2.5 bg-zinc-50 rounded-lg border border-black/5 cursor-pointer hover:bg-zinc-100/60 transition-colors select-none"
         >
           <div>
-            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 block">
+            <span className="text-xs font-semibold text-zinc-800 block">
               Display Chords
             </span>
-            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+            <span className="text-[10px] text-zinc-400">
               Show chord diagrams & notation above lyrics
             </span>
           </div>
@@ -528,13 +507,13 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
 
         <div
           onClick={() => onSettingChange('showSectionLines', !(draftSettings.showSectionLines ?? true))}
-          className="flex items-center justify-between p-2.5 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 cursor-pointer hover:bg-zinc-100/60 dark:hover:bg-zinc-800/90 transition-colors select-none"
+          className="flex items-center justify-between p-2.5 bg-zinc-50 rounded-lg border border-black/5 cursor-pointer hover:bg-zinc-100/60 transition-colors select-none"
         >
           <div>
-            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 block">
+            <span className="text-xs font-semibold text-zinc-800 block">
               Section Guide Lines
             </span>
-            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+            <span className="text-[10px] text-zinc-400">
               Vertical guide lines beside verses & chorus
             </span>
           </div>
@@ -547,36 +526,42 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
         </div>
 
         {/* Smart Auto-scale & Layout Caps */}
-        <div className="p-2.5 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg border border-black/5 dark:border-zinc-700/60 space-y-2">
+        <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-2">
           <div
-            onClick={() => onSettingChange('smartFit', !draftSettings.smartFit)}
-            className="flex items-center justify-between cursor-pointer select-none"
+            onClick={() => setIsSmartFitOpen((prev) => !prev)}
+            className="flex items-center justify-between cursor-pointer select-none group"
           >
-            <div>
-              <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 block">
+            <div className="min-w-0 pr-2">
+              <span className="text-xs font-bold text-zinc-800 group-hover:text-zinc-950 transition-colors block">
                 Smart Auto-scale
               </span>
-              <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
-                Fit lyrics comfortably on page
-              </span>
+              <p className="text-[10px] text-zinc-400 truncate">Fit lyrics comfortably on page</p>
             </div>
-            <MaterialToggle
-              id={`smartFit-${idSuffix}`}
-              checked={draftSettings.smartFit}
-              onChange={(checked) => onSettingChange('smartFit', checked)}
-              ariaLabel="Smart Auto-scale"
-            />
+            <div className="flex items-center gap-2 shrink-0">
+              <div onClick={(e) => e.stopPropagation()}>
+                <MaterialToggle
+                  id={`smartFit-${idSuffix}`}
+                  size="sm"
+                  checked={draftSettings.smartFit}
+                  onChange={(checked) => onSettingChange('smartFit', checked)}
+                  ariaLabel="Smart Auto-scale"
+                />
+              </div>
+              <div className="p-0.5 text-zinc-400 group-hover:text-zinc-700 transition-colors">
+                {isSmartFitOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </div>
+            </div>
           </div>
 
-          {draftSettings.smartFit && (
-            <div className="p-2.5 bg-zinc-100/80 dark:bg-zinc-800/50 rounded-lg border border-black/5 dark:border-zinc-700/40 space-y-2 animate-in fade-in duration-100">
+          {isSmartFitOpen && (
+            <div className="pt-2 border-t border-black/5 p-2.5 bg-zinc-100/80 rounded-lg border border-black/5 space-y-2 animate-in fade-in duration-100">
               {/* Max Font Cap */}
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <label htmlFor={`max-font-${idSuffix}`} className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 block">
+                  <label htmlFor={`max-font-${idSuffix}`} className="text-[11px] font-semibold text-zinc-700 block">
                     Max Font Cap
                   </label>
-                  <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
+                  <span className="text-[9px] text-zinc-400">
                     Max lyric size
                   </span>
                 </div>
@@ -594,12 +579,12 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
               </div>
 
               {/* Max. Line Height */}
-              <div className="pt-2 border-t border-black/5 dark:border-zinc-700/40 flex items-center justify-between gap-2">
+              <div className="pt-2 border-t border-black/5 flex items-center justify-between gap-2">
                 <div>
-                  <label htmlFor={`max-line-height-${idSuffix}`} className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 block">
+                  <label htmlFor={`max-line-height-${idSuffix}`} className="text-[11px] font-semibold text-zinc-700 block">
                     Max. Line Height
                   </label>
-                  <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
+                  <span className="text-[9px] text-zinc-400">
                     Max line spacing
                   </span>
                 </div>
@@ -617,12 +602,12 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
               </div>
 
               {/* Section Margin Cap */}
-              <div className="pt-2 border-t border-black/5 dark:border-zinc-700/40 flex items-center justify-between gap-2">
+              <div className="pt-2 border-t border-black/5 flex items-center justify-between gap-2">
                 <div>
-                  <label htmlFor={`section-margin-cap-${idSuffix}`} className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 block">
+                  <label htmlFor={`section-margin-cap-${idSuffix}`} className="text-[11px] font-semibold text-zinc-700 block">
                     Section Margin Cap
                   </label>
-                  <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
+                  <span className="text-[9px] text-zinc-400">
                     Max gap between stanzas
                   </span>
                 </div>
@@ -639,7 +624,7 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
                 />
               </div>
 
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-tight pt-1">
+              <p className="text-[10px] text-zinc-400 leading-tight pt-1">
                 Caps font size, line height, and section padding when auto-fitting songs to the page.
               </p>
             </div>

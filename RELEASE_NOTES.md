@@ -1,5 +1,40 @@
 # Release Notes
 
+## v1.6.0 - 2026-10-05
+
+### Complete Theme Overhaul & Monotheme Migration
+
+- **Dark Mode Removal**: Completely removed all dark mode logic, classes, and settings persistence. The application now uses a clean, high-contrast light theme optimized for both screen preview and physical printing.
+- **Simplified Color Logic**: Cleaned up color utility functions (removed `getDisplayColor` inversion) as the UI now strictly mirrors the intended print output colors at all times.
+
+### Sidebar Navigation & UI Redesign
+
+- **App Branding & Header Layout**: Reorganized the Sidebar header to place the **application name** at the top, with the **Settings** menu and version info positioned logically below it.
+- **Clutter-Free Interface**: Removed redundant section-level text headers ("Page layout, fonts & colors") to streamline the user experience and maximize vertical space.
+- **Collapsible Smart Auto-scale**: Restyled the **Smart Auto-scale** settings card to be collapsible (collapsed by default), matching the design pattern of the Cover Page sections for a unified feel.
+
+### Navigation & UX Enhancements
+
+- **Floating Bar Navigation**: Relocated the **"Nav" (Table of Contents)** icon to the floating bottom bar, positioned between Settings and Export for better thumb-reach and accessibility.
+- **Nav Menu Bug Fix**: Fixed a critical issue where the song navigation menu would immediately close upon clicking the toggle button due to a click-outside detection conflict.
+- **Visual Feedback**: Increased the songbook import progress modal duration to 2000ms, ensuring users can clearly see the 100% completion state before the preview renders.
+
+### Import & Persistence Improvements
+
+- **Songbook Caching**: Implemented persistent **songbook caching** in browser `localStorage`. Imported songbooks now survive page refreshes, tab closures, or environment resets (like system appearance changes), eliminating the need for frequent re-imports.
+- **Reset Reliability**: Refined the **Reset Songbook** flow to correctly clear all cached data and return the user to a clean initial state.
+
+### Validation
+
+- `npm run lint` (`tsc --noEmit`)
+- `npm run build` (`vite build`)
+
+### Deployment
+
+This release is prepared for GitHub Pages deployment via the `.github/workflows/deploy.yml` workflow.
+
+---
+
 ## v1.5.0 - 2026-10-04
 
 ### Local Settings Persistence & Streamlined System Actions

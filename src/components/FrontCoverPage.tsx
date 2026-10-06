@@ -10,7 +10,6 @@ interface FrontCoverPageProps {
   shortUrl?: string;
   slug?: string;
   settings: PrintSettings;
-  isDarkMode?: boolean;
 }
 
 export const DEFAULT_FOOTER_TEXT = `Vytvořeno s ❤️ pomocí kytario.com | Vytvoř si zpěvník, sdílej ho a hraj. Posouvejte text živě společně, transponuj do libovolné tóniny nebo exportuj do PDF - zdarma pro tebe i tvé přátele. 🙂`;
@@ -21,7 +20,6 @@ export function FrontCoverPage({
   shortUrl,
   slug,
   settings,
-  isDarkMode = false,
 }: FrontCoverPageProps) {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
 
@@ -74,7 +72,6 @@ export function FrontCoverPage({
       });
   }, [qrTarget, showQr]);
 
-  const effectiveDarkMode = isDarkMode;
 
   // Responsive sizes based on orientation
   const qrSizeClass = isLandscape
@@ -87,9 +84,7 @@ export function FrontCoverPage({
 
   return (
     <div
-      className={`w-full h-full flex flex-col justify-between p-6 sm:p-8 md:p-10 ${
-        effectiveDarkMode ? 'text-zinc-100 bg-zinc-900' : 'text-zinc-900 bg-white'
-      } print:text-black print:bg-white select-none`}
+      className={`w-full h-full flex flex-col justify-between p-6 sm:p-8 md:p-10 text-zinc-900 bg-white print:text-black print:bg-white select-none`}
       style={{
         textAlign: alignment,
         fontFamily: settings.fontFamily || 'Inter, sans-serif',
@@ -112,9 +107,7 @@ export function FrontCoverPage({
         {/* Main Title */}
         <div className="w-full max-w-4xl px-2">
           <h1
-            className={`${titleSizeClass} font-black uppercase tracking-tight leading-tight ${
-              effectiveDarkMode ? 'text-zinc-100' : 'text-zinc-900'
-            } print:text-black`}
+            className={`${titleSizeClass} font-black uppercase tracking-tight leading-tight text-zinc-900 print:text-black`}
             style={settings.titleColor ? { color: settings.titleColor } : {}}
           >
             {displayTitle}
@@ -129,7 +122,7 @@ export function FrontCoverPage({
 
           {/* User-defined Dedication Text if present */}
           {settings.frontCoverShowDedication !== false && settings.frontCoverDedication?.trim() && (
-            <div className="mt-4 mb-2 max-w-xl mx-auto px-4 py-2.5 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 italic text-sm sm:text-base font-serif opacity-90 leading-relaxed shadow-2xs">
+            <div className="mt-4 mb-2 max-w-xl mx-auto px-4 py-2.5 rounded-lg bg-black/5 border border-black/10 italic text-sm sm:text-base font-serif opacity-90 leading-relaxed shadow-2xs">
               "{settings.frontCoverDedication.trim()}"
             </div>
           )}
@@ -147,7 +140,7 @@ export function FrontCoverPage({
         <div className="flex flex-col items-center justify-center pt-1">
           {/* If Custom Image replaces QR code */}
           {customImage && (imagePosition === 'replace-qr' || !showQr) ? (
-            <div className="p-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-black/5 dark:border-white/10 print:border-none print:shadow-none print:bg-transparent">
+            <div className="p-3 bg-white rounded-2xl shadow-sm border border-black/5 print:border-none print:shadow-none print:bg-transparent">
               <img
                 src={customImage}
                 alt="Custom Cover Art"

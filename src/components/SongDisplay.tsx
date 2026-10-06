@@ -134,11 +134,10 @@ interface SongDisplayProps {
   index: number;
   docPageIndex?: number;
   settings: PrintSettings;
-  isDarkMode?: boolean;
   isDebugMode?: boolean;
 }
 
-export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex, settings, isDarkMode = false, isDebugMode = false }: SongDisplayProps) {
+export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex, settings, isDebugMode = false }: SongDisplayProps) {
   const title = song.title || song.name || 'Unknown Title';
   const artist = song.artist || song.author || song.interpreter || '';
   const text = song.text || song.content || song.lyrics || '';
@@ -218,8 +217,8 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
     return `${Math.max(2.2, maxLen * 0.6 + 0.4)}em`;
   }, [sections, hasAnyMarkers]);
 
-  const defaultLineCol = isDarkMode ? '#52525b' : '#a1a1aa';
-  const defaultRefrainLineCol = isDarkMode ? '#60a5fa' : '#2563eb';
+  const defaultLineCol = '#a1a1aa';
+  const defaultRefrainLineCol = '#2563eb';
 
   const lineMargin = useMemo(() => {
     return computeSmartFitLineMargin(sections, settings, Boolean(title), Boolean(artist), computedScale);
@@ -244,7 +243,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
     '--marker-width': markerColWidth,
     '--line-margin': `${lineMargin}px`,
     '--section-padding-left': '0.20rem',
-    '--section-separator-color': settings.sectionSeparatorColor || settings.separatorLineColor || (isDarkMode ? '#3f3f46' : '#e4e4e7'),
+    '--section-separator-color': settings.sectionSeparatorColor || settings.separatorLineColor || '#e4e4e7',
     fontFamily: 'var(--songbook-font-family)',
   } as React.CSSProperties;
 
@@ -319,7 +318,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
                   >
                     {isSectionRef ? (
                       <span 
-                        className={`inline-block px-1 rounded-sm transition-all duration-300 ${chunk.targetSectionIndex !== undefined ? 'cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-bold' : 'opacity-80'}`}
+                        className={`inline-block px-1 rounded-sm transition-all duration-300 ${chunk.targetSectionIndex !== undefined ? 'cursor-pointer hover:bg-blue-100 text-blue-600 font-bold' : 'opacity-80'}`}
                         onClick={(e) => {
                           if (chunk.targetSectionIndex !== undefined) {
                             e.preventDefault();
@@ -390,7 +389,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
 
       {isDebugMode && debugStats && (
         <div 
-          className="absolute bottom-0 right-0 bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 rounded px-2 py-0.5 text-[11px] font-mono select-none print:hidden flex items-center gap-1.5 z-10"
+          className="absolute bottom-0 right-0 bg-amber-500/10 text-amber-700 border border-amber-500/30 rounded px-2 py-0.5 text-[11px] font-mono select-none print:hidden flex items-center gap-1.5 z-10"
           title={`Total Lines: ${debugStats.totalLines} (raw: ${debugStats.rawLines}), Font: ${debugStats.chosenSize}px (Scale: ${debugStats.scale}x)`}
         >
           <span className="font-bold">{debugStats.totalLines} lines</span>

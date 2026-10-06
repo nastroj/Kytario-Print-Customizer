@@ -9,10 +9,14 @@ import {VitePWA} from 'vite-plugin-pwa';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export default defineConfig(() => {
+export default defineConfig(({ command }) => {
   const envBase = (process.env.BASE_PATH || process.env.BASE_URL || '').trim();
   const rawBase = envBase || '/';
-  const base = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
+  // Use absolute base '/' in development to prevent issues with Vite middleware and PWA dev-sw.
+  // In production builds, use the configured relative or absolute base path.
+  const base = command === 'serve'
+    ? '/'
+    : (rawBase.endsWith('/') ? rawBase : `${rawBase}/`);
   return {
     base,
     plugins: [
@@ -124,7 +128,7 @@ export default defineConfig(() => {
           ],
         },
         devOptions: {
-          enabled: true,
+          enabled: false,
           type: 'module',
         },
       }),

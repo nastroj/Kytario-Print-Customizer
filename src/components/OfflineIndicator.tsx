@@ -10,7 +10,7 @@ export const OfflineIndicator: React.FC = () => {
   return (
     <div
       id="pwa-offline-indicator"
-      className="fixed left-4 z-50 flex items-center gap-2.5 rounded-xl bg-zinc-900/90 dark:bg-zinc-800/95 text-white px-3.5 py-2 text-xs font-medium shadow-xl border border-zinc-700/60 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-200"
+      className="fixed left-4 z-50 flex items-center gap-2.5 rounded-xl bg-zinc-900/90 text-white px-3.5 py-2 text-xs font-medium shadow-xl border border-zinc-700/60 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-200"
       style={{ bottom: 'max(1rem, calc(0.75rem + env(safe-area-inset-bottom, 0px)))' }}
     >
       <span className="flex h-2 w-2 relative">

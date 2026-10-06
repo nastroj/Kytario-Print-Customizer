@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, memo, useCallback } from 'react';
-import { SongbookData, PrintSettings, Song } from '../types';
+import { SongbookData, PrintSettings, Song, ZoomMode } from '../types';
 import { SongDisplay } from './SongDisplay';
 import { FrontCoverPage } from './FrontCoverPage';
 import { BackCoverPage } from './BackCoverPage';
@@ -28,10 +28,14 @@ interface SongbookPreviewProps {
   isUpdatingLayout?: boolean;
   onOpenSettings?: () => void;
   onDownloadStatusChange?: (isDownloading: boolean) => void;
-  isDarkMode?: boolean;
+  zoomMode?: ZoomMode;
+  setZoomMode?: (mode: ZoomMode) => void;
+  customZoom?: number;
+  setCustomZoom?: (zoom: number) => void;
+  onScaleChange?: (scale: number) => void;
+  isSongNavOpen?: boolean;
+  setIsSongNavOpen?: (open: boolean | ((prev: boolean) => boolean)) => void;
 }
-
-type ZoomMode = 'fit-width' | 'fit-page' | 'custom';
 
 const ZOOM_STEPS = [0.25, 0.35, 0.5, 0.65, 0.75, 0.9, 1.0, 1.15, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0];
 
@@ -164,7 +168,6 @@ interface SongPagesListProps {
   effectiveScale: number;
   isScaled: boolean;
   onScrollToSong: (id: string) => void;
-  isDarkMode?: boolean;
   isDebugMode?: boolean;
 }
 
@@ -183,7 +186,6 @@ const SongPagesList = memo(function SongPagesList({
   effectiveScale,
   isScaled,
   onScrollToSong,
-  isDarkMode = false,
   isDebugMode = false,
 }: SongPagesListProps) {
   const numColWidth = useMemo(() => {
@@ -201,7 +203,6 @@ const SongPagesList = memo(function SongPagesList({
   const tocMarginMmX = settings.pageMarginLeftRight ?? settings.pageMargin ?? 8;
   const tocMarginMmYTop = settings.pageMarginTopBottom ?? (settings.pageMargin ? Math.round(settings.pageMargin * 1.2) : 8);
   const tocMarginMmYBottom = settings.pageMarginTopBottom ?? (settings.pageMargin ? Math.round(settings.pageMargin * 1.2) : 8);
-  const effectiveDarkMode = isDarkMode;
   const safeTocSize = Number(settings.tocFontSize) || (Number(settings.lyricsFontSize) * 0.95) || 12;
   const safeTitleSize = Number(settings.titleFontSize) || 16;
 
@@ -211,7 +212,7 @@ const SongPagesList = memo(function SongPagesList({
   const rowPaddingYPx = 1.5;
   const rowMarginBottomPx = 1;
 
-  const pageContainerClass = 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-md print:shadow-none border border-black/5 dark:border-zinc-800';
+  const pageContainerClass = 'bg-white text-zinc-900 shadow-md print:shadow-none border border-black/5';
 
   return (
     <>
@@ -250,7 +251,6 @@ const SongPagesList = memo(function SongPagesList({
                 shortUrl={shortUrl}
                 slug={slug}
                 settings={settings}
-                isDarkMode={effectiveDarkMode}
               />
             </div>
           </VirtualPage>
@@ -294,7 +294,7 @@ const SongPagesList = memo(function SongPagesList({
                   <h1 
                     className="font-bold uppercase tracking-tight toc-title-header truncate px-2"
                     style={{ 
-                      color: getDisplayColor(settings.titleColor, effectiveDarkMode), 
+                      color: getDisplayColor(settings.titleColor), 
                       fontSize: `${Math.round(safeTitleSize * 1.15)}px`,
                       lineHeight: 1.2
                     }}
@@ -303,7 +303,7 @@ const SongPagesList = memo(function SongPagesList({
                   </h1>
                   <p 
                     className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
-                    style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a', effectiveDarkMode) }}
+                    style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a') }}
                   >
                     <span>Obsah{tocPages.length > 1 ? ` • Strana 1 z ${tocPages.length}` : ''}</span>
                     <span className="print:hidden normal-case font-normal text-[11px]" style={{ opacity: 0.8 }}>
@@ -313,22 +313,22 @@ const SongPagesList = memo(function SongPagesList({
                 </div>
               ) : (
                 <div 
-                  className="text-center border-b border-black/5 dark:border-zinc-800 shrink-0"
+                  className="text-center border-b border-black/5 shrink-0"
                   style={{ marginBottom: '10px', paddingBottom: '4px' }}
                 >
                   <h2 
                     className="font-bold uppercase tracking-tight toc-title-header truncate px-2"
                     style={{ 
-                      color: getDisplayColor(settings.titleColor, effectiveDarkMode), 
+                      color: getDisplayColor(settings.titleColor), 
                       fontSize: `${Math.round(safeTitleSize * 0.85)}px`,
                       lineHeight: 1.2
                     }}
                   >
-                    {title} <span className="text-zinc-400 dark:text-zinc-500 font-normal text-xs normal-case">(pokračování)</span>
+                    {title} <span className="text-zinc-400 font-normal text-xs normal-case">(pokračování)</span>
                   </h2>
                   <p 
                     className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
-                    style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a', effectiveDarkMode) }}
+                    style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a') }}
                   >
                     <span>Obsah • Strana {tocPage.pageIndex} z {tocPages.length}</span>
                     <span className="print:hidden normal-case font-normal text-[11px]" style={{ opacity: 0.8 }}>
@@ -344,8 +344,7 @@ const SongPagesList = memo(function SongPagesList({
                 style={{ 
                   gridTemplateColumns: `repeat(${tocPage.columns}, minmax(0, 1fr))`,
                   columnGap: tocPage.columns >= 3 ? '1.75rem' : '2.25rem',
-                  color: getDisplayColor(settings.tocColor || settings.lyricsColor, effectiveDarkMode),
-                  fontSize: `${safeTocSize}px`,
+                  color: getDisplayColor(settings.tocColor || settings.lyricsColor),
                   alignItems: 'start',
                   alignContent: 'start',
                 }}
@@ -373,7 +372,7 @@ const SongPagesList = memo(function SongPagesList({
                                 height: '1px',
                                 marginTop: '3px',
                                 marginBottom: '3px',
-                                borderColor: getDisplayColor(settings.sectionLineColor || '#a1a1aa', effectiveDarkMode),
+                                borderColor: getDisplayColor(settings.sectionLineColor || '#a1a1aa'),
                                 opacity: 0.35,
                                 boxSizing: 'border-box'
                               }} 
@@ -404,7 +403,7 @@ const SongPagesList = memo(function SongPagesList({
                                 style={{ 
                                   width: letterColWidth,
                                   minWidth: letterColWidth,
-                                  color: getDisplayColor(settings.titleColor, effectiveDarkMode),
+                                  color: getDisplayColor(settings.titleColor),
                                   opacity: 0.9,
                                   fontSize: '1.05em'
                                 }}
@@ -416,7 +415,7 @@ const SongPagesList = memo(function SongPagesList({
                               className="shrink-0 text-right tabular-nums font-semibold pr-2 select-none toc-song-number"
                               style={{ 
                                 width: numColWidth,
-                                color: getDisplayColor(settings.titleColor, effectiveDarkMode),
+                                color: getDisplayColor(settings.titleColor),
                                 opacity: 0.8
                               }}
                             >
@@ -428,7 +427,7 @@ const SongPagesList = memo(function SongPagesList({
                                 <span 
                                   className="font-normal ml-1.5 toc-song-artist"
                                   style={{ 
-                                    color: getDisplayColor(settings.tocArtistColor || settings.artistColor || '#52525b', effectiveDarkMode),
+                                    color: getDisplayColor(settings.tocArtistColor || settings.artistColor || '#52525b'),
                                     opacity: 0.85,
                                     fontSize: '0.92em'
                                   }}
@@ -481,7 +480,6 @@ const SongPagesList = memo(function SongPagesList({
                 index={i} 
                 docPageIndex={songDocPageIndex}
                 settings={settings} 
-                isDarkMode={effectiveDarkMode} 
                 isDebugMode={isDebugMode} 
               />
             </div>
@@ -506,7 +504,7 @@ const SongPagesList = memo(function SongPagesList({
             defaultHeight={cssHeight}
           >
             <div 
-              className={`${pageContainerClass} print-cover-container flex flex-col overflow-hidden origin-top-left relative shadow-md ring-1 ring-black/5 dark:ring-white/10 print:shadow-none print:ring-0`}
+              className={`${pageContainerClass} print-cover-container flex flex-col overflow-hidden origin-top-left relative shadow-md ring-1 ring-black/5 print:shadow-none print:ring-0`}
               style={{ 
                 width: cssWidth, 
                 height: cssHeight,
@@ -527,7 +525,6 @@ const SongPagesList = memo(function SongPagesList({
                 shortUrl={shortUrl} 
                 slug={slug}
                 settings={settings} 
-                isDarkMode={effectiveDarkMode}
               />
             </div>
           </VirtualPage>
@@ -559,7 +556,7 @@ const SongPagesList = memo(function SongPagesList({
             }}
           >
             <div className="flex flex-col items-center max-w-md text-center">
-              <div className="w-full max-w-[180px] mb-8 text-zinc-300 dark:text-zinc-600 mx-auto animate-in fade-in zoom-in-95 duration-700">
+              <div className="w-full max-w-[180px] mb-8 text-zinc-300 mx-auto animate-in fade-in zoom-in-95 duration-700">
                 <svg viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto drop-shadow-sm">
                   {/* Abstract Background Elements */}
                   <circle cx="100" cy="80" r="60" fill="currentColor" className="opacity-10" />
@@ -588,21 +585,21 @@ const SongPagesList = memo(function SongPagesList({
                   <circle cx="60" cy="30" r="5" fill="currentColor" className="opacity-60" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold text-zinc-700 dark:text-zinc-300 mb-3">No Songs Loaded</h3>
+              <h3 className="text-2xl font-bold text-zinc-700 mb-3">No Songs Loaded</h3>
               <p className="text-zinc-500 mb-10 text-lg max-w-sm">
                 Your songbook is currently empty. Open the sidebar to upload a file or add songs to generate your printable book.
               </p>
               
               <div className="grid grid-cols-2 gap-6 w-full px-4">
-                <div className="bg-white dark:bg-zinc-800/80 border border-black/5 dark:border-white/5 rounded-lg p-5 flex flex-col items-center text-center shadow-sm">
-                  <FileText className="w-8 h-8 text-amber-500 dark:text-amber-400 mb-3" />
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-200 mb-1">Auto-formatted</span>
-                  <span className="text-sm text-zinc-500 dark:text-zinc-400">Chords and lyrics automatically aligned</span>
+                <div className="bg-white border border-black/5 rounded-lg p-5 flex flex-col items-center text-center shadow-sm">
+                  <FileText className="w-8 h-8 text-amber-500 mb-3" />
+                  <span className="font-semibold text-zinc-700 mb-1">Auto-formatted</span>
+                  <span className="text-sm text-zinc-500">Chords and lyrics automatically aligned</span>
                 </div>
-                <div className="bg-white dark:bg-zinc-800/80 border border-black/5 dark:border-white/5 rounded-lg p-5 flex flex-col items-center text-center shadow-sm">
-                  <BookOpen className="w-8 h-8 text-blue-500 dark:text-blue-400 mb-3" />
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-200 mb-1">Print Ready</span>
-                  <span className="text-sm text-zinc-500 dark:text-zinc-400">Smart columns and index generation</span>
+                <div className="bg-white border border-black/5 rounded-lg p-5 flex flex-col items-center text-center shadow-sm">
+                  <BookOpen className="w-8 h-8 text-blue-500 mb-3" />
+                  <span className="font-semibold text-zinc-700 mb-1">Print Ready</span>
+                  <span className="text-sm text-zinc-500">Smart columns and index generation</span>
                 </div>
               </div>
             </div>
@@ -695,8 +692,17 @@ const songbookPreviewComparator = (
     return false;
   }
 
+  // If zoom props change, re-render immediately
+  if (prevProps.zoomMode !== nextProps.zoomMode) return false;
+  if (prevProps.customZoom !== nextProps.customZoom) return false;
+
   // Compare print settings, ignoring sub-pixel or insignificant fluctuations
   if (!areSettingsEquivalent(prevProps.settings, nextProps.settings)) {
+    return false;
+  }
+
+  // If navigation state changes, re-render immediately
+  if (prevProps.isSongNavOpen !== nextProps.isSongNavOpen) {
     return false;
   }
 
@@ -708,13 +714,68 @@ const songbookPreviewComparator = (
   return true;
 };
 
+interface QuickSongNavigatorProps {
+  songs: Song[];
+  isSongNavOpen: boolean;
+  onScrollTo: (id: string) => void;
+}
+
+const QuickSongNavigator = memo(function QuickSongNavigator({ 
+  songs, 
+  isSongNavOpen, 
+  onScrollTo 
+}: QuickSongNavigatorProps) {
+  if (!isSongNavOpen || songs.length === 0) return null;
+
+  return (
+    <div className="relative">
+      <div 
+        id="song-nav-modal"
+        className="absolute bottom-0 right-0 w-64 max-h-72 overflow-y-auto bg-white/95 backdrop-blur-xl border border-black/10 text-zinc-800 rounded-lg shadow-2xl p-2 space-y-1 z-40 text-xs animate-in fade-in slide-in-from-bottom-2 duration-200"
+      >
+        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-black/5 mb-1 flex items-center justify-between">
+          <span>Jump to Song ({songs.length})</span>
+          <button 
+            onClick={() => onScrollTo('toc-page')}
+            className="hover:underline text-zinc-600 hover:text-zinc-900 font-semibold cursor-pointer"
+          >
+            ToC
+          </button>
+        </div>
+
+        <div className="space-y-0.5">
+          {songs.map((s, idx) => {
+            const sTitle = s.title || s.name || `Song #${idx + 1}`;
+            return (
+              <button
+                key={idx}
+                onClick={() => onScrollTo(`song-${idx}`)}
+                className="w-full px-2 py-1.5 rounded-lg text-left text-zinc-600 hover:bg-black/5 hover:text-zinc-900 transition-colors truncate flex items-center gap-2 cursor-pointer"
+              >
+                <span className="w-5 font-mono text-zinc-400 font-semibold shrink-0 text-right">{idx + 1}.</span>
+                <span className="truncate">{sTitle}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({ 
   data, 
   settings, 
   isUpdatingLayout = false, 
   onOpenSettings,
   onDownloadStatusChange,
-  isDarkMode = false,
+  zoomMode: propsZoomMode,
+  setZoomMode: propsSetZoomMode,
+  customZoom: propsCustomZoom,
+  setCustomZoom: propsSetCustomZoom,
+  onScaleChange,
+  isSongNavOpen: propsIsSongNavOpen,
+  setIsSongNavOpen: propsSetSongNavOpen,
 }) => {
   const songs = useMemo(() => {
     if (!data) return [];
@@ -737,10 +798,19 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     height: typeof window !== 'undefined' ? window.innerHeight : 900 
   });
 
-  const [zoomMode, setZoomMode] = useState<ZoomMode>('fit-width');
-  const [customZoom, setCustomZoom] = useState<number>(1.0);
+  const [internalZoomMode, setInternalZoomMode] = useState<ZoomMode>('fit-width');
+  const [internalCustomZoom, setInternalCustomZoom] = useState<number>(1.0);
+
+  const zoomMode = propsZoomMode !== undefined ? propsZoomMode : internalZoomMode;
+  const setZoomMode = propsSetZoomMode !== undefined ? propsSetZoomMode : setInternalZoomMode;
+  const customZoom = propsCustomZoom !== undefined ? propsCustomZoom : internalCustomZoom;
+  const setCustomZoom = propsSetCustomZoom !== undefined ? propsSetCustomZoom : setInternalCustomZoom;
+
+  const [internalSongNavOpen, setInternalSongNavOpen] = useState(false);
+  const isSongNavOpen = propsIsSongNavOpen !== undefined ? propsIsSongNavOpen : internalSongNavOpen;
+  const setIsSongNavOpen = propsSetSongNavOpen !== undefined ? propsSetSongNavOpen : setInternalSongNavOpen;
+
   const [isBottomZoomMenuOpen, setIsBottomZoomMenuOpen] = useState(false);
-  const [isSongNavOpen, setIsSongNavOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const isDebugFeatureEnabled = isDebugHudConfigured();
@@ -796,7 +866,8 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       const target = e.target as HTMLElement;
       if (
         !target.closest('#zoom-controls-toolbar') && 
-        !target.closest('#song-nav-modal')
+        !target.closest('#song-nav-modal') &&
+        !target.closest('#floating-nav-btn')
       ) {
         setIsBottomZoomMenuOpen(false);
         setIsSongNavOpen(false);
@@ -848,6 +919,12 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     effectiveScale = fitPageScale;
   }
 
+  useEffect(() => {
+    if (onScaleChange) {
+      onScaleChange(effectiveScale);
+    }
+  }, [effectiveScale, onScaleChange]);
+
   // Display percentage and scaled wrapper dimensions
   const displayPercentage = Math.round(effectiveScale * 100);
   const scaledWidth = Math.round(basePxWidth * effectiveScale);
@@ -855,20 +932,21 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   const handleZoomIn = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const nextStep = ZOOM_STEPS.find(s => s > effectiveScale + 0.04) || Math.min(3.0, effectiveScale + 0.25);
-    setCustomZoom(Math.round(nextStep * 100) / 100);
+    const baseScale = Math.round(effectiveScale * 10) / 10;
+    const nextScale = Math.min(3.0, baseScale + 0.1);
+    setCustomZoom(Math.round(nextScale * 100) / 100);
     setZoomMode('custom');
     setIsBottomZoomMenuOpen(false);
-  }, [effectiveScale]);
+  }, [effectiveScale, setCustomZoom, setZoomMode]);
 
   const handleZoomOut = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const prevSteps = ZOOM_STEPS.filter(s => s < effectiveScale - 0.04);
-    const prevStep = prevSteps.length > 0 ? prevSteps[prevSteps.length - 1] : Math.max(0.25, effectiveScale - 0.25);
-    setCustomZoom(Math.round(prevStep * 100) / 100);
+    const baseScale = Math.round(effectiveScale * 10) / 10;
+    const nextScale = Math.max(0.25, baseScale - 0.1);
+    setCustomZoom(Math.round(nextScale * 100) / 100);
     setZoomMode('custom');
     setIsBottomZoomMenuOpen(false);
-  }, [effectiveScale]);
+  }, [effectiveScale, setCustomZoom, setZoomMode]);
 
   const setPresetZoom = useCallback((mode: ZoomMode, val?: number) => {
     setZoomMode(mode);
@@ -929,6 +1007,65 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
   }, [handleZoomIn, handleZoomOut]);
+
+  // Stable ref for effectiveScale to prevent Touch/Pinch gesture handler from re-binding mid-gesture
+  const effectiveScaleRef = useRef(effectiveScale);
+  useEffect(() => {
+    effectiveScaleRef.current = effectiveScale;
+  }, [effectiveScale]);
+
+  // Touch Pinch-to-Zoom inside preview canvas for mobile/tablet touch devices
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    let initialDist = 0;
+    let initialScaleVal = effectiveScaleRef.current;
+
+    const getDistance = (t1: Touch, t2: Touch) => {
+      const dx = t1.clientX - t2.clientX;
+      const dy = t1.clientY - t2.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        // Prevent default native browser viewport scaling
+        e.preventDefault();
+        initialDist = getDistance(e.touches[0], e.touches[1]);
+        initialScaleVal = effectiveScaleRef.current;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && initialDist > 0) {
+        e.preventDefault();
+        const dist = getDistance(e.touches[0], e.touches[1]);
+        const factor = dist / initialDist;
+        const targetScale = Math.min(3.0, Math.max(0.25, initialScaleVal * factor));
+        
+        // Update customZoom and set mode to custom
+        setCustomZoom(Math.round(targetScale * 100) / 100);
+        setZoomMode('custom');
+      }
+    };
+
+    const handleTouchEnd = () => {
+      initialDist = 0;
+    };
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: false });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd);
+    el.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+      el.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [setCustomZoom, setZoomMode]);
 
   const handleScrollTo = useCallback((id: string) => {
     setIsSongNavOpen(false);
@@ -1387,7 +1524,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       {/* SCROLLABLE PREVIEW CANVAS */}
       <div 
         ref={containerRef}
-        className="relative flex-1 overflow-y-auto overflow-x-auto bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-8 print:p-0 print:m-0 print:bg-white print:h-auto print:min-h-0 print:overflow-visible print:block print:static print-scroll-container"
+        className="relative flex-1 overflow-y-auto overflow-x-auto bg-zinc-50 p-3 sm:p-8 pb-28 sm:pb-36 print:p-0 print:m-0 print:bg-white print:h-auto print:min-h-0 print:overflow-visible print:block print:static print-scroll-container"
       >
         {(isPreparingPdf || isPrinting) && (
           <div 
@@ -1422,7 +1559,6 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             effectiveScale={effectiveScale}
             isScaled={isScaled}
             onScrollToSong={handleScrollTo}
-            isDarkMode={isDarkMode}
             isDebugMode={isDebugFeatureEnabled && isDebugOpen}
           />
         </div>
@@ -1431,198 +1567,26 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         <div className="h-24 print:hidden" />
       </div>
 
-      {/* FLOATING QUICK VIEW TOOLBAR (CENTERED OVER PREVIEW PANE) */}
-      <div 
-        id="zoom-controls-toolbar"
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 print:hidden flex items-center gap-1 sm:gap-1.5 bg-white/90 dark:bg-zinc-900/90 text-zinc-800 dark:text-zinc-200 backdrop-blur-2xl px-2.5 sm:px-3.5 py-1.5 rounded-full shadow-xl border border-black/10 dark:border-zinc-800 transition-all select-none"
-      >
-        {/* Zoom Out (-) */}
-        <button
-          id="zoom-out-btn"
-          onClick={handleZoomOut}
-          disabled={effectiveScale <= 0.25}
-          className="p-1.5 sm:p-2 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/15 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-30 disabled:hover:bg-transparent rounded-full transition-colors cursor-pointer"
-          title="Zoom Out (Ctrl -)"
-          aria-label="Zoom Out"
-        >
-          <Minus className="w-4 h-4" />
-        </button>
-
-        {/* Zoom Percentage / Presets Menu Toggle */}
-        <div className="relative">
+      {/* FLOATING QUICK ACTIONS GROUP (PAGES NAVIGATOR, DEBUG HUD & SCROLL TO TOP - OUT OF THE WAY OF BOTTOM BAR) */}
+      <div className="fixed bottom-24 right-4 z-30 print:hidden flex flex-col gap-2">
+        {/* Scroll to Top */}
+        {showScrollTop && (
           <button
-            id="zoom-preset-menu-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsBottomZoomMenuOpen(!isBottomZoomMenuOpen);
-              setIsSongNavOpen(false);
-            }}
-            className="px-2.5 py-1 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/15 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors min-w-[66px] justify-center cursor-pointer"
-            title="Choose Zoom Level"
+            onClick={scrollToTop}
+            className="w-10 h-10 bg-white/95 hover:bg-zinc-100 text-zinc-600 rounded-full shadow-lg border border-black/10 flex items-center justify-center transition-colors cursor-pointer"
+            title="Scroll to Top"
+            aria-label="Scroll to Top"
           >
-            <span>{displayPercentage}%</span>
-            {zoomMode === 'fit-width' && <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-normal hidden sm:inline">(Fit)</span>}
+            <ChevronUp className="w-5 h-5" />
           </button>
-
-          {/* Zoom Presets Dropdown */}
-          {isBottomZoomMenuOpen && (
-            <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 w-48 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-black/10 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-2xl p-1.5 space-y-0.5 z-40 text-xs animate-in fade-in slide-in-from-bottom-2 duration-100">
-              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 border-b border-black/5 dark:border-zinc-800 mb-1">
-                Display Modes
-              </div>
-
-              <button
-                onClick={() => setPresetZoom('fit-width')}
-                className={`w-full px-2.5 py-1.5 rounded-lg text-left flex items-center justify-between hover:bg-black/5 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer ${
-                  zoomMode === 'fit-width' ? 'bg-black/5 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold' : 'text-zinc-600 dark:text-zinc-300'
-                }`}
-              >
-                <span>Fit Screen Width</span>
-                {zoomMode === 'fit-width' && <Check className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />}
-              </button>
-
-              <button
-                onClick={() => setPresetZoom('fit-page')}
-                className={`w-full px-2.5 py-1.5 rounded-lg text-left flex items-center justify-between hover:bg-black/5 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer ${
-                  zoomMode === 'fit-page' ? 'bg-black/5 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold' : 'text-zinc-600 dark:text-zinc-300'
-                }`}
-              >
-                <span>Fit Full Page</span>
-                {zoomMode === 'fit-page' && <Check className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />}
-              </button>
-
-              <button
-                onClick={() => setPresetZoom('custom', 1.0)}
-                className={`w-full px-2.5 py-1.5 rounded-lg text-left flex items-center justify-between hover:bg-black/5 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer ${
-                  zoomMode === 'custom' && Math.abs(customZoom - 1.0) < 0.01 ? 'bg-black/5 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold' : 'text-zinc-600 dark:text-zinc-300'
-                }`}
-              >
-                <span>100% (Actual Print Size)</span>
-                {zoomMode === 'custom' && Math.abs(customZoom - 1.0) < 0.01 && <Check className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />}
-              </button>
-
-              <div className="my-1 border-t border-black/5 dark:border-zinc-800" />
-
-              <div className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                Percentages
-              </div>
-
-              {[0.5, 0.75, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0].map((level) => {
-                const isSelected = zoomMode === 'custom' && Math.abs(customZoom - level) < 0.03;
-                return (
-                  <button
-                    key={level}
-                    onClick={() => setPresetZoom('custom', level)}
-                    className={`w-full px-2.5 py-1 rounded-lg text-left flex items-center justify-between hover:bg-black/5 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer ${
-                      isSelected ? 'bg-black/5 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold' : 'text-zinc-600 dark:text-zinc-300'
-                    }`}
-                  >
-                    <span>{Math.round(level * 100)}%</span>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Zoom In (+) */}
-        <button
-          id="zoom-in-btn"
-          onClick={handleZoomIn}
-          disabled={effectiveScale >= 3.0}
-          className="p-1.5 sm:p-2 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/15 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-30 disabled:hover:bg-transparent rounded-full transition-colors cursor-pointer"
-          title="Zoom In (Ctrl +)"
-          aria-label="Zoom In"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-
-        {/* Divider */}
-        <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
-
-        {/* 100% Actual Size Button */}
-        <button
-          id="zoom-100-btn"
-          onClick={() => setPresetZoom('custom', 1.0)}
-          className={`p-1.5 sm:p-2 rounded-full transition-colors cursor-pointer ${
-            zoomMode === 'custom' && Math.abs(customZoom - 1.0) < 0.01 
-              ? 'bg-black/10 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100' 
-              : 'hover:bg-black/5 dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-zinc-100 text-zinc-600 dark:text-zinc-300'
-          }`}
-          title="Actual Size 100% (Ctrl 0)"
-          aria-label="Actual Size 100%"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
-
-        {/* Fit Width / Page Action */}
-        <button
-          id="zoom-fit-width-btn"
-          onClick={() => setPresetZoom(zoomMode === 'fit-width' ? 'fit-page' : 'fit-width')}
-          className={`p-1.5 sm:p-2 rounded-full transition-colors cursor-pointer ${
-            zoomMode === 'fit-width' || zoomMode === 'fit-page' 
-              ? 'bg-black/10 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100' 
-              : 'hover:bg-black/5 dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-zinc-100 text-zinc-600 dark:text-zinc-300'
-          }`}
-          title={zoomMode === 'fit-width' ? "Fit Full Page" : "Fit to Screen Width"}
-          aria-label="Fit View"
-        >
-          <Maximize2 className="w-4 h-4" />
-        </button>
-
-        {/* Quick Song Navigator (Table of Contents / Jump to song) */}
-        {songs.length > 0 && (
-          <div className="relative">
-            <button
-              id="song-navigator-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsSongNavOpen(!isSongNavOpen);
-                setIsBottomZoomMenuOpen(false);
-              }}
-              className="p-1.5 sm:p-2 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/15 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-full transition-colors cursor-pointer"
-              title="Jump to Song"
-              aria-label="Jump to Song"
-            >
-              <BookOpen className="w-4 h-4" />
-            </button>
-
-            {/* Quick Song Jump Popover */}
-            {isSongNavOpen && (
-              <div 
-                id="song-nav-modal"
-                className="absolute bottom-full mb-2.5 right-0 sm:left-1/2 sm:-translate-x-1/2 w-64 max-h-72 overflow-y-auto bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-black/10 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-2xl p-2 space-y-1 z-40 text-xs"
-              >
-                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 border-b border-black/5 dark:border-zinc-800 mb-1 flex items-center justify-between">
-                  <span>Jump to Song ({songs.length})</span>
-                  <button 
-                    onClick={() => handleScrollTo('toc-page')}
-                    className="hover:underline text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 font-semibold cursor-pointer"
-                  >
-                    ToC
-                  </button>
-                </div>
-
-                <div className="space-y-0.5">
-                  {songs.map((s, idx) => {
-                    const sTitle = s.title || s.name || `Song #${idx + 1}`;
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => handleScrollTo(`song-${idx}`)}
-                        className="w-full px-2 py-1.5 rounded-lg text-left text-zinc-600 dark:text-zinc-300 hover:bg-black/5 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors truncate flex items-center gap-2 cursor-pointer"
-                      >
-                        <span className="w-5 font-mono text-zinc-400 dark:text-zinc-500 font-semibold shrink-0 text-right">{idx + 1}.</span>
-                        <span className="truncate">{sTitle}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
         )}
+
+        {/* Quick Song Navigator Popover - Now controlled from floating bar in App.tsx */}
+        <QuickSongNavigator 
+          songs={songs}
+          isSongNavOpen={isSongNavOpen}
+          onScrollTo={handleScrollTo}
+        />
 
         {/* Toggle Hidden Song Fit Debug View - ONLY rendered if ENABLE_DEBUG_HUD is true in src/config.ts */}
         {isDebugFeatureEnabled && (
@@ -1636,27 +1600,15 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
                 return next;
               });
             }}
-            className={`p-1.5 sm:p-2 rounded-full transition-colors cursor-pointer ${
+            className={`w-10 h-10 bg-white/95 hover:bg-zinc-100 text-zinc-600 rounded-full shadow-lg border border-black/10 flex items-center justify-center transition-colors cursor-pointer ${
               isDebugOpen 
-                ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-500/30' 
-                : 'hover:bg-black/5 dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-zinc-100 text-zinc-400 hover:text-zinc-600'
+                ? 'bg-amber-500/20 text-amber-600 font-bold hover:bg-amber-500/30' 
+                : 'hover:bg-black/5 hover:text-zinc-900'
             }`}
-            title="Toggle Song Fit Debug View (Ctrl+Shift+D)"
+            title="Toggle Song Fit Debug View"
             aria-label="Toggle Debug View"
           >
-            <Bug className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* Scroll to Top */}
-        {showScrollTop && (
-          <button
-            onClick={scrollToTop}
-            className="p-1.5 sm:p-2 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/15 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-full transition-colors cursor-pointer"
-            title="Scroll to Top"
-            aria-label="Scroll to Top"
-          >
-            <ChevronUp className="w-4 h-4" />
+            <Bug className="w-5 h-5" />
           </button>
         )}
       </div>

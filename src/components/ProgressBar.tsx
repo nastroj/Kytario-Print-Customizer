@@ -66,7 +66,7 @@ export function ProgressBar({
       id="loading-modal-overlay"
       className="fixed inset-0 z-50 bg-zinc-900/60 backdrop-blur-xs flex items-center justify-center p-4 print:hidden animate-in fade-in duration-200 select-none pointer-events-auto"
     >
-      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-black/10 dark:border-zinc-700/80 max-w-sm w-full p-6 sm:p-7 text-center space-y-5 relative overflow-hidden backdrop-blur-xl">
+      <div className="bg-white rounded-xl shadow-2xl border border-black/10 max-w-sm w-full p-6 sm:p-7 text-center space-y-5 relative overflow-hidden backdrop-blur-xl">
         {/* Subtle accent gradient bar at top */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700" />
 
@@ -76,21 +76,21 @@ export function ProgressBar({
           <div className="absolute inset-0 rounded-full bg-amber-500/20 animate-ping opacity-60" />
           
           {/* Outer rotating gradient ring */}
-          <div className="w-14 h-14 rounded-full border-[3px] border-zinc-100 dark:border-zinc-800 border-t-amber-500 border-r-amber-400 animate-spin" />
+          <div className="w-14 h-14 rounded-full border-[3px] border-zinc-100 border-t-amber-500 border-r-amber-400 animate-spin" />
           
-          {/* Inner dark disc with pulsing icon */}
-          <div className="absolute inset-2 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center shadow-md">
+          {/* Inner disc with pulsing icon */}
+          <div className="absolute inset-2 bg-zinc-50 rounded-full flex items-center justify-center shadow-md">
             <Music className="w-5 h-5 text-amber-500 animate-pulse" />
           </div>
         </div>
 
         {/* Status headings */}
         <div className="space-y-1">
-          <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+          <h3 className="text-base sm:text-lg font-bold text-zinc-900 tracking-tight">
             {statusText}
           </h3>
           {subText && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+            <p className="text-xs text-zinc-500 font-medium">
               {subText}
             </p>
           )}
@@ -99,7 +99,7 @@ export function ProgressBar({
         {/* Dynamic Activity Indicator */}
         <div className="space-y-3 pt-1">
           {/* Progress bar */}
-          <div className="w-full h-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden border border-black/5 dark:border-zinc-700/50 relative">
+          <div className="w-full h-2.5 bg-zinc-100 rounded-full overflow-hidden border border-black/5 relative">
             {isDeterminate ? (
                <div
                  className="h-full bg-gradient-to-r from-amber-500 to-amber-600 rounded-full transition-all duration-200 ease-out"
@@ -111,8 +111,8 @@ export function ProgressBar({
           </div>
           
           {isDeterminate && (
-            <div className="flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400 tabular-nums">
-              <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+            <div className="flex items-center justify-between text-xs font-bold text-amber-600 tabular-nums">
+              <span className="text-[11px] font-medium text-zinc-500">
                 {clampedProgress === 100 ? 'Complete' : 'Progress'}
               </span>
               <span>{clampedProgress}%</span>
@@ -120,7 +120,7 @@ export function ProgressBar({
           )}
 
           {/* Active status badge with live ping dot */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 text-xs font-semibold">
             <span className="relative flex h-2 w-2">
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${clampedProgress === 100 ? 'bg-emerald-500' : 'bg-amber-500'} opacity-75`} />
               <span className={`relative inline-flex rounded-full h-2 w-2 ${clampedProgress === 100 ? 'bg-emerald-600' : 'bg-amber-600'}`} />
@@ -129,7 +129,7 @@ export function ProgressBar({
           </div>
         </div>
 
-        <p className="text-[11px] text-zinc-400 dark:text-zinc-500 pt-0.5 leading-relaxed">
+        <p className="text-[11px] text-zinc-400 pt-0.5 leading-relaxed">
           Please wait while the file is processed and formatted.
         </p>
       </div>

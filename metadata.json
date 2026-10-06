@@ -1,6 +1,8 @@
 {
-  "name": "Kytario Print Customizer",
-  "description": "A web application to process and customize Kytario songbook JSON data for printing.",
+  "name": "Remix Kytario-Print-Customizer",
+  "description": "Imported from GitHub: nastroj/Kytario-Print-Customizer, new UI",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
