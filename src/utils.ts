@@ -444,6 +444,8 @@ function extractSongsFromAny(data: any, seen = new Set()): Song[] {
     'song_list',
     'trackList',
     'tracks',
+    'track',
+    'recordings',
     'data',
     'payload',
     'result',

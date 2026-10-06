@@ -181,6 +181,8 @@ function hasSongsPayload(data: any): boolean {
   if (Array.isArray(data.songs) && data.songs.length > 0) return true;
   if (Array.isArray(data.songbookSongs) && data.songbookSongs.length > 0) return true;
   if (Array.isArray(data.sections) && data.sections.length > 0) return true;
+  if (Array.isArray(data.tracks) && data.tracks.length > 0) return true;
+  if (Array.isArray(data.track) && data.track.length > 0) return true;
   return false;
 }
 
@@ -207,7 +209,21 @@ export function extractEmbeddedJsonFromHtml(html: string): any | null {
     }
   }
 
-  // 2. Any application/json script tag containing songs or sections
+  // 2. JSON-LD structured data script tags
+  const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  for (const m of ldMatches) {
+    try {
+      const parsed = JSON.parse(m[1]);
+      const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+      if (obj && (hasSongsPayload(obj) || (Array.isArray(obj.track) && obj.track.length > 0))) {
+        return obj;
+      }
+    } catch {
+      // Continue
+    }
+  }
+
+  // 3. Any application/json script tag containing songs or sections
   const jsonScriptMatches = html.matchAll(/<script[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi);
   for (const m of jsonScriptMatches) {
     try {
@@ -222,14 +238,21 @@ export function extractEmbeddedJsonFromHtml(html: string): any | null {
 }
 
 async function fetchViaPublicProxies(token: string, rawUrl?: string): Promise<any> {
-  const candidateUrls = [
-    `https://kytario.com/api/songbooks/${token}/sections`,
-    `https://kytario.com/api/v1/songbooks/${token}/sections`,
-    `https://kytario.com/api/songbooks/${token}`,
-  ];
+  const candidateUrls: string[] = [];
 
   if (rawUrl && /^https?:\/\//i.test(rawUrl.trim())) {
-    candidateUrls.unshift(rawUrl.trim().split('#')[0]);
+    candidateUrls.push(rawUrl.trim().split('#')[0]);
+  }
+
+  if (token) {
+    candidateUrls.push(`https://kytario.com/api/songbooks/${token}/sections`);
+    candidateUrls.push(`https://kytario.com/cs/${token}`);
+    candidateUrls.push(`https://kytario.com/sk/${token}`);
+    candidateUrls.push(`https://kytario.com/en/${token}`);
+    candidateUrls.push(`https://kytario.com/${token}`);
+    candidateUrls.push(`https://kytario.com/zpevnik/${token}`);
+    candidateUrls.push(`https://kytario.com/api/v1/songbooks/${token}/sections`);
+    candidateUrls.push(`https://kytario.com/api/songbooks/${token}`);
   }
 
   const uniqueEndpoints = Array.from(new Set(candidateUrls));
@@ -239,52 +262,38 @@ async function fetchViaPublicProxies(token: string, rawUrl?: string): Promise<an
     try {
       const res = await fetch(targetUrl, { signal: AbortSignal.timeout(2500) });
       if (res.ok) {
-        const data = await res.json();
-        if (hasSongsPayload(data)) {
-          return data;
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (hasSongsPayload(data)) return data;
+        } catch {
+          const embedded = extractEmbeddedJsonFromHtml(text);
+          if (embedded) return embedded;
         }
       }
     } catch {
       // Direct CORS blocked, continue
     }
 
-    // 2. Jina Reader supports large Kytario JSON responses and returns the body as text.
+    // 2. CorsProxy.io (Fast, reliable public CORS proxy)
     try {
-      const proxyUrl = `https://r.jina.ai/${targetUrl}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4500) });
-      if (res.ok) {
-        const text = await res.text();
-        const marker = 'Markdown Content:\n';
-        const markerIndex = text.indexOf(marker);
-        const content = (markerIndex >= 0 ? text.slice(markerIndex + marker.length) : text).trim();
-        const jsonStart = content.search(/[\[{]/);
-        if (jsonStart >= 0) {
-          const data = JSON.parse(content.slice(jsonStart));
-          if (hasSongsPayload(data)) {
-            return data;
-          }
-        }
-      }
-    } catch {
-      // Continue to other public relays.
-    }
-
-    // 3. allorigins raw proxy
-    try {
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
       const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
       if (res.ok) {
         const text = await res.text();
-        const data = JSON.parse(text);
-        if (hasSongsPayload(data)) {
-          return data;
+        try {
+          const data = JSON.parse(text);
+          if (hasSongsPayload(data)) return data;
+        } catch {
+          const embedded = extractEmbeddedJsonFromHtml(text);
+          if (embedded) return embedded;
         }
       }
     } catch {
       // Continue
     }
 
-    // 4. allorigins get proxy (JSON wrapper)
+    // 3. allorigins get proxy (JSON wrapper)
     try {
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
       const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
@@ -293,11 +302,8 @@ async function fetchViaPublicProxies(token: string, rawUrl?: string): Promise<an
         if (wrapper && wrapper.contents) {
           try {
             const data = JSON.parse(wrapper.contents);
-            if (hasSongsPayload(data)) {
-              return data;
-            }
+            if (hasSongsPayload(data)) return data;
           } catch {
-            // Check if HTML contains embedded songbook JSON
             const embedded = extractEmbeddedJsonFromHtml(wrapper.contents);
             if (embedded) return embedded;
           }
@@ -307,14 +313,39 @@ async function fetchViaPublicProxies(token: string, rawUrl?: string): Promise<an
       // Continue
     }
 
-    // 5. codetabs proxy
+    // 4. Jina Reader proxy
+    try {
+      const proxyUrl = `https://r.jina.ai/${targetUrl}`;
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4500) });
+      if (res.ok) {
+        const text = await res.text();
+        const jsonStart = text.search(/[\[{]/);
+        if (jsonStart >= 0) {
+          try {
+            const data = JSON.parse(text.slice(jsonStart));
+            if (hasSongsPayload(data)) return data;
+          } catch {
+            const embedded = extractEmbeddedJsonFromHtml(text);
+            if (embedded) return embedded;
+          }
+        }
+      }
+    } catch {
+      // Continue
+    }
+
+    // 5. CodeTabs proxy
     try {
       const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
       const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
       if (res.ok) {
-        const data = await res.json();
-        if (hasSongsPayload(data)) {
-          return data;
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (hasSongsPayload(data)) return data;
+        } catch {
+          const embedded = extractEmbeddedJsonFromHtml(text);
+          if (embedded) return embedded;
         }
       }
     } catch {

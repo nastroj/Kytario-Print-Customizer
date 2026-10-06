@@ -214,6 +214,68 @@ async function createServer() {
     return null;
   }
 
+  function hasSongsPayload(data: any): boolean {
+    if (!data) return false;
+    if (Array.isArray(data) && data.length > 0) return true;
+    if (Array.isArray(data.songs) && data.songs.length > 0) return true;
+    if (Array.isArray(data.songbookSongs) && data.songbookSongs.length > 0) return true;
+    if (Array.isArray(data.sections) && data.sections.length > 0) return true;
+    if (Array.isArray(data.tracks) && data.tracks.length > 0) return true;
+    if (Array.isArray(data.track) && data.track.length > 0) return true;
+    return false;
+  }
+
+  function extractEmbeddedJsonFromHtml(html: string): any | null {
+    if (typeof html !== 'string') return null;
+
+    // 1. Next.js __NEXT_DATA__
+    const nextDataMatch = html.match(/<script\s+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+    if (nextDataMatch && nextDataMatch[1]) {
+      try {
+        const parsed = JSON.parse(nextDataMatch[1]);
+        const pageProps = parsed?.props?.pageProps;
+        if (pageProps) {
+          const candidate = pageProps.songbook || pageProps.sections || pageProps.data || pageProps.project;
+          if (candidate && hasSongsPayload(candidate)) {
+            return candidate;
+          }
+          if (hasSongsPayload(pageProps)) {
+            return pageProps;
+          }
+        }
+      } catch {
+        // Continue
+      }
+    }
+
+    // 2. JSON-LD structured data script tags
+    const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    for (const m of ldMatches) {
+      try {
+        const parsed = JSON.parse(m[1]);
+        const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+        if (obj && (hasSongsPayload(obj) || (Array.isArray(obj.track) && obj.track.length > 0))) {
+          return obj;
+        }
+      } catch {
+        // Continue
+      }
+    }
+
+    // 3. Any application/json script tag containing songs or sections
+    const jsonScriptMatches = html.matchAll(/<script[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    for (const m of jsonScriptMatches) {
+      try {
+        const parsed = JSON.parse(m[1]);
+        if (hasSongsPayload(parsed)) return parsed;
+      } catch {
+        // Continue
+      }
+    }
+
+    return null;
+  }
+
   async function fetchKytarioWebpageTitle(token: string, rawUrl?: string): Promise<string | null> {
     if (!token && !rawUrl) return null;
     const urlsToTry: string[] = [];
@@ -275,6 +337,11 @@ async function createServer() {
 
     if (token) {
       candidateUrls.push(`https://kytario.com/api/songbooks/${token}/sections`);
+      candidateUrls.push(`https://kytario.com/cs/${token}`);
+      candidateUrls.push(`https://kytario.com/sk/${token}`);
+      candidateUrls.push(`https://kytario.com/en/${token}`);
+      candidateUrls.push(`https://kytario.com/${token}`);
+      candidateUrls.push(`https://kytario.com/zpevnik/${token}`);
       candidateUrls.push(`https://kytario.com/api/v1/songbooks/${token}/sections`);
       candidateUrls.push(`https://kytario.com/api/songbooks/${token}`);
       candidateUrls.push(`https://kytario.com/api/v1/songbooks/${token}`);
@@ -296,7 +363,7 @@ async function createServer() {
       try {
         const response = await axios.get(targetUrl, {
           headers: {
-            'Accept': 'application/json, text/plain, */*',
+            'Accept': 'application/json, text/html, text/plain, */*',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
           },
           timeout: 15000,
@@ -311,7 +378,12 @@ async function createServer() {
             try { 
               data = JSON.parse(data); 
             } catch (e) { 
-              continue; 
+              const embedded = extractEmbeddedJsonFromHtml(data);
+              if (embedded) {
+                data = embedded;
+              } else {
+                continue;
+              }
             }
           }
 
@@ -320,7 +392,9 @@ async function createServer() {
             (data && Array.isArray(data.songbookSongs) && data.songbookSongs.length > 0) ||
             (Array.isArray(data) && data.length > 0) ||
             (data && Array.isArray(data.songs) && data.songs.length > 0) ||
-            (data && Array.isArray(data.sections) && data.sections.length > 0);
+            (data && Array.isArray(data.sections) && data.sections.length > 0) ||
+            (data && Array.isArray(data.tracks) && data.tracks.length > 0) ||
+            (data && Array.isArray(data.track) && data.track.length > 0);
 
           if (hasSongs) {
             console.log(`[Proxy] Successfully retrieved songbook payload from: ${targetUrl}`);
