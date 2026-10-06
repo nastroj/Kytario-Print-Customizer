@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { LayoutTemplate, RectangleVertical, RectangleHorizontal, ArrowUpDown, ArrowLeftRight, BookOpen, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Hash, ChevronDown, ChevronRight, Shrink, Sparkles } from 'lucide-react';
 import { PrintSettings } from '../../types';
 import { Stepper } from './Stepper';
 import { MaterialToggle } from './MaterialToggle';
+import { scrollSectionIntoView } from '../../utils/scrollHelper';
 
 export interface PageLayoutSectionProps {
   idSuffix: string;
@@ -61,6 +62,24 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
   const [isOpen, setIsOpen] = useState(true);
   const [isSmartFitOpen, setIsSmartFitOpen] = useState(false);
   const [isMarginsOpen, setIsMarginsOpen] = useState(false);
+  const marginsRef = useRef<HTMLDivElement>(null);
+  const smartFitRef = useRef<HTMLDivElement>(null);
+
+  const handleToggleMargins = () => {
+    setIsMarginsOpen((prev) => {
+      const next = !prev;
+      if (next) scrollSectionIntoView(marginsRef.current);
+      return next;
+    });
+  };
+
+  const handleToggleSmartFit = () => {
+    setIsSmartFitOpen((prev) => {
+      const next = !prev;
+      if (next) scrollSectionIntoView(smartFitRef.current);
+      return next;
+    });
+  };
 
   const handleOrientationToggle = (newOrientation: 'portrait' | 'landscape') => {
     onSettingChange('orientation', newOrientation);
@@ -132,91 +151,10 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
           </div>
         </div>
 
-        {/* Book Mode Switch */}
-        <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <BookOpen className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
-              <label
-                htmlFor={`bookMode-${idSuffix}`}
-                className="text-xs font-semibold text-zinc-800 cursor-pointer select-none truncate"
-              >
-                Book Mode
-              </label>
-            </div>
-            <MaterialToggle
-              id={`bookMode-${idSuffix}`}
-              checked={!!draftSettings.bookMode}
-              onChange={(checked) => {
-                if (checked) {
-                  onSettingChange({
-                    bookMode: true,
-                    pageNumberPosition: 'outer',
-                  });
-                } else {
-                  onSettingChange({
-                    bookMode: false,
-                    pageNumberPosition: 'right',
-                  });
-                }
-              }}
-            />
-          </div>
-          <p className="text-[10.5px] text-zinc-500 leading-tight">
-            Alternate page numbers
-          </p>
-        </div>
-
-        {/* Page Number Position (Top) */}
-        <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-2">
-          <div className="flex items-center justify-between gap-2 min-w-0">
-            <label 
-              htmlFor={`pageNumberPosition-${idSuffix}`}
-              className="text-xs font-semibold text-zinc-800 flex items-center gap-1.5 shrink-0"
-            >
-              <Hash className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-              <span>Page Numbers</span>
-            </label>
-            <select
-              id={`pageNumberPosition-${idSuffix}`}
-              className="w-28 sm:w-32 min-w-0 max-w-full truncate rounded-md border border-black/10 shadow-2xs bg-white px-2 py-1.5 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
-              value={draftSettings.bookMode ? (draftSettings.pageNumberPosition ?? 'outer') : ((draftSettings.pageNumberPosition === 'outer' || !draftSettings.pageNumberPosition) ? 'right' : draftSettings.pageNumberPosition)}
-              onChange={(e) => onSettingChange('pageNumberPosition', e.target.value as any)}
-            >
-              {draftSettings.bookMode && (
-                <option value="outer">Outer (Alternating)</option>
-              )}
-              <option value="right">Right</option>
-              <option value="left">Left</option>
-              <option value="none">Hidden / None</option>
-            </select>
-          </div>
-          {(() => {
-            const pageNumText = draftSettings.bookMode
-              ? ((draftSettings.pageNumberPosition ?? 'outer') === 'outer'
-                  ? 'Alternates based on book spread: outer right on recto pages, outer left on verso pages.'
-                  : draftSettings.pageNumberPosition === 'left'
-                    ? 'Positioned on the top-left of every page.'
-                    : draftSettings.pageNumberPosition === 'none'
-                      ? 'Page numbers are hidden.'
-                      : '')
-              : (draftSettings.pageNumberPosition === 'left'
-                  ? 'Positioned on the top-left of every page.'
-                  : draftSettings.pageNumberPosition === 'none'
-                    ? 'Page numbers are hidden.'
-                    : '');
-            return pageNumText ? (
-              <p className="text-[10.5px] text-zinc-500 leading-tight">
-                {pageNumText}
-              </p>
-            ) : null;
-          })()}
-        </div>
-
         {/* Granular Separate Margins */}
-        <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-2.5">
+        <div ref={marginsRef} className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-2.5">
           <div
-            onClick={() => setIsMarginsOpen((prev) => !prev)}
+            onClick={handleToggleMargins}
             className="flex items-center justify-between cursor-pointer select-none group"
           >
             <div className="min-w-0 pr-2">
@@ -450,6 +388,87 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
           )}
         </div>
 
+        {/* Book Mode Switch */}
+        <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <BookOpen className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+              <label
+                htmlFor={`bookMode-${idSuffix}`}
+                className="text-xs font-semibold text-zinc-800 cursor-pointer select-none truncate"
+              >
+                Book Mode
+              </label>
+            </div>
+            <MaterialToggle
+              id={`bookMode-${idSuffix}`}
+              checked={!!draftSettings.bookMode}
+              onChange={(checked) => {
+                if (checked) {
+                  onSettingChange({
+                    bookMode: true,
+                    pageNumberPosition: 'outer',
+                  });
+                } else {
+                  onSettingChange({
+                    bookMode: false,
+                    pageNumberPosition: 'right',
+                  });
+                }
+              }}
+            />
+          </div>
+          <p className="text-[10.5px] text-zinc-500 leading-tight">
+            Alternate page numbers
+          </p>
+        </div>
+
+        {/* Page Number Position (Top) */}
+        <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-2">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <label 
+              htmlFor={`pageNumberPosition-${idSuffix}`}
+              className="text-xs font-semibold text-zinc-800 flex items-center gap-1.5 shrink-0"
+            >
+              <Hash className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+              <span>Page Numbers</span>
+            </label>
+            <select
+              id={`pageNumberPosition-${idSuffix}`}
+              className="w-28 sm:w-32 min-w-0 max-w-full truncate rounded-md border border-black/10 shadow-2xs bg-white px-2 py-1.5 text-xs font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+              value={draftSettings.bookMode ? (draftSettings.pageNumberPosition ?? 'outer') : ((draftSettings.pageNumberPosition === 'outer' || !draftSettings.pageNumberPosition) ? 'right' : draftSettings.pageNumberPosition)}
+              onChange={(e) => onSettingChange('pageNumberPosition', e.target.value as any)}
+            >
+              {draftSettings.bookMode && (
+                <option value="outer">Outer (Alternating)</option>
+              )}
+              <option value="right">Right</option>
+              <option value="left">Left</option>
+              <option value="none">Hidden / None</option>
+            </select>
+          </div>
+          {(() => {
+            const pageNumText = draftSettings.bookMode
+              ? ((draftSettings.pageNumberPosition ?? 'outer') === 'outer'
+                  ? 'Alternates based on book spread: outer right on recto pages, outer left on verso pages.'
+                  : draftSettings.pageNumberPosition === 'left'
+                    ? 'Positioned on the top-left of every page.'
+                    : draftSettings.pageNumberPosition === 'none'
+                      ? 'Page numbers are hidden.'
+                      : '')
+              : (draftSettings.pageNumberPosition === 'left'
+                  ? 'Positioned on the top-left of every page.'
+                  : draftSettings.pageNumberPosition === 'none'
+                    ? 'Page numbers are hidden.'
+                    : '');
+            return pageNumText ? (
+              <p className="text-[10.5px] text-zinc-500 leading-tight">
+                {pageNumText}
+              </p>
+            ) : null;
+          })()}
+        </div>
+
         {/* Table of Contents Ordering */}
         <div className="p-2 bg-zinc-50 rounded-lg border border-black/5 space-y-2">
           <div className="flex items-center justify-between gap-2">
@@ -548,9 +567,9 @@ export const PageLayoutSection = React.memo(function PageLayoutSection({
         </div>
 
         {/* Smart Auto-scale & Layout Caps */}
-        <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-2">
+        <div ref={smartFitRef} className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 space-y-2">
           <div
-            onClick={() => setIsSmartFitOpen((prev) => !prev)}
+            onClick={handleToggleSmartFit}
             className="flex items-center justify-between cursor-pointer select-none group"
           >
             <div className="min-w-0 pr-2">

@@ -1,12 +1,25 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.6.0  
+**Version:** 1.7.0  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.6.0 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.7.0 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+
+---
+
+## 🌟 What's New in v1.7.0
+
+- **Dual Floating Pod Bottom Toolbar**: Redesigned the bottom toolbar into two distinct floating capsules for cleaner visual balance and ergonomics:
+  - **Pod 1 (Navigation & View)**: Contains canvas zoom, Reset Zoom %, Fit page, and the Table of Contents Navigation popover.
+  - **Pod 2 (Document Management)**: Houses the Import Songbook, Sidebar Settings, and Export PDF actions with expanded, spacious buttons.
+- **Responsive Wrap & Stacking**: Both pods automatically wrap and stack vertically on narrow mobile viewports or high browser zoom levels, maintaining large touch targets and preventing screen overflow.
+- **Smart Click-Outside Validation**: Solved accidental sidebar closures by checking clicked element connectedness (`isConnected`). Clicks on dynamic, unmounting React components inside the sidebar are correctly treated as inside clicks.
+- **Auto-Scroll to Uncollapsed Sections**: Added a smart scroll-into-view helper that triggers whenever a collapsible section (Page Margins, Smart Auto-scale, Front Cover, Back Cover, and Font and Colors) is expanded in the sidebar.
+- **Logical Sidebar Hierarchy**: Relocated the granular **Page Margins** card to sit directly after **Orientation** for an improved configuration flow.
+- **CI/CD Lockfile Resolution**: Created a root `package-lock.json` file, resolving the GitHub Pages caching action failure for reproducible, high-speed builds.
 
 ---
 

@@ -1564,11 +1564,11 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         </div>
 
         {/* Spacer so bottom floating toolbar does not cover bottom of last page */}
-        <div className="h-24 print:hidden" />
+        <div className="h-28 sm:h-24 print:hidden" />
       </div>
 
       {/* FLOATING QUICK ACTIONS GROUP (PAGES NAVIGATOR, DEBUG HUD & SCROLL TO TOP - OUT OF THE WAY OF BOTTOM BAR) */}
-      <div className="fixed bottom-24 right-4 z-30 print:hidden flex flex-col gap-2">
+      <div className="fixed bottom-28 sm:bottom-24 right-4 z-30 print:hidden flex flex-col gap-2">
         {/* Scroll to Top */}
         {showScrollTop && (
           <button

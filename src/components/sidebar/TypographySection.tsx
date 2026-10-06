@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Type, Italic, ChevronDown, ChevronRight } from 'lucide-react';
 import { PrintSettings } from '../../types';
 import { ColorDotInput } from './ColorDotInput';
 import { Stepper } from './Stepper';
+import { scrollSectionIntoView } from '../../utils/scrollHelper';
 
 export interface TypographySectionProps {
   idSuffix: string;
@@ -162,12 +163,21 @@ export const TypographySection = React.memo(function TypographySection({
   onSettingChange,
 }: TypographySectionProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const typoRef = useRef<HTMLDivElement>(null);
+
+  const handleToggle = () => {
+    setIsOpen((prev) => {
+      const next = !prev;
+      if (next) scrollSectionIntoView(typoRef.current);
+      return next;
+    });
+  };
 
   return (
     <div className="pt-3 border-t border-black/5">
-      <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 transition-all">
+      <div ref={typoRef} className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 transition-all">
         <div
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={handleToggle}
           className="flex items-center justify-between select-none cursor-pointer group"
         >
           <div className="min-w-0 pr-2">

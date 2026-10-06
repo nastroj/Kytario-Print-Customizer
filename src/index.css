@@ -4,6 +4,7 @@
 
 @theme {
   --font-sans: "Inter", "inter Fallback", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --breakpoint-xs: 400px;
 }
 
 /* Sleek Modern Scrollbars */
@@ -31,6 +32,15 @@
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(113, 113, 122, 0.7);
+}
+
+/* Hide scrollbar utility for scrollable toolbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 @keyframes indeterminate-bar {

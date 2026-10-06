@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { BookOpen, Sparkles, FileText, Upload, Trash2, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { PrintSettings } from '../../types';
 import { resizeAndCompressImage } from '../../utils/imageResize';
 import { MaterialToggle } from './MaterialToggle';
 import { LocalizedInput, LocalizedTextarea } from './LocalizedInput';
+import { scrollSectionIntoView } from '../../utils/scrollHelper';
 
 export const DEFAULT_FOOTER_TEXT = "Vytvořeno s ♥ pomocí kytario.com | Vytvoř si zpěvník, sdílej ho a hraj.\nPosouvejte text živě společně, transponuj do libovolné tóniny nebo exportuj do PDF - zdarma pro tebe i tvé přátele. :)";
 
@@ -69,6 +70,24 @@ export const CoverPageSection = React.memo(function CoverPageSection({
   const [isSectionOpen, setIsSectionOpen] = useState(true);
   const [isFrontCoverOpen, setIsFrontCoverOpen] = useState(false);
   const [isBackCoverOpen, setIsBackCoverOpen] = useState(false);
+  const frontCoverRef = useRef<HTMLDivElement>(null);
+  const backCoverRef = useRef<HTMLDivElement>(null);
+
+  const handleToggleFrontCover = () => {
+    setIsFrontCoverOpen((prev) => {
+      const next = !prev;
+      if (next) scrollSectionIntoView(frontCoverRef.current);
+      return next;
+    });
+  };
+
+  const handleToggleBackCover = () => {
+    setIsBackCoverOpen((prev) => {
+      const next = !prev;
+      if (next) scrollSectionIntoView(backCoverRef.current);
+      return next;
+    });
+  };
 
   const handleFrontImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -120,9 +139,9 @@ export const CoverPageSection = React.memo(function CoverPageSection({
           {/* =========================================================================
               FRONT COVER
              ========================================================================= */}
-          <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 transition-all">
+          <div ref={frontCoverRef} className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 transition-all">
             <div 
-              onClick={() => setIsFrontCoverOpen((prev) => !prev)}
+              onClick={handleToggleFrontCover}
               className="flex items-center justify-between select-none cursor-pointer group"
             >
               <div className="min-w-0 pr-2">
@@ -404,9 +423,9 @@ export const CoverPageSection = React.memo(function CoverPageSection({
         {/* =========================================================================
             BACK COVER
            ========================================================================= */}
-        <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 transition-all">
+        <div ref={backCoverRef} className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 transition-all">
           <div 
-            onClick={() => setIsBackCoverOpen((prev) => !prev)}
+            onClick={handleToggleBackCover}
             className="flex items-center justify-between select-none cursor-pointer group"
           >
             <div className="min-w-0 pr-2">

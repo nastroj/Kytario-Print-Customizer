@@ -1,5 +1,33 @@
 # Release Notes
 
+## v1.7.0 - 2026-10-06
+
+### Separated View & Action Toolbar Pods (Responsive UX Overhaul)
+
+- **Sleek Dual Floating Pods**: Split the crowded bottom bar into two centered floating capsules:
+  - **Pod 1 (Navigation & View)**: Groups all inspection tools (`Zoom Out`, `Zoom % Display & Reset`, `Zoom In`, `Fit Width/Page`, and the `Content` [Song Navigation] popover).
+  - **Pod 2 (Workflow & Output)**: Dedicated to core document operations (`Import`, `Settings`, and `Export PDF`).
+- **Flexible Wrapping & Stacking**: Designed both pods to automatically wrap and stack vertically on narrow mobile viewports or high browser zoom levels, maintaining comfortable, large touch targets and preventing any clipping or visual overflow.
+- **Wider, High-End Layout**: Expanded the main Actions capsule to provide elegant, roomy spacing between primary buttons on desktop screens.
+
+### Smart Click-Outside Dismissal (React Stability Fix)
+
+- **Connectedness Validation**: Added safety connectedness checks (`!target.isConnected || !document.body.contains(target)`) to the document-level click outside listener. 
+- **Elimination of Accidental Dismissals**: Prevents the sidebar or song drawer from closing when users click dynamic elements (like stepper buttons, select dropdowns, toggles, or color card dots) that React unmounts or replaces in the DOM synchronously during state changes.
+
+### Sidebar Layout & Scroll Navigation Enhancements
+
+- **Logical Customization Flow**: Relocated the granular **Page Margins** settings section in the sidebar to sit immediately after the **Orientation** card for a more intuitive design configuration sequence.
+- **Auto-Scroll to Uncollapsed Sections**: Added a smart `scrollSectionIntoView` utility that triggers whenever a collapsible section (Page Margins, Smart Auto-scale, Front Cover, Back Cover, and Font and Colors) is expanded.
+- **Intelligent View Positioning**: Automatically computes section height and scroll bounds. If the expanded card fits in the sidebar viewport, it brings the entire card in view; if the card is taller than the viewport, it aligns the top cleanly so the user can easily interact with it.
+
+### GitHub CI/CD Pipeline Resiliency
+
+- **Lockfile Generation**: Created a fully resolved root `package-lock.json` file in the project.
+- **Actions Optimization**: Resolved the `actions/setup-node@v4` caching failure (`cache: 'npm'`), resulting in faster, robust, and reproducible builds in GitHub Actions.
+
+---
+
 ## v1.6.0 - 2026-10-05
 
 ### Complete Theme Overhaul & Monotheme Migration
