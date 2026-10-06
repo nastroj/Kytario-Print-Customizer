@@ -114,25 +114,7 @@ function sanitizeExtractedTitle(rawTitle: string): string | null {
 export function extractTitleFromHtml(html: string): string | null {
   if (typeof html !== 'string') return null;
 
-  // 1. JSON-LD Structured Data
-  const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-  for (const match of ldMatches) {
-    try {
-      const parsed = JSON.parse(match[1]);
-      const obj = Array.isArray(parsed) ? parsed[0] : parsed;
-      if (obj) {
-        const name = obj.name || obj.headline || obj.songbookName;
-        if (name && typeof name === 'string') {
-          const clean = sanitizeExtractedTitle(name);
-          if (clean) return clean;
-        }
-      }
-    } catch {
-      // Continue
-    }
-  }
-
-  // 2. OpenGraph / Twitter / Standard Meta Tags
+  // 1. OpenGraph / Twitter / Standard Meta Tags (Primary source for Kytario songbook titles)
   const metaRegex = /<meta\s+[^>]*?(?:property|name)=["'](?:og:title|twitter:title|title)["']\s+content=["']([^"']+)["']/gi;
   let metaMatch;
   while ((metaMatch = metaRegex.exec(html)) !== null) {
@@ -150,14 +132,14 @@ export function extractTitleFromHtml(html: string): string | null {
     }
   }
 
-  // 3. <title> Tag
+  // 2. <title> Tag
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   if (titleMatch && titleMatch[1]) {
     const clean = sanitizeExtractedTitle(titleMatch[1]);
     if (clean) return clean;
   }
 
-  // 4. Main Heading <h1>
+  // 3. Main Heading <h1> / <strong> inside digital songbook header
   const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
   if (h1Match && h1Match[1]) {
     const stripped = h1Match[1].replace(/<[^>]+>/g, '');
@@ -165,11 +147,29 @@ export function extractTitleFromHtml(html: string): string | null {
     if (clean) return clean;
   }
 
-  // 5. <strong> inside digital songbook header
   const strongMatch = html.match(/<strong>\s*([^<]+?)\s*<\/strong>/i);
   if (strongMatch && strongMatch[1]) {
     const clean = sanitizeExtractedTitle(strongMatch[1]);
     if (clean) return clean;
+  }
+
+  // 4. JSON-LD Structured Data (Fallback - ignore if obj.name equals author name)
+  const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  for (const match of ldMatches) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+      if (obj) {
+        const authorName = obj.author?.name || obj.byArtist?.name;
+        const candidate = obj.songbookName || obj.headline || (obj.name !== authorName ? obj.name : null);
+        if (candidate && typeof candidate === 'string') {
+          const clean = sanitizeExtractedTitle(candidate);
+          if (clean) return clean;
+        }
+      }
+    } catch {
+      // Continue
+    }
   }
 
   return null;
