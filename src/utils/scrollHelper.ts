@@ -1,7 +1,8 @@
 /**
- * Smoothly scrolls the sidebar container to ensure the entire uncollapsed section
+ * Scrolls the sidebar container to ensure the entire uncollapsed section
  * is visible in view. If the section is taller than the viewport, it aligns the top
  * of the section near the top so the user can easily interact from the start.
+ * Uses instant 'auto' behavior to avoid fighting CSS layout animations.
  */
 export function scrollSectionIntoView(element: HTMLElement | null, delayMs = 30): void {
   if (!element || typeof window === 'undefined') return;
@@ -20,7 +21,7 @@ export function scrollSectionIntoView(element: HTMLElement | null, delayMs = 30)
     }
 
     if (!container || container === document.body) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      element.scrollIntoView({ behavior: 'auto', block: 'nearest' });
       return;
     }
 
@@ -43,12 +44,14 @@ export function scrollSectionIntoView(element: HTMLElement | null, delayMs = 30)
       if (elemRect.bottom > containerRect.bottom) {
         container.scrollTo({
           top: Math.max(0, maxScrollNeeded),
-          behavior: 'smooth',
+          left: container.scrollLeft, // Preserve horizontal scroll
+          behavior: 'auto',
         });
       } else if (elemRect.top < containerRect.top) {
         container.scrollTo({
           top: Math.max(0, targetScrollTop),
-          behavior: 'smooth',
+          left: container.scrollLeft, // Preserve horizontal scroll
+          behavior: 'auto',
         });
       }
     } else {
@@ -56,7 +59,8 @@ export function scrollSectionIntoView(element: HTMLElement | null, delayMs = 30)
       const targetScrollTop = elemTopRelativeToContainer - padding;
       container.scrollTo({
         top: Math.max(0, targetScrollTop),
-        behavior: 'smooth',
+        left: container.scrollLeft, // Preserve horizontal scroll
+        behavior: 'auto',
       });
     }
   }, delayMs);

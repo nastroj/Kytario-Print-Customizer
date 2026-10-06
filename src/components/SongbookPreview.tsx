@@ -1565,7 +1565,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       </div>
 
       {/* FLOATING QUICK ACTIONS GROUP (PAGES NAVIGATOR, DEBUG HUD & SCROLL TO TOP - OUT OF THE WAY OF BOTTOM BAR) */}
-      <div className="fixed bottom-28 sm:bottom-24 right-4 z-30 print:hidden flex flex-col gap-2">
+      <div className="fixed bottom-[68px] sm:bottom-[72px] right-6 sm:right-8 z-30 print:hidden flex flex-col gap-2">
         {/* Scroll to Top */}
         {showScrollTop && (
           <button
