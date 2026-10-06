@@ -384,6 +384,19 @@ export default function App() {
     };
   }, [isSongNavOpen, isMobileSidebarOpen]);
 
+  // Global Escape key shortcut handler for desktop accessibility
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isSongNavOpen) setIsSongNavOpen(false);
+        if (isMobileSidebarOpen) setIsMobileSidebarOpen(false);
+        if (isConfirmResetOpen) setIsConfirmResetOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSongNavOpen, isMobileSidebarOpen, isConfirmResetOpen]);
+
   const handleSidebarDownloadPdf = useCallback(() => {
     handleDownloadPdf();
   }, [handleDownloadPdf]);
@@ -664,40 +677,74 @@ export default function App() {
     setRecoveryNotice(null);
     setWarningMessage(null);
     setIsLoadingJson(true);
+
+    // Initial Stage 1: Connecting
     setLoadingStatus({
       title: 'Connecting to Kytario...',
       subtitle: cleanUrl,
-      progress: 10,
+      progress: 8,
     });
 
-    const downloadTimer = setTimeout(() => {
+    // Progressive Ticker during asynchronous fetching (8% -> 34%)
+    let currentFetchProgress = 8;
+    const fetchProgressInterval = setInterval(() => {
+      currentFetchProgress = Math.min(34, currentFetchProgress + 3);
+      let stageTitle = 'Connecting to Kytario...';
+      let stageSubtitle = cleanUrl;
+
+      if (currentFetchProgress >= 14 && currentFetchProgress < 22) {
+        stageTitle = 'Fetching songbook payload...';
+        stageSubtitle = 'Requesting sections & songs from Kytario API...';
+      } else if (currentFetchProgress >= 22 && currentFetchProgress < 28) {
+        stageTitle = 'Reading webpage metadata...';
+        stageSubtitle = 'Extracting songbook name & details...';
+      } else if (currentFetchProgress >= 28) {
+        stageTitle = 'Receiving JSON data...';
+        stageSubtitle = 'Parsing song structures & chords...';
+      }
+
       setLoadingStatus({
-        title: 'Downloading songbook...',
-        subtitle: 'Fetching data from Kytario API...',
-        progress: 25,
+        title: stageTitle,
+        subtitle: stageSubtitle,
+        progress: currentFetchProgress,
       });
-    }, 450);
+    }, 280);
 
     try {
       const rawData = await fetchSongbookFromKytario(cleanUrl);
-      clearTimeout(downloadTimer);
+      clearInterval(fetchProgressInterval);
 
       const data = normalizeSongbookData(rawData);
       setKytarioFetchDetails(null);
 
+      const songCount = (data.songs || []).length;
+      const songbookName = data.title || 'Songbook';
+
+      // Informative Transition Stage 2: Payload Received & Name Confirmed (38%)
       setLoadingStatus({
-        title: 'Analyzing songbook...',
-        subtitle: `Found ${(data.songs || []).length} songs in "${data.title || 'Songbook'}"`,
-        progress: 35,
+        title: 'Songbook Received!',
+        subtitle: `Found ${songCount} song${songCount === 1 ? '' : 's'} in "${songbookName}"`,
+        progress: 38,
       });
 
-      animateSongbookLoad(data, {
-        startProgress: 35,
-        sourceType: 'url',
-        sourceLabel: cleanUrl,
-      });
+      // Brief frame paint so user clearly reads the confirmed songbook name and song count
+      setTimeout(() => {
+        setLoadingStatus({
+          title: 'Parsing & Validating...',
+          subtitle: 'Extracting song sections, chords, and Table of Contents...',
+          progress: 42,
+        });
+
+        setTimeout(() => {
+          animateSongbookLoad(data, {
+            startProgress: 42,
+            sourceType: 'url',
+            sourceLabel: cleanUrl,
+          });
+        }, 150);
+      }, 280);
     } catch (err: any) {
-      clearTimeout(downloadTimer);
+      clearInterval(fetchProgressInterval);
       console.warn('Kytario import:', err?.message || err);
       setErrorMessage(err.message || 'Failed to import from Kytario.');
       if (err.details) {

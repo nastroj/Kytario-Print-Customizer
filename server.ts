@@ -88,39 +88,171 @@ async function createServer() {
     return '';
   }
 
-  async function fetchKytarioWebpageTitle(token: string): Promise<string | null> {
-    if (!token) return null;
-    try {
-      const res = await axios.get(`https://kytario.com/${token}`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-        },
-        timeout: 6000
-      });
-      const html = res.data;
-      if (typeof html !== 'string') return null;
+  function decodeHtmlEntities(str: string): string {
+    if (!str) return '';
+    return str
+      .replace(/&amp;/gi, '&')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/&apos;/gi, "'")
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
+      .trim();
+  }
 
-      // 1. JSON-LD MusicAlbum name
-      const ldMatch = html.match(/"@type"\s*:\s*"MusicAlbum"\s*,\s*"name"\s*:\s*"([^"]+)"/);
-      if (ldMatch && ldMatch[1] && ldMatch[1].trim()) return ldMatch[1].trim();
+  function cleanSongbookTitle(rawTitle: string): string {
+    if (!rawTitle || typeof rawTitle !== 'string') return '';
+    let text = rawTitle.trim();
 
-      // 2. Heading "Welcome to digital songbook ... <strong>NAME</strong>"
-      const headingMatch = html.match(/<strong>([^<]+)<\/strong>/i);
-      if (headingMatch && headingMatch[1] && headingMatch[1].trim()) return headingMatch[1].trim();
+    // Strip trailing site brand identifiers
+    text = text.replace(/\s*(?:\||-|–|—)\s*Kytario.*$/i, '').trim();
+    text = text.replace(/\s*(?:\||-|–|—)\s*(?:Digitální zpěvník|Digital Songbook).*$/i, '').trim();
 
-      // 3. Title tag: <title>Songbook NAME | Kytario</title> or <title>Zpěvník NAME | Kytario</title>
-      const titleMatch = html.match(/<title>\s*(?:Songbook\s+|Zpěvník\s+)?(.*?)\s*\|\s*Kytario<\/title>/i);
-      if (titleMatch && titleMatch[1] && titleMatch[1].trim()) return titleMatch[1].trim();
+    // Strip parenthesized or bracketed terms
+    text = text.replace(/\s*[\(\[](?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\)\]]/i, '').trim();
 
-      // 4. og:title
-      const ogMatch = html.match(/property="og:title"\s+content="(?:Songbook\s+|Zpěvník\s+)?(.*?)\s*\|\s*Kytario"/i);
-      if (ogMatch && ogMatch[1] && ogMatch[1].trim()) return ogMatch[1].trim();
+    // Strip leading prefixes like "Songbook Písničky", "Songbook: Písničky", "Songbook - Písničky", "Zpěvník Písničky"
+    const strippedLeading = text.replace(/^(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\s:\-–—]+/i, '').trim();
+    if (strippedLeading) {
+      text = strippedLeading;
+    }
 
-      return null;
-    } catch (e) {
+    // Strip trailing "Songbook" / "Zpěvník" if preceded by space/dash
+    const strippedTrailing = text.replace(/[\s:\-–—]+(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)$/i, '').trim();
+    if (strippedTrailing) {
+      text = strippedTrailing;
+    }
+
+    return text || rawTitle.trim();
+  }
+
+  function sanitizeExtractedTitle(rawTitle: string): string | null {
+    if (!rawTitle) return null;
+    let text = decodeHtmlEntities(rawTitle).trim();
+    
+    text = cleanSongbookTitle(text);
+    
+    // Ignore generic fallback titles
+    const lower = text.toLowerCase();
+    if (
+      !text || 
+      lower === 'kytario' || 
+      lower === 'songbook' || 
+      lower === 'zpěvník' || 
+      lower === 'zpevnik' || 
+      lower === 'digital songbook' || 
+      lower === 'digitální zpěvník'
+    ) {
       return null;
     }
+    
+    return text;
+  }
+
+  function extractTitleFromHtml(html: string): string | null {
+    if (typeof html !== 'string') return null;
+
+    // 1. JSON-LD Structured Data
+    const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    for (const match of ldMatches) {
+      try {
+        const parsed = JSON.parse(match[1]);
+        const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+        if (obj) {
+          const name = obj.name || obj.headline || obj.songbookName;
+          if (name && typeof name === 'string') {
+            const clean = sanitizeExtractedTitle(name);
+            if (clean) return clean;
+          }
+        }
+      } catch {
+        // Continue
+      }
+    }
+
+    // 2. OpenGraph / Twitter / Standard Meta Tags
+    const metaRegex = /<meta\s+[^>]*?(?:property|name)=["'](?:og:title|twitter:title|title)["']\s+content=["']([^"']+)["']/gi;
+    let metaMatch;
+    while ((metaMatch = metaRegex.exec(html)) !== null) {
+      if (metaMatch[1]) {
+        const clean = sanitizeExtractedTitle(metaMatch[1]);
+        if (clean) return clean;
+      }
+    }
+
+    const metaRevRegex = /<meta\s+[^>]*?content=["']([^"']+)["']\s+(?:property|name)=["'](?:og:title|twitter:title|title)["']/gi;
+    while ((metaMatch = metaRevRegex.exec(html)) !== null) {
+      if (metaMatch[1]) {
+        const clean = sanitizeExtractedTitle(metaMatch[1]);
+        if (clean) return clean;
+      }
+    }
+
+    // 3. <title> Tag
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (titleMatch && titleMatch[1]) {
+      const clean = sanitizeExtractedTitle(titleMatch[1]);
+      if (clean) return clean;
+    }
+
+    // 4. Main Heading <h1>
+    const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    if (h1Match && h1Match[1]) {
+      const stripped = h1Match[1].replace(/<[^>]+>/g, '');
+      const clean = sanitizeExtractedTitle(stripped);
+      if (clean) return clean;
+    }
+
+    // 5. <strong> inside digital songbook header
+    const strongMatch = html.match(/<strong>\s*([^<]+?)\s*<\/strong>/i);
+    if (strongMatch && strongMatch[1]) {
+      const clean = sanitizeExtractedTitle(strongMatch[1]);
+      if (clean) return clean;
+    }
+
+    return null;
+  }
+
+  async function fetchKytarioWebpageTitle(token: string, rawUrl?: string): Promise<string | null> {
+    if (!token && !rawUrl) return null;
+    const urlsToTry: string[] = [];
+
+    if (rawUrl && /^https?:\/\//i.test(rawUrl.trim())) {
+      urlsToTry.push(rawUrl.trim().split('#')[0]);
+    }
+
+    if (token) {
+      urlsToTry.push(`https://kytario.com/${token}`);
+      urlsToTry.push(`https://kytario.com/cs/${token}`);
+      urlsToTry.push(`https://kytario.com/sk/${token}`);
+      urlsToTry.push(`https://kytario.com/en/${token}`);
+      urlsToTry.push(`https://kytario.com/zpevnik/${token}`);
+    }
+
+    const uniqueUrls = Array.from(new Set(urlsToTry));
+
+    for (const pageUrl of uniqueUrls) {
+      try {
+        const res = await axios.get(pageUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          },
+          timeout: 6000
+        });
+        const html = res.data;
+        if (typeof html === 'string') {
+          const title = extractTitleFromHtml(html);
+          if (title) {
+            return title;
+          }
+        }
+      } catch (e) {
+        // Try next candidate URL
+      }
+    }
+    return null;
   }
 
   // Kytario API Proxy with robust endpoint fallbacks
@@ -193,10 +325,10 @@ async function createServer() {
           if (hasSongs) {
             console.log(`[Proxy] Successfully retrieved songbook payload from: ${targetUrl}`);
 
-            // Fetch human-readable songbook name from Kytario public webpage if token exists
-            if (token) {
+            // Fetch human-readable songbook name from Kytario public webpage if token or rawInput exists
+            if (token || rawInput) {
               try {
-                const webTitle = await fetchKytarioWebpageTitle(token);
+                const webTitle = await fetchKytarioWebpageTitle(token, rawInput);
                 if (webTitle) {
                   console.log(`[Proxy] Enriched songbook title from Kytario page: "${webTitle}"`);
                   data.title = webTitle;

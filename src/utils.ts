@@ -952,6 +952,32 @@ export function resolveCoverUrl(options: {
   return { displayUrl, qrTarget };
 }
 
+export function cleanSongbookTitle(rawTitle: string): string {
+  if (!rawTitle || typeof rawTitle !== 'string') return '';
+  let text = rawTitle.trim();
+
+  // Strip trailing site brand identifiers
+  text = text.replace(/\s*(?:\||-|–|—)\s*Kytario.*$/i, '').trim();
+  text = text.replace(/\s*(?:\||-|–|—)\s*(?:Digitální zpěvník|Digital Songbook).*$/i, '').trim();
+
+  // Strip parenthesized or bracketed terms like "(Songbook)" or "[Zpěvník]"
+  text = text.replace(/\s*[\(\[](?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\)\]]/i, '').trim();
+
+  // Strip leading prefixes like "Songbook Písničky", "Songbook: Písničky", "Songbook - Písničky", "Zpěvník Písničky"
+  const strippedLeading = text.replace(/^(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\s:\-–—]+/i, '').trim();
+  if (strippedLeading) {
+    text = strippedLeading;
+  }
+
+  // Strip trailing "Songbook" / "Zpěvník" if preceded by space/dash
+  const strippedTrailing = text.replace(/[\s:\-–—]+(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)$/i, '').trim();
+  if (strippedTrailing) {
+    text = strippedTrailing;
+  }
+
+  return text || rawTitle.trim();
+}
+
 /**
  * Normalizes various songbook JSON structures into a unified SongbookData
  */
@@ -977,6 +1003,9 @@ export function normalizeSongbookData(raw: any, rawJsonText?: string): SongbookD
       raw.songbookSongs?.[0]?.song?.project?.name ||
       'Songbook';
   }
+
+  title = cleanSongbookTitle(title);
+  if (!title) title = 'Songbook';
 
   const urlInfo = extractSongbookUrlAndSlug(raw, rawJsonText);
   const urlToken = (typeof raw === 'object' && raw !== null) 

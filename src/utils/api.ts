@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { cleanSongbookTitle } from '../utils';
 
 export interface KytarioErrorDetails {
   isCorsOrStaticHost: boolean;
@@ -74,24 +75,102 @@ export function extractKytarioSlug(input: string): string {
   return '';
 }
 
+function decodeHtmlEntities(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
+    .trim();
+}
+
+function sanitizeExtractedTitle(rawTitle: string): string | null {
+  if (!rawTitle) return null;
+  let text = decodeHtmlEntities(rawTitle).trim();
+  
+  text = cleanSongbookTitle(text);
+  
+  // Ignore generic fallback titles
+  const lower = text.toLowerCase();
+  if (
+    !text || 
+    lower === 'kytario' || 
+    lower === 'songbook' || 
+    lower === 'zpěvník' || 
+    lower === 'zpevnik' || 
+    lower === 'digital songbook' || 
+    lower === 'digitální zpěvník'
+  ) {
+    return null;
+  }
+  
+  return text;
+}
+
 export function extractTitleFromHtml(html: string): string | null {
   if (typeof html !== 'string') return null;
 
-  // 1. JSON-LD MusicAlbum name
-  const ldMatch = html.match(/"@type"\s*:\s*"MusicAlbum"\s*,\s*"name"\s*:\s*"([^"]+)"/);
-  if (ldMatch && ldMatch[1] && ldMatch[1].trim()) return ldMatch[1].trim();
+  // 1. JSON-LD Structured Data
+  const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  for (const match of ldMatches) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+      if (obj) {
+        const name = obj.name || obj.headline || obj.songbookName;
+        if (name && typeof name === 'string') {
+          const clean = sanitizeExtractedTitle(name);
+          if (clean) return clean;
+        }
+      }
+    } catch {
+      // Continue
+    }
+  }
 
-  // 2. Heading "Welcome to digital songbook ... <strong>NAME</strong>"
-  const headingMatch = html.match(/<strong>([^<]+)<\/strong>/i);
-  if (headingMatch && headingMatch[1] && headingMatch[1].trim()) return headingMatch[1].trim();
+  // 2. OpenGraph / Twitter / Standard Meta Tags
+  const metaRegex = /<meta\s+[^>]*?(?:property|name)=["'](?:og:title|twitter:title|title)["']\s+content=["']([^"']+)["']/gi;
+  let metaMatch;
+  while ((metaMatch = metaRegex.exec(html)) !== null) {
+    if (metaMatch[1]) {
+      const clean = sanitizeExtractedTitle(metaMatch[1]);
+      if (clean) return clean;
+    }
+  }
 
-  // 3. Title tag: <title>Songbook NAME | Kytario</title> or <title>Zpěvník NAME | Kytario</title>
-  const titleMatch = html.match(/<title>\s*(?:Songbook\s+|Zpěvník\s+)?(.*?)\s*\|\s*Kytario<\/title>/i);
-  if (titleMatch && titleMatch[1] && titleMatch[1].trim()) return titleMatch[1].trim();
+  const metaRevRegex = /<meta\s+[^>]*?content=["']([^"']+)["']\s+(?:property|name)=["'](?:og:title|twitter:title|title)["']/gi;
+  while ((metaMatch = metaRevRegex.exec(html)) !== null) {
+    if (metaMatch[1]) {
+      const clean = sanitizeExtractedTitle(metaMatch[1]);
+      if (clean) return clean;
+    }
+  }
 
-  // 4. og:title
-  const ogMatch = html.match(/property="og:title"\s+content="(?:Songbook\s+|Zpěvník\s+)?(.*?)\s*\|\s*Kytario"/i);
-  if (ogMatch && ogMatch[1] && ogMatch[1].trim()) return ogMatch[1].trim();
+  // 3. <title> Tag
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (titleMatch && titleMatch[1]) {
+    const clean = sanitizeExtractedTitle(titleMatch[1]);
+    if (clean) return clean;
+  }
+
+  // 4. Main Heading <h1>
+  const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  if (h1Match && h1Match[1]) {
+    const stripped = h1Match[1].replace(/<[^>]+>/g, '');
+    const clean = sanitizeExtractedTitle(stripped);
+    if (clean) return clean;
+  }
+
+  // 5. <strong> inside digital songbook header
+  const strongMatch = html.match(/<strong>\s*([^<]+?)\s*<\/strong>/i);
+  if (strongMatch && strongMatch[1]) {
+    const clean = sanitizeExtractedTitle(strongMatch[1]);
+    if (clean) return clean;
+  }
 
   return null;
 }
@@ -105,17 +184,60 @@ function hasSongsPayload(data: any): boolean {
   return false;
 }
 
-async function fetchViaPublicProxies(token: string): Promise<any> {
+export function extractEmbeddedJsonFromHtml(html: string): any | null {
+  if (typeof html !== 'string') return null;
+
+  // 1. Next.js __NEXT_DATA__
+  const nextDataMatch = html.match(/<script\s+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (nextDataMatch && nextDataMatch[1]) {
+    try {
+      const parsed = JSON.parse(nextDataMatch[1]);
+      const pageProps = parsed?.props?.pageProps;
+      if (pageProps) {
+        const candidate = pageProps.songbook || pageProps.sections || pageProps.data || pageProps.project;
+        if (candidate && hasSongsPayload(candidate)) {
+          return candidate;
+        }
+        if (hasSongsPayload(pageProps)) {
+          return pageProps;
+        }
+      }
+    } catch {
+      // Continue
+    }
+  }
+
+  // 2. Any application/json script tag containing songs or sections
+  const jsonScriptMatches = html.matchAll(/<script[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  for (const m of jsonScriptMatches) {
+    try {
+      const parsed = JSON.parse(m[1]);
+      if (hasSongsPayload(parsed)) return parsed;
+    } catch {
+      // Continue
+    }
+  }
+
+  return null;
+}
+
+async function fetchViaPublicProxies(token: string, rawUrl?: string): Promise<any> {
   const candidateUrls = [
     `https://kytario.com/api/songbooks/${token}/sections`,
     `https://kytario.com/api/v1/songbooks/${token}/sections`,
     `https://kytario.com/api/songbooks/${token}`,
   ];
 
-  for (const targetUrl of candidateUrls) {
+  if (rawUrl && /^https?:\/\//i.test(rawUrl.trim())) {
+    candidateUrls.unshift(rawUrl.trim().split('#')[0]);
+  }
+
+  const uniqueEndpoints = Array.from(new Set(candidateUrls));
+
+  for (const targetUrl of uniqueEndpoints) {
     // 1. Direct fetch (e.g. if CORS is permitted or user has a CORS browser extension)
     try {
-      const res = await fetch(targetUrl, { signal: AbortSignal.timeout(2000) });
+      const res = await fetch(targetUrl, { signal: AbortSignal.timeout(2500) });
       if (res.ok) {
         const data = await res.json();
         if (hasSongsPayload(data)) {
@@ -126,19 +248,21 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
       // Direct CORS blocked, continue
     }
 
-    // Jina Reader supports large Kytario JSON responses and returns the body as text.
+    // 2. Jina Reader supports large Kytario JSON responses and returns the body as text.
     try {
       const proxyUrl = `https://r.jina.ai/${targetUrl}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4000) });
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4500) });
       if (res.ok) {
         const text = await res.text();
         const marker = 'Markdown Content:\n';
         const markerIndex = text.indexOf(marker);
         const content = (markerIndex >= 0 ? text.slice(markerIndex + marker.length) : text).trim();
         const jsonStart = content.search(/[\[{]/);
-        const data = JSON.parse(content.slice(jsonStart));
-        if (hasSongsPayload(data)) {
-          return data;
+        if (jsonStart >= 0) {
+          const data = JSON.parse(content.slice(jsonStart));
+          if (hasSongsPayload(data)) {
+            return data;
+          }
         }
       }
     } catch {
@@ -148,7 +272,7 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
     // 3. allorigins raw proxy
     try {
       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3000) });
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
       if (res.ok) {
         const text = await res.text();
         const data = JSON.parse(text);
@@ -163,13 +287,19 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
     // 4. allorigins get proxy (JSON wrapper)
     try {
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3000) });
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
       if (res.ok) {
         const wrapper = await res.json();
         if (wrapper && wrapper.contents) {
-          const data = JSON.parse(wrapper.contents);
-          if (hasSongsPayload(data)) {
-            return data;
+          try {
+            const data = JSON.parse(wrapper.contents);
+            if (hasSongsPayload(data)) {
+              return data;
+            }
+          } catch {
+            // Check if HTML contains embedded songbook JSON
+            const embedded = extractEmbeddedJsonFromHtml(wrapper.contents);
+            if (embedded) return embedded;
           }
         }
       }
@@ -180,7 +310,7 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
     // 5. codetabs proxy
     try {
       const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3000) });
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
       if (res.ok) {
         const data = await res.json();
         if (hasSongsPayload(data)) {
@@ -195,25 +325,41 @@ async function fetchViaPublicProxies(token: string): Promise<any> {
   return null;
 }
 
-async function enrichTitleInClient(data: any, token: string) {
-  if (!token || !data) return;
-  try {
-    const webUrl = `https://kytario.com/${token}`;
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(webUrl)}`;
-    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4000) });
-    if (res.ok) {
-      const wrapper = await res.json();
-      if (wrapper && wrapper.contents) {
-        const title = extractTitleFromHtml(wrapper.contents);
-        if (title) {
-          data.title = title;
-          data.name = title;
-          data.songbookTitle = title;
+async function enrichTitleInClient(data: any, token: string, rawUrl?: string) {
+  if (!data) return;
+  const urlsToTry: string[] = [];
+  if (rawUrl && /^https?:\/\//i.test(rawUrl.trim())) {
+    urlsToTry.push(rawUrl.trim().split('#')[0]);
+  }
+  if (token) {
+    urlsToTry.push(`https://kytario.com/${token}`);
+    urlsToTry.push(`https://kytario.com/cs/${token}`);
+    urlsToTry.push(`https://kytario.com/sk/${token}`);
+    urlsToTry.push(`https://kytario.com/en/${token}`);
+    urlsToTry.push(`https://kytario.com/zpevnik/${token}`);
+  }
+
+  const uniqueUrls = Array.from(new Set(urlsToTry));
+
+  for (const webUrl of uniqueUrls) {
+    try {
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(webUrl)}`;
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4000) });
+      if (res.ok) {
+        const wrapper = await res.json();
+        if (wrapper && wrapper.contents) {
+          const title = extractTitleFromHtml(wrapper.contents);
+          if (title) {
+            data.title = title;
+            data.name = title;
+            data.songbookTitle = title;
+            return;
+          }
         }
       }
+    } catch {
+      // Continue
     }
-  } catch {
-    // Ignore enrichment errors
   }
 }
 
@@ -302,11 +448,11 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
   }
 
   // Next, try client-side direct access and public CORS proxies
-  if (token) {
+  if (token || cleanUrl) {
     try {
-      const clientData = await fetchViaPublicProxies(token);
+      const clientData = await fetchViaPublicProxies(token, cleanUrl);
       if (clientData) {
-        await enrichTitleInClient(clientData, token);
+        await enrichTitleInClient(clientData, token, cleanUrl);
         return clientData;
       }
     } catch (clientErr: any) {

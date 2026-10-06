@@ -98,25 +98,38 @@ const SidebarContent = memo(function SidebarContent({
 }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full gap-3.5">
-      {/* Header Area (Supports swipe-down to dismiss in mobile drawer) */}
-      <div 
-        className={`pb-2.5 border-b border-black/5 shrink-0 ${
-          isDrawer ? 'cursor-grab active:cursor-grabbing select-none touch-pan-y' : ''
-        }`}
-        {...(isDrawer ? headerSwipeProps : {})}
-      >
-        <h1 className="text-lg font-bold text-zinc-900 mb-0.5 leading-tight select-none pointer-events-none">
-          Kytario Print Customizer
-        </h1>
-        <div className="flex items-center justify-between select-none pointer-events-none">
-          <h2 className="text-xs font-semibold text-zinc-500 flex items-center gap-1.5 tracking-tight">
-            <Settings2 className="w-3.5 h-3.5" />
-            Settings
-          </h2>
-          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-400 border border-black/5">
-            v{APP_CONFIG.APP_VERSION}
-          </span>
+      {/* Header Area (Supports swipe-down to dismiss in mobile/desktop drawer) */}
+      <div className="pb-2.5 border-b border-black/5 shrink-0 flex items-center justify-between">
+        <div 
+          className={`flex-1 min-w-0 ${
+            isDrawer ? 'cursor-grab active:cursor-grabbing select-none touch-pan-y' : ''
+          }`}
+          {...(isDrawer ? headerSwipeProps : {})}
+        >
+          <h1 className="text-lg font-bold text-zinc-900 mb-0.5 leading-tight select-none">
+            Kytario Print Customizer
+          </h1>
+          <div className="flex items-center gap-2 select-none">
+            <h2 className="text-xs font-semibold text-zinc-500 flex items-center gap-1.5 tracking-tight">
+              <Settings2 className="w-3.5 h-3.5" />
+              Settings
+            </h2>
+            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-400 border border-black/5">
+              v{APP_CONFIG.APP_VERSION}
+            </span>
+          </div>
         </div>
+
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 text-zinc-500 hover:text-zinc-900 transition-colors flex items-center justify-center cursor-pointer shrink-0 ml-2"
+            title="Close Settings"
+            aria-label="Close Settings"
+          >
+            <X className="w-4.5 h-4.5" />
+          </button>
+        )}
       </div>
 
       {/* Modular Settings Sections */}
@@ -417,6 +430,18 @@ export const Sidebar = memo(function Sidebar({
   // Effective draft settings
   const draftSettings = externalDraftSettings ?? internalDraftSettings;
 
+  // Escape key listener to close settings drawer
+  useEffect(() => {
+    if (!isMobileOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (onMobileClose) onMobileClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileOpen, onMobileClose]);
+
   // Compute changes using standard helper
   const changes = useMemo(() => {
     return externalChanges ?? getChangedSettingsList(draftSettings, settings);
@@ -486,52 +511,7 @@ export const Sidebar = memo(function Sidebar({
 
   return (
     <>
-      {/* Desktop Docked Sidebar (Hidden on print) */}
-      <aside 
-        className={`hidden md:flex flex-col h-full bg-white border-r border-black/5 transition-all duration-300 ease-in-out relative z-30 print:hidden ${
-          isCollapsed ? 'w-0 overflow-hidden' : 'w-[240px] lg:w-[260px]'
-        }`}
-      >
-        {!isCollapsed && (
-          <div className="flex-1 flex flex-col min-h-0 p-3.5 lg:p-4 overflow-hidden animate-in fade-in slide-in-from-left-4 duration-300">
-            <SidebarContent
-              idSuffix="desktop"
-              isDrawer={false}
-              draftSettings={draftSettings}
-              changes={changes}
-              hasChanges={hasChanges}
-              hasLayoutChanges={hasLayoutChanges}
-              hasCoverChanges={hasCoverChanges}
-              hasTypographyChanges={hasTypographyChanges}
-              onSettingChange={handleSettingChange}
-              onSaveSettings={onSaveSettings}
-              onResetToDefaults={onResetToDefaults}
-              onDiscardChanges={handleDiscardChanges}
-              onApplyChanges={handleApplyChanges}
-              onResetSongbook={onResetSongbook}
-              onFileUpload={onFileUpload}
-              onDownloadPdf={onDownloadPdf}
-              isDownloadingPdf={isDownloadingPdf}
-              isPdfReady={isPdfReady}
-              isUpdatingLayout={isUpdatingLayout}
-              isLoadingJson={isLoadingJson}
-            />
-          </div>
-        )}
-
-        {/* Desktop Collapse Toggle Handle Overlay */}
-        <button
-          onClick={() => setCollapsed(!isCollapsed)}
-          className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-white border border-black/5 shadow-sm rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-all hover:scale-110 active:scale-95 cursor-pointer z-40 ${
-            isCollapsed ? 'rotate-180 -right-7' : ''
-          }`}
-          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-      </aside>
-
-      {/* Settings Bottom Sheet Backdrop (translucent, animated) */}
+      {/* Settings Bottom Sheet Drawer (Rolls up from bottom on all viewports) */}
       <div 
         className={`fixed inset-0 z-50 flex print:hidden transition-all duration-300 ease-in-out ${
           isMobileOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
@@ -549,7 +529,7 @@ export const Sidebar = memo(function Sidebar({
         <div 
           id="mobile-settings-sidebar"
           onClick={(e) => e.stopPropagation()}
-          className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-[75vw] sm:w-[75vw] md:max-w-[336px] h-[85vh] md:h-[75vh] bg-white text-zinc-900 border-t border-black/10 rounded-t-3xl shadow-2xl p-4 z-50 flex flex-col will-change-transform ${
+          className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-[92vw] sm:w-[480px] md:w-[540px] max-w-2xl h-[85vh] md:h-[80vh] bg-white text-zinc-900 border-t border-black/10 rounded-t-3xl shadow-2xl p-4 sm:p-5 z-50 flex flex-col will-change-transform ${
             isDragging ? '' : 'transition-transform duration-300 ease-out'
           } ${isMobileOpen ? 'translate-y-0' : 'translate-y-full'}`}
           style={dragOffset > 0 ? { transform: `translate(-50%, ${dragOffset}px)` } : undefined}
@@ -559,7 +539,7 @@ export const Sidebar = memo(function Sidebar({
             className="w-full pt-1 pb-2 shrink-0 select-none touch-pan-y cursor-grab active:cursor-grabbing flex justify-center items-center"
             {...headerSwipeProps}
             onClick={onMobileClose}
-            title="Swipe down to close"
+            title="Click or swipe down to close"
           >
             <div className="w-12 h-1.5 bg-zinc-300 hover:bg-zinc-400 rounded-full transition-colors" />
           </div>
