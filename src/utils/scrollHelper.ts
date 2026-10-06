@@ -3,7 +3,7 @@
  * is visible in view. If the section is taller than the viewport, it aligns the top
  * of the section near the top so the user can easily interact from the start.
  */
-export function scrollSectionIntoView(element: HTMLElement | null, delayMs = 120): void {
+export function scrollSectionIntoView(element: HTMLElement | null, delayMs = 30): void {
   if (!element || typeof window === 'undefined') return;
 
   setTimeout(() => {

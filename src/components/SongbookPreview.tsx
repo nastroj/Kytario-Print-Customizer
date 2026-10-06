@@ -731,6 +731,7 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
     <div className="relative">
       <div 
         id="song-nav-modal"
+        onClick={(e) => e.stopPropagation()}
         className="absolute bottom-0 right-0 w-64 max-h-72 overflow-y-auto bg-white/95 backdrop-blur-xl border border-black/10 text-zinc-800 rounded-lg shadow-2xl p-2 space-y-1 z-40 text-xs animate-in fade-in slide-in-from-bottom-2 duration-200"
       >
         <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-black/5 mb-1 flex items-center justify-between">
@@ -1083,11 +1084,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   const scrollToTop = () => {
     if (containerRef.current) {
-      try {
-        containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-      } catch (e) {
-        containerRef.current.scrollTop = 0;
-      }
+      containerRef.current.scrollTop = 0;
     }
   };
 
@@ -1573,6 +1570,10 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         {showScrollTop && (
           <button
             onClick={scrollToTop}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              scrollToTop();
+            }}
             className="w-10 h-10 bg-white/95 hover:bg-zinc-100 text-zinc-600 rounded-full shadow-lg border border-black/10 flex items-center justify-center transition-colors cursor-pointer"
             title="Scroll to Top"
             aria-label="Scroll to Top"

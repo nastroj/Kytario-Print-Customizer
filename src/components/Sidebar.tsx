@@ -548,6 +548,7 @@ export const Sidebar = memo(function Sidebar({
         {/* Bottom Sheet Container */}
         <div 
           id="mobile-settings-sidebar"
+          onClick={(e) => e.stopPropagation()}
           className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-[75vw] sm:w-[75vw] md:max-w-[336px] h-[85vh] md:h-[75vh] bg-white text-zinc-900 border-t border-black/10 rounded-t-3xl shadow-2xl p-4 z-50 flex flex-col will-change-transform ${
             isDragging ? '' : 'transition-transform duration-300 ease-out'
           } ${isMobileOpen ? 'translate-y-0' : 'translate-y-full'}`}
