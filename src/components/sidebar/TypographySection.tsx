@@ -47,19 +47,21 @@ const TypographyRowItem = React.memo(function TypographyRowItem({
   onFontSizeChange,
 }: TypographyRowItemProps) {
   return (
-    <div className="flex items-center justify-between p-2 bg-zinc-50 rounded-lg border border-black/5">
+    <div className="flex items-center justify-between p-2 bg-zinc-50 rounded-lg border border-black/5 gap-1.5">
       <ColorDotInput
         id={`color-${id}`}
         value={color}
         onChange={onColorChange}
         label={label}
         title={colorTitle}
+        size="sm"
+        className="min-w-0"
       />
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1 shrink-0">
         <button
           type="button"
           onClick={() => onItalicChange(!italic)}
-          className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors cursor-pointer ${
+          className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors cursor-pointer shrink-0 ${
             italic
               ? 'bg-zinc-800 text-white border-transparent shadow-2xs font-bold'
               : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-500 border-black/5'
@@ -67,7 +69,7 @@ const TypographyRowItem = React.memo(function TypographyRowItem({
           title={italicTitle}
           aria-label={italicAriaLabel}
         >
-          <Italic className="w-4 h-4" />
+          <Italic className="w-3.5 h-3.5" />
         </button>
         <Stepper
           id={`size-${id}`}
@@ -159,14 +161,32 @@ export const TypographySection = React.memo(function TypographySection({
   hasTypoChanges,
   onSettingChange,
 }: TypographySectionProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="space-y-3 pt-3 border-t border-black/5">
-      {isOpen && (
-        <div className="space-y-2 animate-in fade-in duration-150">
-        {/* Typography Rows with Font Size Steppers & Color Dots */}
-        <div className="space-y-1.5">
+    <div className="pt-3 border-t border-black/5">
+      <div className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 transition-all">
+        <div
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex items-center justify-between select-none cursor-pointer group"
+        >
+          <div className="min-w-0 pr-2">
+            <span className="text-xs font-semibold text-zinc-800 block">
+              Font and Colors
+            </span>
+            <p className="text-[10.5px] text-zinc-500 leading-tight truncate">
+              {draftSettings.lyricsFontSize ?? 12}px lyrics • {draftSettings.chordsFontSize ?? 12}px chords • Text & accent colors
+            </p>
+          </div>
+          <div className="p-0.5 text-zinc-400 group-hover:text-zinc-700 transition-colors shrink-0">
+            {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </div>
+        </div>
+
+        {isOpen && (
+          <div className="space-y-2 pt-2.5 mt-2.5 border-t border-black/5 animate-in fade-in duration-150">
+          {/* Typography Rows with Font Size Steppers & Color Dots */}
+          <div className="space-y-1.5">
           {/* Title */}
           <TypographyRowItem
             id={`title-${idSuffix}`}
@@ -284,9 +304,6 @@ export const TypographySection = React.memo(function TypographySection({
 
           {/* Line & Element Colors in Compact Grid */}
           <div className="pt-2 border-t border-black/5">
-            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block mb-1.5">
-              Accents & Guide Lines
-            </span>
             <div className="grid grid-cols-2 gap-2">
               <AccentColorCard
                 id={`markerColor-${idSuffix}`}
@@ -324,6 +341,7 @@ export const TypographySection = React.memo(function TypographySection({
         </div>
       </div>
     )}
+      </div>
     </div>
   );
 }, areTypographyPropsEqual);

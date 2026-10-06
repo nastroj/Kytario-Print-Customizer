@@ -1,6 +1,6 @@
 {
-  "name": "Remix Kytario-Print-Customizer",
-  "description": "Imported from GitHub: nastroj/Kytario-Print-Customizer, new UI",
+  "name": "Kytario Print Customizer",
+  "description": "Transform your Kytario songbook into print-ready PDF pages with automatic Table of Contents and clean formatting.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -100,11 +100,11 @@ export const Stepper = React.memo(function Stepper({
         type="button"
         onClick={handleDecrement}
         disabled={disabled || value <= min}
-        className="w-9 h-9 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:bg-zinc-300 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+        className="w-7.5 h-7.5 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:bg-zinc-300 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
         title="Decrease value"
         aria-label={ariaLabel ? `Decrease ${ariaLabel}` : 'Decrease value'}
       >
-        <Minus className="w-4 h-4" />
+        <Minus className="w-3.5 h-3.5" />
       </button>
       <div className="relative flex items-center">
         <input
@@ -135,7 +135,7 @@ export const Stepper = React.memo(function Stepper({
               handleDecrement();
             }
           }}
-          className="w-9 text-center py-1 text-xs font-bold text-zinc-900 bg-transparent focus:outline-none"
+          className="w-7.5 text-center py-0.5 text-xs font-bold text-zinc-900 bg-transparent focus:outline-none"
           aria-label={ariaLabel || 'Numeric value'}
         />
         {suffix && (
@@ -148,11 +148,11 @@ export const Stepper = React.memo(function Stepper({
         type="button"
         onClick={handleIncrement}
         disabled={disabled || value >= max}
-        className="w-9 h-9 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:bg-zinc-300 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+        className="w-7.5 h-7.5 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:bg-zinc-300 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
         title="Increase value"
         aria-label={ariaLabel ? `Increase ${ariaLabel}` : 'Increase value'}
       >
-        <Plus className="w-4 h-4" />
+        <Plus className="w-3.5 h-3.5" />
       </button>
     </div>
   );

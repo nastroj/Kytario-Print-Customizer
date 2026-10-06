@@ -129,7 +129,7 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
                     id={`showFrontCover-label-${idSuffix}`}
-                    className="text-xs font-bold text-zinc-800 group-hover:text-zinc-950 transition-colors"
+                    className="text-xs font-semibold text-zinc-800"
                   >
                     Front Cover Page
                   </span>
@@ -147,7 +147,7 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                       : 'Auto (Kytario)'}
                   </span>
                 </div>
-                <p className="text-[10px] text-zinc-400 truncate">Opening title & attribution page</p>
+                <p className="text-[10.5px] text-zinc-500 leading-tight truncate">Opening title & attribution page</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <div onClick={(e) => e.stopPropagation()} title="Enable or disable front cover page">
@@ -248,7 +248,7 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                       onClick={() => onSettingChange('frontCoverShowDedication', draftSettings.frontCoverShowDedication === false ? true : false)}
                       className="flex items-center justify-between cursor-pointer select-none"
                     >
-                      <label className="text-[11px] font-semibold text-zinc-600 cursor-pointer">
+                      <label className="text-xs font-medium text-zinc-700 cursor-pointer">
                         Dedication / Note Text
                       </label>
                       <MaterialToggle
@@ -413,7 +413,7 @@ export const CoverPageSection = React.memo(function CoverPageSection({
               <div className="flex items-center gap-2 flex-wrap">
                 <span
                   id={`showBackCover-label-${idSuffix}`}
-                  className="text-xs font-bold text-zinc-800 group-hover:text-zinc-950 transition-colors"
+                  className="text-xs font-semibold text-zinc-800"
                 >
                   Back Cover Page
                 </span>
@@ -431,7 +431,7 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                     : 'Auto (Standard)'}
                 </span>
               </div>
-              <p className="text-[10px] text-zinc-400 truncate">Closing rear page & epilogue</p>
+              <p className="text-[10.5px] text-zinc-500 leading-tight truncate">Closing rear page & epilogue</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <div onClick={(e) => e.stopPropagation()} title="Enable or disable back cover page">
@@ -527,7 +527,7 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                       onClick={() => onSettingChange('backCoverShowDedication', draftSettings.backCoverShowDedication === false ? true : false)}
                       className="flex items-center justify-between cursor-pointer select-none"
                     >
-                      <label className="text-[11px] font-semibold text-zinc-600 cursor-pointer">
+                      <label className="text-xs font-medium text-zinc-700 cursor-pointer">
                         Dedication / Note Text
                       </label>
                       <MaterialToggle

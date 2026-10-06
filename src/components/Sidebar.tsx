@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { PrintSettings } from '../types';
 import { APP_CONFIG } from '../config';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -64,6 +64,13 @@ interface SidebarContentProps {
   isPdfReady?: boolean;
   isUpdatingLayout?: boolean;
   isLoadingJson?: boolean;
+  headerSwipeProps?: {
+    onTouchStart?: (e: React.TouchEvent) => void;
+    onTouchMove?: (e: React.TouchEvent) => void;
+    onTouchEnd?: () => void;
+    onTouchCancel?: () => void;
+    onMouseDown?: (e: React.MouseEvent) => void;
+  };
 }
 
 const SidebarContent = memo(function SidebarContent({
@@ -87,20 +94,26 @@ const SidebarContent = memo(function SidebarContent({
   isPdfReady = false,
   isUpdatingLayout = false,
   isLoadingJson = false,
+  headerSwipeProps,
 }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full gap-3.5">
-      {/* Header Area */}
-      <div className="pb-3 border-b border-black/5 shrink-0">
-        <h1 className="text-xl font-bold text-zinc-900 mb-1">
+      {/* Header Area (Supports swipe-down to dismiss in mobile drawer) */}
+      <div 
+        className={`pb-2.5 border-b border-black/5 shrink-0 ${
+          isDrawer ? 'cursor-grab active:cursor-grabbing select-none touch-pan-y' : ''
+        }`}
+        {...(isDrawer ? headerSwipeProps : {})}
+      >
+        <h1 className="text-lg font-bold text-zinc-900 mb-0.5 leading-tight select-none pointer-events-none">
           Kytario Print Customizer
         </h1>
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-500 flex items-center gap-2 tracking-tight">
-            <Settings2 className="w-4 h-4" />
+        <div className="flex items-center justify-between select-none pointer-events-none">
+          <h2 className="text-xs font-semibold text-zinc-500 flex items-center gap-1.5 tracking-tight">
+            <Settings2 className="w-3.5 h-3.5" />
             Settings
           </h2>
-          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-400 border border-black/5">
+          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-400 border border-black/5">
             v{APP_CONFIG.APP_VERSION}
           </span>
         </div>
@@ -201,7 +214,7 @@ const SidebarContent = memo(function SidebarContent({
                 ) : (
                   <FolderOpen className="w-4 h-4 text-zinc-500 shrink-0" />
                 )}
-                <span>Change</span>
+                <span>Import</span>
               </button>
             )}
 
@@ -225,7 +238,7 @@ const SidebarContent = memo(function SidebarContent({
               ) : (
                 <>
                   <FileDown className="w-4 h-4 shrink-0" />
-                  <span>{isPdfReady ? 'Save PDF' : 'Export'}</span>
+                  <span>{isPdfReady ? 'Save PDF' : 'Export PDF'}</span>
                 </>
               )}
             </button>
@@ -297,6 +310,104 @@ export const Sidebar = memo(function Sidebar({
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
 
   const [internalDraftSettings, setInternalDraftSettings] = useState<PrintSettings>(settings);
+
+  // Swipe-down to dismiss gesture tracking for the entire top part of the bottom sheet
+  const touchStartYRef = useRef<number | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
+  const currentDragOffsetRef = useRef<number>(0);
+  const [dragOffset, setDragOffset] = useState<number>(0);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartYRef.current = e.touches[0].clientY;
+    touchStartXRef.current = e.touches[0].clientX;
+    currentDragOffsetRef.current = 0;
+    setIsDragging(true);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (touchStartYRef.current === null) return;
+    const clientY = e.touches[0].clientY;
+    const clientX = e.touches[0].clientX;
+    const deltaY = clientY - touchStartYRef.current;
+    const deltaX = clientX - (touchStartXRef.current ?? clientX);
+
+    // Track downward movement when vertically dominant
+    if (deltaY > 0 && Math.abs(deltaY) > Math.abs(deltaX) * 0.4) {
+      currentDragOffsetRef.current = deltaY;
+      setDragOffset(deltaY);
+    } else if (deltaY < 0) {
+      currentDragOffsetRef.current = 0;
+      setDragOffset(0);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (touchStartYRef.current === null) return;
+    const finalOffset = currentDragOffsetRef.current;
+    touchStartYRef.current = null;
+    touchStartXRef.current = null;
+    setIsDragging(false);
+
+    // If dragged downward by 45px or more, dismiss the sidebar
+    if (finalOffset > 45) {
+      setDragOffset(0);
+      onMobileClose?.();
+    } else {
+      setDragOffset(0);
+    }
+  }, [onMobileClose]);
+
+  const handleTouchCancel = useCallback(() => {
+    touchStartYRef.current = null;
+    touchStartXRef.current = null;
+    setIsDragging(false);
+    setDragOffset(0);
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    touchStartYRef.current = e.clientY;
+    touchStartXRef.current = e.clientX;
+    currentDragOffsetRef.current = 0;
+    setIsDragging(true);
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (touchStartYRef.current === null) return;
+      const deltaY = moveEvent.clientY - touchStartYRef.current;
+      if (deltaY > 0) {
+        currentDragOffsetRef.current = deltaY;
+        setDragOffset(deltaY);
+      }
+    };
+
+    const onMouseUp = () => {
+      const finalOffset = currentDragOffsetRef.current;
+      touchStartYRef.current = null;
+      touchStartXRef.current = null;
+      setIsDragging(false);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+
+      if (finalOffset > 45) {
+        setDragOffset(0);
+        onMobileClose?.();
+      } else {
+        setDragOffset(0);
+      }
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }, [onMobileClose]);
+
+  const headerSwipeProps = useMemo(() => ({
+    onTouchStart: handleTouchStart,
+    onTouchMove: handleTouchMove,
+    onTouchEnd: handleTouchEnd,
+    onTouchCancel: handleTouchCancel,
+    onMouseDown: handleMouseDown,
+  }), [handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel, handleMouseDown]);
 
   // Synchronize internal draft when settings prop changes if not externally controlled
   useEffect(() => {
@@ -378,11 +489,11 @@ export const Sidebar = memo(function Sidebar({
       {/* Desktop Docked Sidebar (Hidden on print) */}
       <aside 
         className={`hidden md:flex flex-col h-full bg-white border-r border-black/5 transition-all duration-300 ease-in-out relative z-30 print:hidden ${
-          isCollapsed ? 'w-0 overflow-hidden' : 'w-[320px] lg:w-[360px]'
+          isCollapsed ? 'w-0 overflow-hidden' : 'w-[240px] lg:w-[260px]'
         }`}
       >
         {!isCollapsed && (
-          <div className="flex-1 flex flex-col min-h-0 p-5 lg:p-6 overflow-hidden animate-in fade-in slide-in-from-left-4 duration-300">
+          <div className="flex-1 flex flex-col min-h-0 p-3.5 lg:p-4 overflow-hidden animate-in fade-in slide-in-from-left-4 duration-300">
             <SidebarContent
               idSuffix="desktop"
               isDrawer={false}
@@ -436,18 +547,27 @@ export const Sidebar = memo(function Sidebar({
         />
         {/* Bottom Sheet Container */}
         <div 
-          className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full md:max-w-2xl h-[85vh] md:h-[75vh] bg-white text-zinc-900 border-t border-black/10 rounded-t-3xl shadow-2xl p-5 z-50 flex flex-col transform transition-transform duration-300 ease-out will-change-transform ${
-            isMobileOpen ? 'translate-y-0' : 'translate-y-full'
-          }`}
+          className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-[75vw] sm:w-[75vw] md:max-w-[336px] h-[85vh] md:h-[75vh] bg-white text-zinc-900 border-t border-black/10 rounded-t-3xl shadow-2xl p-4 z-50 flex flex-col will-change-transform ${
+            isDragging ? '' : 'transition-transform duration-300 ease-out'
+          } ${isMobileOpen ? 'translate-y-0' : 'translate-y-full'}`}
+          style={dragOffset > 0 ? { transform: `translate(-50%, ${dragOffset}px)` } : undefined}
         >
-          {/* Drag/Grab Handle Affordance */}
-          <div className="w-12 h-1.5 bg-zinc-300 rounded-full mx-auto mb-4 shrink-0 cursor-pointer" onClick={onMobileClose} />
+          {/* Top Swipable Grab Area */}
+          <div 
+            className="w-full pt-1 pb-2 shrink-0 select-none touch-pan-y cursor-grab active:cursor-grabbing flex justify-center items-center"
+            {...headerSwipeProps}
+            onClick={onMobileClose}
+            title="Swipe down to close"
+          >
+            <div className="w-12 h-1.5 bg-zinc-300 hover:bg-zinc-400 rounded-full transition-colors" />
+          </div>
 
           {isMobileOpen && (
             <div className="flex-1 min-h-0 overflow-y-auto">
               <SidebarContent
                 idSuffix="bottom-sheet"
                 isDrawer={true}
+                headerSwipeProps={headerSwipeProps}
                 draftSettings={draftSettings}
                 changes={changes}
                 hasChanges={hasChanges}

@@ -1116,10 +1116,10 @@ export default function App() {
           <button
             onClick={() => setIsConfirmResetOpen(true)}
             className="flex flex-col items-center justify-center w-14 h-12 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/50 transition-colors cursor-pointer shrink-0"
-            title="Change Songbook (load different JSON)"
+            title="Import Songbook (load different JSON)"
           >
             <FolderOpen className="w-5 h-5" />
-            <span className="text-[10px] font-bold mt-1 tracking-tight">Change</span>
+            <span className="text-[10px] font-bold mt-1 tracking-tight">Import</span>
           </button>
 
           {/* Divider */}
@@ -1199,7 +1199,7 @@ export default function App() {
           {/* Divider */}
           <div className="w-px h-8 bg-zinc-200 mx-1 shrink-0" />
 
-          {/* Song Navigation button (Nav) */}
+          {/* Song Navigation button (Content) */}
           <button
             id="floating-nav-btn"
             onClick={() => {
@@ -1210,10 +1210,10 @@ export default function App() {
                 ? 'text-blue-600 font-bold bg-blue-500/10'
                 : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/50'
             }`}
-            title="Jump to Song (Navigation)"
+            title="Table of Contents / Jump to Song"
           >
             <BookOpen className="w-5 h-5" />
-            <span className="text-[10px] font-bold mt-1 tracking-tight">Nav</span>
+            <span className="text-[10px] font-bold mt-1 tracking-tight">Content</span>
           </button>
 
           {/* Divider between Nav and Export */}
@@ -1243,7 +1243,7 @@ export default function App() {
               </div>
             )}
             <span className="text-[10px] font-bold mt-1 tracking-tight">
-              {isPdfReady ? 'Save PDF' : 'Export'}
+              {isPdfReady ? 'Save PDF' : 'Export PDF'}
             </span>
           </button>
         </div>
