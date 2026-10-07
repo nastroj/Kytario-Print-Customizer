@@ -97,7 +97,7 @@ const SidebarContent = memo(function SidebarContent({
   headerSwipeProps,
 }: SidebarContentProps) {
   return (
-    <div className="flex flex-col min-h-0 gap-3.5 overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 gap-3.5 overflow-hidden">
       {/* Header Area (Supports swipe-down to dismiss in mobile/desktop drawer) */}
       <div className="pb-2.5 border-b border-black/5 shrink-0 flex items-center justify-between">
         <div 
@@ -133,7 +133,7 @@ const SidebarContent = memo(function SidebarContent({
       </div>
 
       {/* Modular Settings Sections */}
-      <div className="space-y-5 overflow-y-auto min-h-0 pr-1">
+      <div className="space-y-5 flex-1 overflow-y-auto min-h-0 pr-1">
         {/* SECTION 1: Page Layout */}
         <PageLayoutSection
           idSuffix={idSuffix}
@@ -448,15 +448,12 @@ export const Sidebar = memo(function Sidebar({
     if (viewportHeight <= 700) {
       // Small displays / short windows: take up to 94% height (minimal top margin)
       return Math.round(viewportHeight * 0.94);
-    } else if (viewportHeight <= 850) {
-      // Medium-small displays: take up to 90% height
+    } else if (viewportHeight <= 900) {
+      // Medium displays: take up to 90% height
       return Math.round(viewportHeight * 0.90);
-    } else if (viewportHeight <= 1050) {
-      // Standard desktop displays: take up to 82% height
-      return Math.round(viewportHeight * 0.82);
     } else {
-      // High-res / large desktop displays: cap at max 720px for a compact, snug fit
-      return Math.min(Math.round(viewportHeight * 0.72), 720);
+      // Large / Desktop displays: take up to 88% height (max 920px) so as many settings as possible are visible at once
+      return Math.min(Math.round(viewportHeight * 0.88), 920);
     }
   }, [viewportHeight]);
 
@@ -578,7 +575,7 @@ export const Sidebar = memo(function Sidebar({
           </div>
 
           {isMobileOpen && (
-            <div className="min-h-0 flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <SidebarContent
                 idSuffix="bottom-sheet"
                 isDrawer={true}
