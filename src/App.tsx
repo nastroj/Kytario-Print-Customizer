@@ -1251,6 +1251,23 @@ export default function App() {
               <Maximize2 className="w-4 h-4" />
               <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Fit</span>
             </button>
+
+            {/* Song Navigation button (Content / ToC) - Immediately adjacent to Fit */}
+            <button
+              id="floating-nav-btn"
+              onClick={() => {
+                setIsSongNavOpen((prev) => !prev);
+              }}
+              className={`flex flex-col items-center justify-center w-10 sm:w-11 h-10 sm:h-11 rounded-xl transition-colors cursor-pointer shrink-0 ${
+                isSongNavOpen
+                  ? 'text-blue-600 font-bold bg-blue-500/10'
+                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/60 active:bg-zinc-100'
+              }`}
+              title="Table of Contents / Jump to Song"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Content</span>
+            </button>
           </div>
 
           {/* 2. Main Actions Pod (Wider, Spacious, Primary) */}

@@ -1643,46 +1643,6 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         <div className="h-28 sm:h-24 print:hidden" />
       </div>
 
-      {/* FLOATING PAGE NAVIGATION POD (BALANCED ON THE LEFT SIDE OF SCREEN, OPPOSITE OF SCROLL-TO-TOP) */}
-      {allPageIds.length > 0 && (
-        <div 
-          className="fixed bottom-[64px] sm:bottom-[68px] left-10 sm:left-14 z-30 print:hidden flex items-center bg-white/95 backdrop-blur-md border border-zinc-200/80 shadow-xl rounded-full h-10 px-1 select-none pointer-events-auto"
-          title="Page Navigation (Swipe, Scroll, or click arrows)"
-        >
-          <button
-            onClick={handlePrevPage}
-            onTouchStart={(e) => {
-              e.preventDefault();
-              handlePrevPage();
-            }}
-            disabled={activePageIndex === 0}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 active:bg-zinc-200 text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer"
-            title="Previous Page (ArrowLeft / PageUp)"
-            aria-label="Previous Page"
-          >
-            <ChevronLeft className="w-4.5 h-4.5" />
-          </button>
-          
-          <span className="text-xs font-mono font-bold text-zinc-700 px-2.5 whitespace-nowrap min-w-[3.5rem] text-center">
-            {activePageIndex + 1} / {allPageIds.length}
-          </span>
-          
-          <button
-            onClick={handleNextPage}
-            onTouchStart={(e) => {
-              e.preventDefault();
-              handleNextPage();
-            }}
-            disabled={activePageIndex === allPageIds.length - 1}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 active:bg-zinc-200 text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer"
-            title="Next Page (ArrowRight / PageDown)"
-            aria-label="Next Page"
-          >
-            <ChevronRight className="w-4.5 h-4.5" />
-          </button>
-        </div>
-      )}
-
       {/* FLOATING QUICK ACTIONS GROUP (PAGES NAVIGATOR, DEBUG HUD & SCROLL TO TOP - OUT OF THE WAY OF BOTTOM BAR) */}
       <div className="fixed bottom-[64px] sm:bottom-[68px] right-10 sm:right-14 z-30 print:hidden flex flex-col gap-2">
         {/* Scroll to Top */}
