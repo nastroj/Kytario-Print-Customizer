@@ -394,6 +394,68 @@ async function enrichTitleInClient(data: any, token: string, rawUrl?: string) {
   }
 }
 
+export function extractSongbookTokensFromProjectHtml(html: string): { token: string; name: string }[] {
+  if (typeof html !== 'string') return [];
+  const results: { token: string; name: string }[] = [];
+
+  let idx = html.indexOf('"songbooks":[');
+  let isEscaped = false;
+  if (idx === -1) {
+    idx = html.indexOf('\\"songbooks\\":[');
+    isEscaped = true;
+  }
+
+  if (idx !== -1) {
+    let depth = 1;
+    let pos = idx + (isEscaped ? '\\"songbooks\\":['.length : '"songbooks":['.length);
+    while (pos < html.length && depth > 0) {
+      if (html[pos] === '[') depth++;
+      else if (html[pos] === ']') depth--;
+      pos++;
+    }
+    let slice = html.slice(idx + (isEscaped ? '\\"songbooks\\":'.length : '"songbooks\\":'.length), pos);
+    if (isEscaped) {
+      slice = slice.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    }
+    try {
+      const arr = JSON.parse(slice);
+      if (Array.isArray(arr)) {
+        for (const item of arr) {
+          if (item && item.urlToken) {
+            results.push({
+              token: String(item.urlToken),
+              name: String(item.name || item.title || 'Songbook'),
+            });
+          }
+        }
+      }
+    } catch {
+      const matches = slice.matchAll(/"urlToken"\s*:\s*"([^"]+)"/g);
+      for (const m of matches) {
+        if (m[1]) {
+          results.push({ token: m[1], name: 'Songbook' });
+        }
+      }
+    }
+  }
+
+  const linkRegex = /\/(?:songbooks?|zpevnik|zpevniky|shared)\/([a-zA-Z0-9_\-]+)/gi;
+  let m;
+  while ((m = linkRegex.exec(html)) !== null) {
+    const tok = m[1];
+    if (tok && tok !== 'cs' && tok !== 'en' && tok !== 'sk' && tok !== 'de') {
+      results.push({ token: tok, name: 'Songbook' });
+    }
+  }
+
+  const seen = new Set<string>();
+  return results.filter(r => {
+    if (seen.has(r.token)) return false;
+    seen.add(r.token);
+    return true;
+  });
+}
+
 /**
  * Fast control function to verify if a Kytario songbook URL/token exists before full fetching.
  * If 404 or 400 is returned, fails immediately without freezing or hanging on slow proxies.
@@ -420,15 +482,38 @@ export async function checkSongbookExists(tokenOrUrl: string): Promise<{ exists:
 }
 
 export async function fetchSongbookFromKytario(url: string): Promise<any> {
-  const cleanUrl = cleanKytarioUrl(url);
-  const token = extractKytarioSlug(cleanUrl);
+  let cleanUrl = cleanKytarioUrl(url);
+  let token = extractKytarioSlug(cleanUrl);
   
   if (!token && !/^https?:\/\//i.test(cleanUrl)) {
     throw new Error('Please enter a valid Kytario songbook URL or code.');
   }
 
-  // Quick validation control function: check if songbook exists
-  if (token) {
+  // If it's a project URL/token, let the client resolve it if possible (static host fallback)
+  const isProjectUrl = /projekty|projects/i.test(cleanUrl);
+  if (isProjectUrl && token) {
+    try {
+      const pageUrl = `https://kytario.com/cs/projekty/${token}`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(6000) });
+      if (res.ok) {
+        const wrapper = await res.json();
+        if (wrapper && wrapper.contents) {
+          const songbooks = extractSongbookTokensFromProjectHtml(wrapper.contents);
+          if (songbooks.length > 0) {
+            console.log(`[Client] Resolved project "${token}" to songbook: "${songbooks[0].token}"`);
+            token = songbooks[0].token;
+            cleanUrl = `https://kytario.com/cs/${token}`;
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn('[Client] Project resolution fallback error:', e?.message);
+    }
+  }
+
+  // Quick validation control function: check if songbook exists (skip explicit project URLs, they will fall through to project resolution)
+  if (token && !isProjectUrl) {
     const check = await checkSongbookExists(token);
     if (!check.exists && (check.status === 404 || check.status === 400)) {
       throw new KytarioFetchError(`Songbook "${token}" was not found (404). Please check the URL or code.`, {

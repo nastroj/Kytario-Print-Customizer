@@ -14,6 +14,8 @@ import {
   RotateCcw, 
   BookOpen, 
   ChevronUp, 
+  ChevronLeft,
+  ChevronRight,
   Check, 
   Loader2,
   Music,
@@ -123,7 +125,8 @@ const VirtualPage = memo(function VirtualPage({
   scaledHeight,
   defaultWidth,
   defaultHeight,
-  id
+  id,
+  shouldCenter = true
 }: { 
   children: React.ReactNode, 
   isScaled: boolean,
@@ -131,12 +134,13 @@ const VirtualPage = memo(function VirtualPage({
   scaledHeight: number,
   defaultWidth: string,
   defaultHeight: string,
-  id?: string
+  id?: string,
+  shouldCenter?: boolean
 }) {
   return (
     <div 
       id={id}
-      className="mx-auto mb-6 sm:mb-10 print:mb-0 print:mx-0 shrink-0 song-page-outer-wrapper"
+      className={`${shouldCenter ? 'mx-auto' : 'ml-0 mr-auto'} mb-6 sm:mb-10 print:mb-0 print:mx-0 shrink-0 song-page-outer-wrapper`}
       style={{
         width: isScaled ? `${scaledWidth}px` : 'fit-content',
         height: isScaled ? `${scaledHeight}px` : 'auto',
@@ -169,6 +173,7 @@ interface SongPagesListProps {
   isScaled: boolean;
   onScrollToSong: (id: string) => void;
   isDebugMode?: boolean;
+  shouldCenter?: boolean;
 }
 
 const SongPagesList = memo(function SongPagesList({
@@ -187,6 +192,7 @@ const SongPagesList = memo(function SongPagesList({
   isScaled,
   onScrollToSong,
   isDebugMode = false,
+  shouldCenter = true,
 }: SongPagesListProps) {
   const numColWidth = useMemo(() => {
     if (songs.length >= 100) return '2.8em';
@@ -228,6 +234,7 @@ const SongPagesList = memo(function SongPagesList({
             scaledHeight={scaledHeight}
             defaultWidth={cssWidth}
             defaultHeight={cssHeight}
+            shouldCenter={shouldCenter}
           >
             <div 
               className={`${pageContainerClass} print-cover-container flex flex-col overflow-hidden origin-top-left relative`}
@@ -271,6 +278,7 @@ const SongPagesList = memo(function SongPagesList({
             scaledHeight={scaledHeight}
             defaultWidth={cssWidth}
             defaultHeight={cssHeight}
+            shouldCenter={shouldCenter}
           >
             <div 
               className={`${pageContainerClass} print-index-container flex flex-col overflow-hidden origin-top-left`}
@@ -461,6 +469,7 @@ const SongPagesList = memo(function SongPagesList({
             scaledHeight={scaledHeight}
             defaultWidth={cssWidth}
             defaultHeight={cssHeight}
+            shouldCenter={shouldCenter}
           >
             <div 
               className={`${pageContainerClass} print-page-container flex flex-col overflow-hidden origin-top-left`}
@@ -495,6 +504,7 @@ const SongPagesList = memo(function SongPagesList({
         return (
           <VirtualPage
             key="back-cover"
+            id="back-cover-page"
             width={cssWidth}
             height={cssHeight}
             isScaled={isScaled}
@@ -502,6 +512,7 @@ const SongPagesList = memo(function SongPagesList({
             scaledHeight={scaledHeight}
             defaultWidth={cssWidth}
             defaultHeight={cssHeight}
+            shouldCenter={shouldCenter}
           >
             <div 
               className={`${pageContainerClass} print-cover-container flex flex-col overflow-hidden origin-top-left relative shadow-md ring-1 ring-black/5 print:shadow-none print:ring-0`}
@@ -823,6 +834,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     return false;
   });
   const [activeSongIndex, setActiveSongIndex] = useState<number>(0);
+  const [activePageIndex, setActivePageIndex] = useState<number>(0);
 
   // Throttled ResizeObserver using requestAnimationFrame for immediate frame-synchronized measurement
   useLayoutEffect(() => {
@@ -957,37 +969,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     setIsBottomZoomMenuOpen(false);
   }, []);
 
-  // Keyboard shortcuts: Ctrl/Cmd + Plus, Ctrl/Cmd + Minus, Ctrl/Cmd + 0
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeTag = document.activeElement?.tagName.toLowerCase();
-      if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
-        return;
-      }
 
-      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
-        e.preventDefault();
-        handleZoomIn();
-      } else if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
-        e.preventDefault();
-        handleZoomOut();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
-        e.preventDefault();
-        setPresetZoom('custom', 1.0);
-      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
-        if (!isDebugFeatureEnabled) return;
-        e.preventDefault();
-        setIsDebugOpen(prev => {
-          const next = !prev;
-          try { localStorage.setItem('kytario-debug-view', String(next)); } catch (err) {}
-          return next;
-        });
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleZoomIn, handleZoomOut, setPresetZoom, isDebugFeatureEnabled]);
 
   // Mouse wheel zoom inside preview canvas: Ctrl/Cmd + Scroll
   useEffect(() => {
@@ -1081,6 +1063,64 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       }
     }
   }, []);
+
+  const handlePrevPage = useCallback(() => {
+    if (activePageIndexRef.current > 0) {
+      const prevId = allPageIdsRef.current[activePageIndexRef.current - 1];
+      handleScrollTo(prevId);
+    }
+  }, [handleScrollTo]);
+
+  const handleNextPage = useCallback(() => {
+    if (activePageIndexRef.current < allPageIdsRef.current.length - 1) {
+      const nextId = allPageIdsRef.current[activePageIndexRef.current + 1];
+      handleScrollTo(nextId);
+    }
+  }, [handleScrollTo]);
+
+  // Keyboard shortcuts: Ctrl/Cmd + Plus, Ctrl/Cmd + Minus, Ctrl/Cmd + 0
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        handleZoomIn();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
+        e.preventDefault();
+        handleZoomOut();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        setPresetZoom('custom', 1.0);
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+        if (!isDebugFeatureEnabled) return;
+        e.preventDefault();
+        setIsDebugOpen(prev => {
+          const next = !prev;
+          try { localStorage.setItem('kytario-debug-view', String(next)); } catch (err) {}
+          return next;
+        });
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        if (activePageIndexRef.current > 0) {
+          const prevId = allPageIdsRef.current[activePageIndexRef.current - 1];
+          handleScrollTo(prevId);
+        }
+      } else if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        e.preventDefault();
+        if (activePageIndexRef.current < allPageIdsRef.current.length - 1) {
+          const nextId = allPageIdsRef.current[activePageIndexRef.current + 1];
+          handleScrollTo(nextId);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleZoomIn, handleZoomOut, setPresetZoom, isDebugFeatureEnabled, handleScrollTo]);
 
   const scrollToTop = () => {
     if (containerRef.current) {
@@ -1238,6 +1278,36 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     basePxHeight
   ]);
 
+  // List of all page IDs in order of rendering
+  const allPageIds = useMemo(() => {
+    const ids: string[] = [];
+    if (settings.showFrontCover !== false && songs.length > 0) {
+      ids.push('front-cover-page');
+    }
+    tocPages.forEach((p) => {
+      ids.push(p.isFirstPage ? 'toc-page' : `toc-page-${p.pageIndex}`);
+    });
+    songs.forEach((_, i) => {
+      ids.push(`song-${i}`);
+    });
+    if (settings.showBackCover !== false && songs.length > 0) {
+      ids.push('back-cover-page');
+    }
+    return ids;
+  }, [settings.showFrontCover, settings.showBackCover, songs.length, tocPages]);
+
+  const activePageIndexRef = useRef(activePageIndex);
+  useEffect(() => {
+    activePageIndexRef.current = activePageIndex;
+  }, [activePageIndex]);
+
+  const allPageIdsRef = useRef(allPageIds);
+  useEffect(() => {
+    allPageIdsRef.current = allPageIds;
+  }, [allPageIds]);
+
+  const shouldCenter = scaledWidth <= containerSize.width;
+
   const isScaled = Math.abs(effectiveScale - 1.0) > 0.005;
 
   // Track scroll position for "Back to Top" button and active song index with O(1) math
@@ -1252,9 +1322,17 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           if (el) {
             setShowScrollTop(el.scrollTop > 400);
 
+            const isMobileScreen = typeof window !== 'undefined' ? window.innerWidth < 640 : false;
+            const pageMarginVal = isMobileScreen ? 24 : 40;
+            const pageStep = (isScaled ? scaledHeight : (parseInt(cssHeight, 10) || 1123)) + pageMarginVal;
+
+            if (allPageIds.length > 0) {
+              const computedPageIndex = Math.min(allPageIds.length - 1, Math.max(0, Math.floor((el.scrollTop + pageStep * 0.45) / pageStep)));
+              setActivePageIndex(computedPageIndex);
+            }
+
             // Determine currently active song in viewport with high-performance O(1) page step math
             if (songs.length > 0) {
-              const pageStep = (isScaled ? scaledHeight : (parseInt(cssHeight, 10) || 1123)) + 40;
               const tocTotalHeight = (tocPages.length || 0) * pageStep;
               const scrollFromSongs = Math.max(0, el.scrollTop - tocTotalHeight + pageStep * 0.3);
               const computedIndex = Math.min(songs.length - 1, Math.max(0, Math.floor(scrollFromSongs / pageStep)));
@@ -1269,7 +1347,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [songs.length, isScaled, scaledHeight, cssHeight, tocPages.length]);
+  }, [songs.length, isScaled, scaledHeight, cssHeight, tocPages.length, allPageIds.length]);
 
   const documentTitle = useMemo(() => {
     const raw = title || 'Kytario_Songbook';
@@ -1539,7 +1617,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         <div 
           ref={printableRef}
           id="songbook-printable-area"
-          className={`songbook-print-root ${isPrinting ? 'is-printing-mode' : ''} animate-in fade-in duration-200 min-w-fit flex flex-col items-center print:block print:h-auto print:min-h-0 print:w-full print:static print:overflow-visible print:m-0 print:p-0 ${isUpdatingLayout ? 'opacity-80' : 'opacity-100'}`}
+          className={`songbook-print-root ${isPrinting ? 'is-printing-mode' : ''} animate-in fade-in duration-200 min-w-fit flex flex-col ${shouldCenter ? 'items-center' : 'items-start pl-4 sm:pl-8'} print:block print:h-auto print:min-h-0 print:w-full print:static print:overflow-visible print:m-0 print:p-0 ${isUpdatingLayout ? 'opacity-80' : 'opacity-100'}`}
         >
           <SongPagesList 
             songs={songs}
@@ -1557,6 +1635,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             isScaled={isScaled}
             onScrollToSong={handleScrollTo}
             isDebugMode={isDebugFeatureEnabled && isDebugOpen}
+            shouldCenter={shouldCenter}
           />
         </div>
 
@@ -1564,8 +1643,48 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         <div className="h-28 sm:h-24 print:hidden" />
       </div>
 
+      {/* FLOATING PAGE NAVIGATION POD (BALANCED ON THE LEFT SIDE OF SCREEN, OPPOSITE OF SCROLL-TO-TOP) */}
+      {allPageIds.length > 0 && (
+        <div 
+          className="fixed bottom-[64px] sm:bottom-[68px] left-10 sm:left-14 z-30 print:hidden flex items-center bg-white/95 backdrop-blur-md border border-zinc-200/80 shadow-xl rounded-full h-10 px-1 select-none pointer-events-auto"
+          title="Page Navigation (Swipe, Scroll, or click arrows)"
+        >
+          <button
+            onClick={handlePrevPage}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              handlePrevPage();
+            }}
+            disabled={activePageIndex === 0}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 active:bg-zinc-200 text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer"
+            title="Previous Page (ArrowLeft / PageUp)"
+            aria-label="Previous Page"
+          >
+            <ChevronLeft className="w-4.5 h-4.5" />
+          </button>
+          
+          <span className="text-xs font-mono font-bold text-zinc-700 px-2.5 whitespace-nowrap min-w-[3.5rem] text-center">
+            {activePageIndex + 1} / {allPageIds.length}
+          </span>
+          
+          <button
+            onClick={handleNextPage}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              handleNextPage();
+            }}
+            disabled={activePageIndex === allPageIds.length - 1}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 active:bg-zinc-200 text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer"
+            title="Next Page (ArrowRight / PageDown)"
+            aria-label="Next Page"
+          >
+            <ChevronRight className="w-4.5 h-4.5" />
+          </button>
+        </div>
+      )}
+
       {/* FLOATING QUICK ACTIONS GROUP (PAGES NAVIGATOR, DEBUG HUD & SCROLL TO TOP - OUT OF THE WAY OF BOTTOM BAR) */}
-      <div className="fixed bottom-[68px] sm:bottom-[72px] right-6 sm:right-8 z-30 print:hidden flex flex-col gap-2">
+      <div className="fixed bottom-[64px] sm:bottom-[68px] right-10 sm:right-14 z-30 print:hidden flex flex-col gap-2">
         {/* Scroll to Top */}
         {showScrollTop && (
           <button

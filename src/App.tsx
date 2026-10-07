@@ -1252,10 +1252,7 @@ export default function App() {
               <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Fit</span>
             </button>
 
-            {/* Divider */}
-            <div className="w-px h-6 sm:h-7 bg-zinc-200/80 mx-0.5 shrink-0" />
-
-            {/* Song Navigation button (Content) - Moved next to Fit */}
+            {/* Song Navigation button (Content) - Immediately adjacent to Fit */}
             <button
               id="floating-nav-btn"
               onClick={() => {

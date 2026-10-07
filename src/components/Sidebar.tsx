@@ -97,7 +97,7 @@ const SidebarContent = memo(function SidebarContent({
   headerSwipeProps,
 }: SidebarContentProps) {
   return (
-    <div className="flex flex-col h-full gap-3.5">
+    <div className="flex flex-col flex-1 min-h-0 gap-3.5 overflow-hidden">
       {/* Header Area (Supports swipe-down to dismiss in mobile/desktop drawer) */}
       <div className="pb-2.5 border-b border-black/5 shrink-0 flex items-center justify-between">
         <div 
@@ -430,6 +430,36 @@ export const Sidebar = memo(function Sidebar({
   // Effective draft settings
   const draftSettings = externalDraftSettings ?? internalDraftSettings;
 
+  // Dynamic viewport height listener for scaling settings sidebar relative to window size
+  const [viewportHeight, setViewportHeight] = useState(() => 
+    typeof window !== 'undefined' ? window.innerHeight : 800
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setViewportHeight(window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Compute optimal dynamic height cap based on viewport height
+  const dynamicMaxHeight = useMemo(() => {
+    if (viewportHeight <= 700) {
+      // Small displays / short windows: take up to 94% height (minimal top margin)
+      return Math.round(viewportHeight * 0.94);
+    } else if (viewportHeight <= 850) {
+      // Medium-small displays: take up to 90% height
+      return Math.round(viewportHeight * 0.90);
+    } else if (viewportHeight <= 1050) {
+      // Standard desktop displays: take up to 82% height
+      return Math.round(viewportHeight * 0.82);
+    } else {
+      // High-res / large desktop displays: cap at max 720px for a compact, snug fit
+      return Math.min(Math.round(viewportHeight * 0.72), 720);
+    }
+  }, [viewportHeight]);
+
   // Escape key listener to close settings drawer
   useEffect(() => {
     if (!isMobileOpen) return;
@@ -529,10 +559,13 @@ export const Sidebar = memo(function Sidebar({
         <div 
           id="mobile-settings-sidebar"
           onClick={(e) => e.stopPropagation()}
-          className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-[92vw] sm:w-[480px] md:w-[540px] max-w-2xl h-[85vh] md:h-[80vh] bg-white text-zinc-900 border-t border-black/10 rounded-t-3xl shadow-2xl p-4 sm:p-5 z-50 flex flex-col will-change-transform ${
+          className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-[92vw] sm:w-[480px] md:w-[540px] max-w-2xl h-auto bg-white text-zinc-900 border-t border-black/10 rounded-t-3xl shadow-2xl p-4 sm:p-5 z-50 flex flex-col min-h-0 will-change-transform ${
             isDragging ? '' : 'transition-transform duration-300 ease-out'
           } ${isMobileOpen ? 'translate-y-0' : 'translate-y-full'}`}
-          style={dragOffset > 0 ? { transform: `translate(-50%, ${dragOffset}px)` } : undefined}
+          style={{
+            maxHeight: `${dynamicMaxHeight}px`,
+            ...(dragOffset > 0 ? { transform: `translate(-50%, ${dragOffset}px)` } : {})
+          }}
         >
           {/* Top Swipable Grab Area */}
           <div 
@@ -545,7 +578,7 @@ export const Sidebar = memo(function Sidebar({
           </div>
 
           {isMobileOpen && (
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <SidebarContent
                 idSuffix="bottom-sheet"
                 isDrawer={true}

@@ -276,6 +276,69 @@ async function createServer() {
     return null;
   }
 
+  function extractSongbookTokensFromProjectHtml(html: string): { token: string; name: string }[] {
+    if (typeof html !== 'string') return [];
+    const results: { token: string; name: string }[] = [];
+
+    let idx = html.indexOf('"songbooks":[');
+    let isEscaped = false;
+    if (idx === -1) {
+      idx = html.indexOf('\\"songbooks\\":[');
+      isEscaped = true;
+    }
+
+    if (idx !== -1) {
+      let depth = 1;
+      let pos = idx + (isEscaped ? '\\"songbooks\\":['.length : '"songbooks":['.length);
+      while (pos < html.length && depth > 0) {
+        if (html[pos] === '[') depth++;
+        else if (html[pos] === ']') depth--;
+        pos++;
+      }
+      let slice = html.slice(idx + (isEscaped ? '\\"songbooks\\":'.length : '"songbooks":'.length), pos);
+      if (isEscaped) {
+        slice = slice.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+      }
+      try {
+        const arr = JSON.parse(slice);
+        if (Array.isArray(arr)) {
+          for (const item of arr) {
+            if (item && item.urlToken) {
+              results.push({
+                token: String(item.urlToken),
+                name: String(item.name || item.title || 'Songbook'),
+              });
+            }
+          }
+        }
+      } catch {
+        const matches = slice.matchAll(/"urlToken"\s*:\s*"([^"]+)"/g);
+        for (const m of matches) {
+          if (m[1]) {
+            results.push({ token: m[1], name: 'Songbook' });
+          }
+        }
+      }
+    }
+
+    // Also search for links containing /songbooks/ or /zpevnik/ as fallback
+    const linkRegex = /\/(?:songbooks?|zpevnik|zpevniky|shared)\/([a-zA-Z0-9_\-]+)/gi;
+    let m;
+    while ((m = linkRegex.exec(html)) !== null) {
+      const tok = m[1];
+      if (tok && tok !== 'cs' && tok !== 'en' && tok !== 'sk' && tok !== 'de') {
+        results.push({ token: tok, name: 'Songbook' });
+      }
+    }
+
+    const seen = new Set<string>();
+    return results.filter(r => {
+      if (seen.has(r.token)) return false;
+      seen.add(r.token);
+      return true;
+    });
+  }
+
   async function fetchKytarioWebpageTitle(token: string, rawUrl?: string): Promise<string | null> {
     if (!token && !rawUrl) return null;
     const urlsToTry: string[] = [];
@@ -321,8 +384,41 @@ async function createServer() {
   app.all(['/api/proxy/kytario', '/api/proxy/kytario/:token(*)'], async (req, res) => {
     let rawInput = (req.query.url as string) || (req.query.token as string) || (req.params as any).token || (req.params as any)[0] || '';
     rawInput = cleanKytarioUrl(rawInput);
-    const token = extractKytarioSlug(rawInput);
+    let token = extractKytarioSlug(rawInput);
     console.log(`[Proxy] Fetching songbook for input: "${rawInput}", resolved token: "${token}"`);
+
+    // 1. Resolve project to its underlying first songbook if it is a project page
+    const isProjectUrl = /projekty|projects/i.test(rawInput);
+    if (isProjectUrl && token) {
+      try {
+        console.log(`[Proxy] Resolving project token/URL "${token}" to find songbooks...`);
+        const projectWebpages = [
+          `https://kytario.com/cs/projekty/${token}`,
+          `https://kytario.com/projects/${token}`,
+          `https://kytario.com/sk/projekty/${token}`,
+          `https://kytario.com/en/projects/${token}`,
+        ];
+        let projectHtml = '';
+        for (const pUrl of projectWebpages) {
+          try {
+            const pres = await axios.get(pUrl, { timeout: 6000 });
+            if (pres.data && typeof pres.data === 'string') {
+              projectHtml = pres.data;
+              break;
+            }
+          } catch {}
+        }
+        if (projectHtml) {
+          const projectSongbooks = extractSongbookTokensFromProjectHtml(projectHtml);
+          if (projectSongbooks.length > 0) {
+            console.log(`[Proxy] Successfully resolved project "${token}" to songbook "${projectSongbooks[0].token}" (${projectSongbooks[0].name})`);
+            token = projectSongbooks[0].token;
+          }
+        }
+      } catch (e: any) {
+        console.warn(`[Proxy] Project resolution error:`, e?.message);
+      }
+    }
 
     const candidateUrls: string[] = [];
 
