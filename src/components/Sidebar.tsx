@@ -97,7 +97,7 @@ const SidebarContent = memo(function SidebarContent({
   headerSwipeProps,
 }: SidebarContentProps) {
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-3.5 overflow-hidden">
+    <div className="flex flex-col min-h-0 gap-3.5 overflow-hidden">
       {/* Header Area (Supports swipe-down to dismiss in mobile/desktop drawer) */}
       <div className="pb-2.5 border-b border-black/5 shrink-0 flex items-center justify-between">
         <div 
@@ -133,7 +133,7 @@ const SidebarContent = memo(function SidebarContent({
       </div>
 
       {/* Modular Settings Sections */}
-      <div className="space-y-5 flex-1 overflow-y-auto pr-1">
+      <div className="space-y-5 overflow-y-auto min-h-0 pr-1">
         {/* SECTION 1: Page Layout */}
         <PageLayoutSection
           idSuffix={idSuffix}
@@ -578,7 +578,7 @@ export const Sidebar = memo(function Sidebar({
           </div>
 
           {isMobileOpen && (
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="min-h-0 flex flex-col overflow-hidden">
               <SidebarContent
                 idSuffix="bottom-sheet"
                 isDrawer={true}
