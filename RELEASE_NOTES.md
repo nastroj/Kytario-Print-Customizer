@@ -1,5 +1,35 @@
 # Release Notes
 
+## v1.7.1 - 2026-10-12
+
+### Dynamic Responsive Settings Sidebar
+- **Adaptive Viewport Scaling**: Implemented a dynamic height calculation for the Settings drawer that scales between 88% and 94% on smaller screens to maximize usable space, while capping cleanly (max 920px) on large high-resolution desktop monitors.
+- **Content-Fitted Height**: Eliminated forced flex expansion that previously left empty white gaps between settings controls and bottom action buttons; the drawer now fits its content snugly.
+- **Enhanced Internal Scrolling**: Settings sections scroll smoothly within `min-h-0 overflow-y-auto` while keeping the grab handle header and bottom action bar pinned and accessible.
+
+### Scroll to Top Snapback & Lag Elimination
+- **Removed `contentVisibility: auto` Thrashing**: Removed `content-visibility: auto` and `contain-intrinsic-size` from preview pages. This eliminates massive layout shifts and main-thread freezes when jumping to the top of large songbooks.
+- **Disabled Browser Scroll Anchoring**: Enforced `overflow-anchor: none` on the scroll container and page wrappers (`.print-scroll-container` and `.song-page-outer-wrapper`), preventing Chromium from automatically snapping scroll position back down after scrolling up.
+- **Smooth Native Scrolling**: Replaced conflicting touch handlers with a clean, smooth `useCallback` scroll implementation (`el.scrollTo({ top: 0, left: 0, behavior: 'smooth' })`).
+
+### Toolbar Ergonomics & Page Cleanliness
+- **Table of Contents Relocation**: Moved the **Content** (Table of Contents / Jump to Song) trigger button directly adjacent to the **Fit** zoom toggle in the View & Navigation toolbar pod.
+- **Floating Pagination Cleanup**: Removed the bottom-left floating `<- page / total ->` widget to keep the preview canvas unobstructed.
+
+### Build & GitHub Pages Deployment Pipeline
+- **Subpath Base Path Configuration**: Added full `BASE_PATH` support (defaulting to `/Kytario-Print-Customizer/`) across `vite.config.ts`, `server.ts`, and `.env` to ensure seamless GitHub Pages deployment without broken asset paths.
+- **Selective HMR Control**: Implemented `DISABLE_HMR` toggle across both Vite client and Express server to disable file-watching and WebSocket servers in environments where live reload is not desired.
+- **SPA Fallback Verification**: Ensured `dist/404.html` and `dist/index.html` are generated and verified on production builds.
+
+### Validation
+- `npm run lint` (`tsc --noEmit`)
+- `npm run build` (`vite build`)
+
+### Deployment
+This release is prepared for GitHub Pages deployment via the `.github/workflows/deploy.yml` workflow.
+
+---
+
 ## v1.7.0 - 2026-10-06
 
 ### Separated View & Action Toolbar Pods (Responsive UX Overhaul)

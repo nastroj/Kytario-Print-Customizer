@@ -25,6 +25,23 @@ async function createServer() {
   const isDev = process.env.npm_lifecycle_event === 'dev' || process.env.NODE_ENV === 'development';
   const isProd = !isDev && (process.env.NODE_ENV === 'production' || fs.existsSync(distPath));
 
+  // Load .env file into process.env if present
+  const envFilePath = path.join(__dirname, '.env');
+  if (fs.existsSync(envFilePath)) {
+    try {
+      const envContent = fs.readFileSync(envFilePath, 'utf-8');
+      for (const line of envContent.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const [key, ...vals] = trimmed.split('=');
+        const varKey = key?.trim();
+        if (varKey && !(varKey in process.env)) {
+          process.env[varKey] = vals.join('=').trim().replace(/^["']|["']$/g, '');
+        }
+      }
+    } catch {}
+  }
+
   const envBase = (process.env.BASE_PATH || process.env.BASE_URL || '').trim();
   let expressBase = '/';
   if (envBase && envBase !== './' && envBase !== '.') {
@@ -536,10 +553,11 @@ async function createServer() {
     console.log('Starting in development mode with Vite middleware...');
     try {
       const { createServer: createViteServer } = await import('vite');
+      const disableHmr = process.env.DISABLE_HMR === 'true';
       const vite = await createViteServer({
         server: {
           middlewareMode: true,
-          hmr: { server: httpServer },
+          hmr: disableHmr ? false : { server: httpServer },
         },
         appType: 'spa',
       });

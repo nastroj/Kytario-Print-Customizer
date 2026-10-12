@@ -147,8 +147,7 @@ const VirtualPage = memo(function VirtualPage({
         minHeight: isScaled ? `${scaledHeight}px` : defaultHeight,
         minWidth: isScaled ? `${scaledWidth}px` : defaultWidth,
         position: 'relative',
-        contentVisibility: 'auto',
-        containIntrinsicSize: isScaled ? `${scaledWidth}px ${scaledHeight}px` : `${defaultWidth} ${defaultHeight}`,
+        overflowAnchor: 'none',
       }}
     >
       {children}
@@ -1122,11 +1121,15 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleZoomIn, handleZoomOut, setPresetZoom, isDebugFeatureEnabled, handleScrollTo]);
 
-  const scrollToTop = () => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = 0;
+  const scrollToTop = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    try {
+      el.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    } catch {
+      el.scrollTop = 0;
     }
-  };
+  }, []);
 
   // Calculate dynamic pagination for Table of Contents (Memoized for high performance)
   const tocPages = useMemo(() => {
@@ -1599,6 +1602,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       {/* SCROLLABLE PREVIEW CANVAS */}
       <div 
         ref={containerRef}
+        style={{ overflowAnchor: 'none' }}
         className="relative flex-1 overflow-y-auto overflow-x-auto bg-zinc-50 p-3 sm:p-8 pb-28 sm:pb-36 print:p-0 print:m-0 print:bg-white print:h-auto print:min-h-0 print:overflow-visible print:block print:static print-scroll-container"
       >
         {(isPreparingPdf || isPrinting) && (
@@ -1648,12 +1652,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         {/* Scroll to Top */}
         {showScrollTop && (
           <button
+            type="button"
             onClick={scrollToTop}
-            onTouchStart={(e) => {
-              e.preventDefault();
-              scrollToTop();
-            }}
-            className="w-10 h-10 bg-white/95 hover:bg-zinc-100 text-zinc-600 rounded-full shadow-lg border border-black/10 flex items-center justify-center transition-colors cursor-pointer"
+            className="w-10 h-10 bg-white/95 hover:bg-zinc-100 active:bg-zinc-200 text-zinc-600 hover:text-zinc-900 rounded-full shadow-lg border border-black/10 flex items-center justify-center transition-colors cursor-pointer select-none"
             title="Scroll to Top"
             aria-label="Scroll to Top"
           >

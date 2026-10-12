@@ -3,20 +3,22 @@ import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
 import {fileURLToPath} from 'url';
-import {defineConfig} from 'vite';
+import {defineConfig, loadEnv} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export default defineConfig(({ command }) => {
-  const envBase = (process.env.BASE_PATH || process.env.BASE_URL || '').trim();
+export default defineConfig(({ command, mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const envBase = (process.env.BASE_PATH || env.BASE_PATH || process.env.BASE_URL || env.BASE_URL || '').trim();
   const rawBase = envBase || '/';
   // Use absolute base '/' in development to prevent issues with Vite middleware and PWA dev-sw.
   // In production builds, use the configured relative or absolute base path.
   const base = command === 'serve'
     ? '/'
     : (rawBase.endsWith('/') ? rawBase : `${rawBase}/`);
+  const disableHmr = process.env.DISABLE_HMR === 'true' || env.DISABLE_HMR === 'true';
   return {
     base,
     plugins: [
@@ -159,9 +161,9 @@ export default defineConfig(({ command }) => {
       allowedHosts: true,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
+      hmr: !disableHmr,
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      watch: disableHmr ? null : {},
     },
   };
 });

@@ -320,4 +320,10 @@ div[class*="rounded-t-3xl"] textarea {
   padding-right: 0.75rem !important;
 }
 
+/* Prevent browser scroll anchoring jumps and bounce-back on rapid or programmatic scrolling */
+.print-scroll-container,
+.song-page-outer-wrapper {
+  overflow-anchor: none !important;
+}
+
 

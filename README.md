@@ -1,12 +1,22 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.7.0  
+**Version:** 1.7.1  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.7.0 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.7.1 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+
+---
+
+## 🌟 What's New in v1.7.1
+
+- **Dynamic Responsive Settings Sidebar**: Adaptive viewport height calculation that scales between 88% and 94% on mobile and laptops to maximize visible controls, while capping cleanly on large desktop monitors without dead white space.
+- **Scroll to Top Snapback & Lag Fix**: Removed `content-visibility: auto` DOM thrashing and enforced `overflow-anchor: none` on preview page containers, eliminating Chromium scroll-anchoring bounce-backs and main-thread layout freezes.
+- **Table of Contents Relocation**: The **Content** (Table of Contents / Jump to Song) button is positioned immediately adjacent to the **Fit** zoom toggle in the bottom navigation pod.
+- **Preview Canvas Cleanup**: Removed the bottom-left floating pagination widget to provide an uncluttered document preview.
+- **Subpath & GitHub Pages Deployment (`BASE_PATH`)**: Added first-class `BASE_PATH` support (with automatic asset prefixing for `/Kytario-Print-Customizer/`) and `DISABLE_HMR` toggle across build configurations and `.env` files.
 
 ---
 
