@@ -23,7 +23,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist dev-dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
@@ -48,6 +50,7 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.23.15",
     "typescript": "~5.8.2",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^3.2.7"
   }
 }

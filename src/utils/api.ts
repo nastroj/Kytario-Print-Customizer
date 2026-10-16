@@ -413,7 +413,7 @@ export function extractSongbookTokensFromProjectHtml(html: string): { token: str
       else if (html[pos] === ']') depth--;
       pos++;
     }
-    let slice = html.slice(idx + (isEscaped ? '\\"songbooks\\":'.length : '"songbooks\\":'.length), pos);
+    let slice = html.slice(idx + (isEscaped ? '\\"songbooks\\":'.length : '"songbooks":'.length), pos);
     if (isEscaped) {
       slice = slice.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
     }

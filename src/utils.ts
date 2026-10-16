@@ -2424,6 +2424,11 @@ export function linkSectionReferences(sections: SongSection[]) {
     }
   });
 
+  // Precompute the list of normalized marker keys once so the fuzzy fallback
+  // below does not re-allocate and rescan the key array for every section-ref
+  // chunk (avoids O(sections × chunks) repeated work).
+  const markerKeys = Array.from(markerToIndex.keys());
+
   // Traverse all sections and their chunks to link references
   sections.forEach((sec) => {
     sec.parsedLines.forEach((line) => {
@@ -2437,7 +2442,7 @@ export function linkSectionReferences(sections: SongSection[]) {
             chunk.targetSectionIndex = targetIdx;
           } else {
             // Try matching without numbers if specific match fails (e.g. [REF] -> REF1)
-            const baseMatch = Array.from(markerToIndex.keys()).find(k => k.startsWith(normalizedRef) || normalizedRef.startsWith(k));
+            const baseMatch = markerKeys.find(k => k.startsWith(normalizedRef) || normalizedRef.startsWith(k));
             if (baseMatch) {
               chunk.targetSectionIndex = markerToIndex.get(baseMatch);
             }
