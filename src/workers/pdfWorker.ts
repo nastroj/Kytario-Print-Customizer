@@ -189,6 +189,97 @@ async function fetchFontBytes(primaryUrl: string, fallbackUrl?: string): Promise
 }
 
 // ----------------------------------------------------------------------
+// MINIMAL PNG ENCODER for QR code (1-shot embed instead of per-module drawRectangle)
+// ----------------------------------------------------------------------
+function qrCodeToPngBytes(matrix: Uint8Array, size: number): Uint8Array {
+  const pixels = new Uint8Array(size * size);
+  for (let i = 0; i < size * size; i++) pixels[i] = matrix[i] ? 0 : 255;
+
+  const stride = size + 1;
+  const raw = new Uint8Array(size * stride);
+  let off = 0;
+  for (let r = 0; r < size; r++) {
+    raw[off++] = 0;
+    raw.set(pixels.subarray(r * size, (r + 1) * size), off);
+    off += size;
+  }
+
+  const MAX = 65535;
+  const blocks: Uint8Array[] = [];
+  for (let p = 0; p < raw.length; p += MAX) {
+    const chunk = raw.subarray(p, Math.min(p + MAX, raw.length));
+    const last = p + MAX >= raw.length;
+    const hdr = new Uint8Array(5);
+    hdr[0] = last ? 1 : 0;
+    const len = chunk.length;
+    hdr[1] = len & 0xff;
+    hdr[2] = (len >>> 8) & 0xff;
+    hdr[3] = (~len) & 0xff;
+    hdr[4] = (~len >>> 8) & 0xff;
+    blocks.push(hdr, new Uint8Array(chunk));
+  }
+
+  let a = 1, b = 0;
+  for (let i = 0; i < raw.length; i++) {
+    a = (a + raw[i]) % 65521;
+    b = (b + a) % 65521;
+  }
+  const adler = new Uint8Array([(b >>> 8) & 0xff, b & 0xff, (a >>> 8) & 0xff, a & 0xff]);
+
+  const idatParts: Uint8Array[] = [new Uint8Array([0x78, 0x01]), ...blocks, adler];
+  let idatLen = 0;
+  for (const p of idatParts) idatLen += p.length;
+  const idat = new Uint8Array(idatLen);
+  off = 0;
+  for (const p of idatParts) { idat.set(p, off); off += p.length; }
+
+  const crcTable = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    crcTable[i] = c;
+  }
+  const crc32 = (buf: Uint8Array) => {
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < buf.length; i++) crc = crcTable[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
+    return crc ^ 0xFFFFFFFF;
+  };
+
+  const chunk = (type: string, data: Uint8Array): Uint8Array => {
+    const t = new Uint8Array(4);
+    for (let i = 0; i < 4; i++) t[i] = type.charCodeAt(i);
+    const dlen = data.length;
+    const len = new Uint8Array([(dlen >>> 24) & 0xff, (dlen >>> 16) & 0xff, (dlen >>> 8) & 0xff, dlen & 0xff]);
+    const crcInput = new Uint8Array(4 + dlen);
+    crcInput.set(t);
+    crcInput.set(data, 4);
+    const crc = crc32(crcInput);
+    const crcBuf = new Uint8Array([(crc >>> 24) & 0xff, (crc >>> 16) & 0xff, (crc >>> 8) & 0xff, crc & 0xff]);
+    const out = new Uint8Array(12 + dlen);
+    out.set(len); out.set(t, 4); out.set(data, 8); out.set(crcBuf, 8 + dlen);
+    return out;
+  };
+
+  const ihdr = new Uint8Array(13);
+  ihdr[0] = (size >>> 24) & 0xff; ihdr[1] = (size >>> 16) & 0xff;
+  ihdr[2] = (size >>> 8) & 0xff; ihdr[3] = size & 0xff;
+  ihdr[4] = (size >>> 24) & 0xff; ihdr[5] = (size >>> 16) & 0xff;
+  ihdr[6] = (size >>> 8) & 0xff; ihdr[7] = size & 0xff;
+  ihdr[8] = 8; ihdr[9] = 0; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+
+  const sig = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const iend = chunk('IEND', new Uint8Array(0));
+
+  const parts: Uint8Array[] = [sig, chunk('IHDR', ihdr), chunk('IDAT', idat), iend];
+  let total = 0;
+  for (const p of parts) total += p.length;
+  const png = new Uint8Array(total);
+  off = 0;
+  for (const p of parts) { png.set(p, off); off += p.length; }
+  return png;
+}
+
+// ----------------------------------------------------------------------
 // FRONT COVER / TITLE PAGE RENDERING (PAGE 1)
 // ----------------------------------------------------------------------
 async function renderFrontCoverPage(
@@ -408,27 +499,20 @@ async function renderFrontCoverPage(
       const qrData = QRCode.create(qrTarget, { errorCorrectionLevel: 'M' });
       const qrModuleCount = qrData.modules.size;
       const qrMatrix = qrData.modules.data;
+      const qrPngBytes = qrCodeToPngBytes(qrMatrix, qrModuleCount);
+      const qrImage = await doc.embedPng(qrPngBytes);
 
       const qrPrintSize = Math.min(isLandscape ? 135 : 175, availableH * 0.78);
-      const moduleSize = qrPrintSize / qrModuleCount;
       const qrX = (pageWidth - qrPrintSize) / 2;
       const qrY = targetCenterY - qrPrintSize / 2;
 
-      for (let r = 0; r < qrModuleCount; r++) {
-        for (let c = 0; c < qrModuleCount; c++) {
-          if (qrMatrix[r * qrModuleCount + c]) {
-            page.drawRectangle({
-              x: qrX + c * moduleSize,
-              y: qrY + (qrModuleCount - 1 - r) * moduleSize,
-              width: moduleSize,
-              height: moduleSize,
-              color: colTitle,
-            });
-          }
-        }
-      }
+      page.drawImage(qrImage, {
+        x: qrX,
+        y: qrY,
+        width: qrPrintSize,
+        height: qrPrintSize,
+      });
 
-      // If user uploaded an image and wants it below QR
       if (embeddedImage && imagePosition === 'below-qr') {
         const logoH = isLandscape ? 30 : 40;
         const scale = Math.min(100 / embeddedImage.width, logoH / embeddedImage.height, 1);
@@ -667,25 +751,19 @@ async function renderBackCoverPage(
       const qrData = QRCode.create(qrTarget, { errorCorrectionLevel: 'M' });
       const qrModuleCount = qrData.modules.size;
       const qrMatrix = qrData.modules.data;
+      const qrPngBytes = qrCodeToPngBytes(qrMatrix, qrModuleCount);
+      const qrImage = await doc.embedPng(qrPngBytes);
 
       const qrPrintSize = Math.min(isLandscape ? 135 : 175, availableH * 0.78);
-      const moduleSize = qrPrintSize / qrModuleCount;
       const qrX = alignment === 'center' ? (pageWidth - qrPrintSize) / 2 : marginPtLeft;
       const qrY = targetCenterY - qrPrintSize / 2;
 
-      for (let r = 0; r < qrModuleCount; r++) {
-        for (let c = 0; c < qrModuleCount; c++) {
-          if (qrMatrix[r * qrModuleCount + c]) {
-            page.drawRectangle({
-              x: qrX + c * moduleSize,
-              y: qrY + (qrModuleCount - 1 - r) * moduleSize,
-              width: moduleSize,
-              height: moduleSize,
-              color: colTitle,
-            });
-          }
-        }
-      }
+      page.drawImage(qrImage, {
+        x: qrX,
+        y: qrY,
+        width: qrPrintSize,
+        height: qrPrintSize,
+      });
 
       if (embeddedImage && imagePosition === 'below-qr') {
         const logoH = isLandscape ? 30 : 40;

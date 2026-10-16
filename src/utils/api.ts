@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { cleanSongbookTitle } from '../utils';
 
 export interface KytarioErrorDetails {
@@ -413,7 +412,7 @@ export function extractSongbookTokensFromProjectHtml(html: string): { token: str
       else if (html[pos] === ']') depth--;
       pos++;
     }
-    let slice = html.slice(idx + (isEscaped ? '\\"songbooks\\":'.length : '"songbooks\\":'.length), pos);
+    let slice = html.slice(idx + (isEscaped ? '\\"songbooks\\":'.length : '"songbooks":'.length), pos);
     if (isEscaped) {
       slice = slice.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
     }
@@ -537,20 +536,21 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
   if (configuredProxyUrl || !isStaticHost) {
     try {
       const proxyBase = configuredProxyUrl || '/api/proxy/kytario';
-      const response = await axios.get(`${proxyBase.replace(/\/+$/, '')}/${encodeURIComponent(targetParam)}`, {
-        params: { url: cleanUrl, token },
-        timeout: 25000
-      });
-      if (response.data && hasSongsPayload(response.data)) {
-        return response.data;
-      }
-    } catch (err: any) {
-      if (err.response) {
-        const status = err.response.status;
-        const errMsg = err.response.data?.error || `Kytario proxy error (Status ${status})`;
-        
-        // If it's a 404 or 400, the songbook is genuinely missing or invalid. Do not attempt client-side fallbacks!
+      const proxyUrl = `${proxyBase.replace(/\/+$/, '')}/${encodeURIComponent(targetParam)}?url=${encodeURIComponent(cleanUrl)}&token=${encodeURIComponent(token || '')}`;
+      const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(25000) });
+      if (response.ok) {
+        const data = await response.json();
+        if (data && hasSongsPayload(data)) {
+          return data;
+        }
+      } else {
+        const status = response.status;
         if (status === 404 || status === 400) {
+          let errMsg = `Kytario proxy error (Status ${status})`;
+          try {
+            const errBody = await response.json();
+            errMsg = errBody?.error || errMsg;
+          } catch {}
           throw new KytarioFetchError(errMsg, {
             isCorsOrStaticHost: false,
             token: token || '',
@@ -559,6 +559,8 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
           });
         }
       }
+    } catch (err: any) {
+      if (err instanceof KytarioFetchError) throw err;
       console.warn('Configured Kytario proxy not available, attempting client-side fallback strategies:', err?.message);
     }
   }
