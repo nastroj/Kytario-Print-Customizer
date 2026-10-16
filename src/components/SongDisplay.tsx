@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, memo, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useMemo, memo, useState } from 'react';
 import { Song, PrintSettings, ColumnBalancePlan } from '../types';
 import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, computeSmartSectionFilling, partitionSectionsIntoColumns, computeSmartFitLineMargin, MIN_READABLE_LYRICS_FONT_SIZE, SongSection, ParsedLine, getPageMargins, getOptimalColumnCount } from '../utils';
 import { getFontFamilyStack } from '../fonts';
@@ -145,23 +145,18 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
   const [highlightedSectionIndex, setHighlightedSectionIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleRefClick = (targetIndex: number) => {
+  const handleRefClick = useCallback((targetIndex: number) => {
     setHighlightedSectionIndex(targetIndex);
     
-    // Find the element with data-section-index
     const element = containerRef.current?.querySelector(`[data-section-index="${targetIndex}"]`);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      
-      // If it's a multi-column layout, we might need a small delay or check
-      // for the correct element.
     }
 
-    // Remove highlight after a delay
     setTimeout(() => {
       setHighlightedSectionIndex(null);
     }, 2000);
-  };
+  }, []);
 
   const sections = useMemo(() => parseSongContent(text), [text]);
 
@@ -247,7 +242,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
     fontFamily: 'var(--songbook-font-family)',
   } as React.CSSProperties;
 
-  const renderSongLine = (lineData: ParsedLine, i: number, firstNonEmptyIndex: number, secMarker: string) => {
+  const renderSongLine = useCallback((lineData: ParsedLine, i: number, firstNonEmptyIndex: number, secMarker: string) => {
     if (lineData.isEmpty) return <div key={i} className="h-3"></div>;
 
     const isFirstNonEmpty = i === firstNonEmptyIndex;
@@ -353,7 +348,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
         </div>
       </div>
     );
-  };
+  }, [settings, computedScale, hasAnyMarkers, markerColWidth, lineMargin]);
 
   // Determine physical page index in document to accurately position outer page numbers on facing pages
   const effectiveDocPageIndex = docPageIndex !== undefined
