@@ -1,5 +1,13 @@
 # Release Notes
 
+## v1.8.6 - 2026-10-17
+
+### Performance Optimization for Manage Songs Modal
+- **Paginated Song List**: Resolved UI freeze issues when opening the song visibility manager for large songbooks (250+ songs) by implementing page-based virtualization (50 items per page).
+- **Smooth Search & Filtering**: Optimized live search and batch selection (`Select/Deselect Filtered`) to run instantly without blocking the main browser thread.
+
+---
+
 ## v1.8.5 - 2026-10-17
 
 ### Song Visibility Manager

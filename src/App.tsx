@@ -1377,9 +1377,14 @@ export default function App() {
             else next.add(id);
             setSelectedSongIds(next);
           }}
-          onToggleAll={(selectAll) => {
-            if (selectAll) setSelectedSongIds(new Set(songbookData?.songs?.map(s => s.id!) || []));
-            else setSelectedSongIds(new Set());
+          onToggleAll={(selectAll, targetSongs) => {
+            const list = targetSongs || songbookData?.songs || [];
+            const next = new Set(selectedSongIds);
+            list.forEach(s => {
+              if (selectAll) next.add(s.id!);
+              else next.delete(s.id!);
+            });
+            setSelectedSongIds(next);
           }}
           onConfirm={() => setIsSongSelectionOpen(false)}
           onCancel={() => setIsSongSelectionOpen(false)}
