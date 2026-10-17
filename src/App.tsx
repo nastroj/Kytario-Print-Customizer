@@ -743,7 +743,7 @@ export default function App() {
     processJsonString(pastedJson);
   };
 
-  const handleSelectZipProject = (selectedSlug: string | 'all') => {
+  const handleSelectZipProject = (selectedSlug: string | 'all', onlyPublic: boolean) => {
     if (!pendingZipResult) return;
     const { result, fileName } = pendingZipResult;
     
@@ -765,6 +765,7 @@ export default function App() {
         const allSongs: Song[] = [];
         result.projects.forEach(p => {
           p.songs.forEach(s => {
+            if (onlyPublic && s.isPrivate) return;
             allSongs.push({
               ...s,
               id: allSongs.length + 1,
@@ -784,12 +785,14 @@ export default function App() {
           return;
         }
 
+        const songs = selectedProject.songs.filter(s => !onlyPublic || !s.isPrivate);
+
         targetSongbook = {
           title: selectedProject.name,
           name: selectedProject.name,
           urlToken: selectedProject.slug,
           slug: selectedProject.slug,
-          songs: selectedProject.songs,
+          songs: songs,
         };
       }
 
@@ -917,7 +920,7 @@ export default function App() {
           fileName={pendingZipResult?.fileName || ''}
           projects={pendingZipResult?.result.projects || []}
           totalSongs={pendingZipResult?.result.totalSongs || 0}
-          onSelectProject={handleSelectZipProject}
+          onSelectProject={(slug, onlyPublic) => handleSelectZipProject(slug, onlyPublic)}
           onCancel={() => {
             setPendingZipResult(null);
             setIsLoadingJson(false);
@@ -1340,7 +1343,7 @@ export default function App() {
           fileName={pendingZipResult?.fileName || ''}
           projects={pendingZipResult?.result.projects || []}
           totalSongs={pendingZipResult?.result.totalSongs || 0}
-          onSelectProject={handleSelectZipProject}
+          onSelectProject={(slug, onlyPublic) => handleSelectZipProject(slug, onlyPublic)}
           onCancel={() => {
             setPendingZipResult(null);
             setIsLoadingJson(false);

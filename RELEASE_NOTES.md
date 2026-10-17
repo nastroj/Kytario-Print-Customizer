@@ -1,5 +1,14 @@
 # Release Notes
 
+## v1.8.4 - 2026-10-17
+
+### Privacy Filtering in ZIP Import
+- **Public-Only Import Filter**: Added an "Import only public songs" checkbox in the project selection modal. When selected, the importer will filter out all songs marked as private in the Kytario export ZIP.
+- **Privacy Detection**: Enhanced `normalizeSingleSong` to detect private status (`isPrivate: true`) based on `isPrivate` or `visibility: 'private'` flags in raw Kytario JSON data.
+- **Robust ZIP Import Pipeline**: Updated import handling to properly pass filtering settings during project selection, ensuring user privacy settings are respected in generated PDF songbooks.
+
+---
+
 ## v1.8.3 - 2026-10-17
 
 ### Fix for Project Import Freeze & Responsiveness

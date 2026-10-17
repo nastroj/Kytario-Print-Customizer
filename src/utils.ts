@@ -371,6 +371,7 @@ export function normalizeSingleSong(s: any, idx = 0): Song {
     tonalKey: s.tonalKey || s.key,
     tempo: s.tempo,
     releaseYear: s.releaseYear,
+    isPrivate: !!(s.isPrivate || s.visibility === 'private'),
   };
 }
 

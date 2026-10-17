@@ -7,7 +7,7 @@ interface ZipProjectSelectModalProps {
   fileName: string;
   projects: ExtractedProject[];
   totalSongs: number;
-  onSelectProject: (projectSlug: string | 'all') => void;
+  onSelectProject: (projectSlug: string | 'all', onlyPublic: boolean) => void;
   onCancel: () => void;
 }
 
@@ -24,6 +24,7 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [importOnlyPublic, setImportOnlyPublic] = useState(false);
 
   // Sync selected slug whenever new projects are passed in or modal opens
   useEffect(() => {
@@ -42,7 +43,7 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
     if (isSubmitting) return;
     const target = slugToUse || selectedSlug || projects[0]?.slug || 'all';
     setIsSubmitting(true);
-    onSelectProject(target);
+    onSelectProject(target, importOnlyPublic);
   };
 
   return (
@@ -224,41 +225,52 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 sm:p-5 border-t border-zinc-100 bg-zinc-50/50 flex items-center justify-between gap-3">
-          <p className="text-xs text-zinc-400 hidden sm:block">
-            Tip: Double-click any item to import immediately
-          </p>
-          <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={onCancel}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={() => handleConfirm()}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 active:scale-98 transition-all flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-75 disabled:cursor-wait"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Loading songbook...</span>
-                </>
-              ) : (
-                <>
-                  <span>
-                    {isAllSelected 
-                      ? `Import All (${totalSongs} songs)`
-                      : `Import "${currentSelectedProject?.name || 'Selected'}" (${currentSelectedProject?.songCount || 0} songs)`}
-                  </span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </>
-              )}
-            </button>
+        <div className="p-4 sm:p-5 border-t border-zinc-100 bg-zinc-50/50 space-y-4">
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-zinc-700">
+            <input 
+              type="checkbox" 
+              checked={importOnlyPublic}
+              onChange={(e) => setImportOnlyPublic(e.target.checked)}
+              className="w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+            />
+            <span>Import only public songs</span>
+          </label>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-zinc-400 hidden sm:block">
+              Tip: Double-click any item to import immediately
+            </p>
+            <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={onCancel}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleConfirm()}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 active:scale-98 transition-all flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-75 disabled:cursor-wait"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Loading songbook...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      {isAllSelected 
+                        ? `Import All (${totalSongs} songs)`
+                        : `Import "${currentSelectedProject?.name || 'Selected'}" (${currentSelectedProject?.songCount || 0} songs)`}
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
