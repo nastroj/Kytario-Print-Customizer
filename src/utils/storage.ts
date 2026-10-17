@@ -184,14 +184,20 @@ export async function saveCachedSongbookToStorage(songbook: any): Promise<void> 
     return;
   }
 
-  // Try IndexedDB first for robust storage of large songbooks (e.g. 250+ songs)
+  // Always persist to IndexedDB asynchronously without blocking the main thread
   await idbSet('cachedSongbook', songbook);
 
-  // Also try localStorage for instant sync startup if payload fits within quota
-  try {
-    localStorage.setItem('kytario-cached-songbook', JSON.stringify(songbook));
-  } catch {
-    // Exceeded quota: remove stale localStorage entry so IndexedDB is used reliably
+  // Only store small/medium songbooks in synchronous localStorage (<= 40 songs)
+  // to avoid blocking the main thread or crashing with QuotaExceededError on massive JSON payloads
+  const songCount = (songbook.songs || songbook.items || []).length;
+  if (songCount > 0 && songCount <= 40) {
+    try {
+      localStorage.setItem('kytario-cached-songbook', JSON.stringify(songbook));
+    } catch {
+      try { localStorage.removeItem('kytario-cached-songbook'); } catch {}
+    }
+  } else {
+    // Large songbook: clean localStorage so IndexedDB is used cleanly
     try { localStorage.removeItem('kytario-cached-songbook'); } catch {}
   }
 }

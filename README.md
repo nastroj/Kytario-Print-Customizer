@@ -1,12 +1,20 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.8.1  
+**Version:** 1.8.2  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.8.1 is deployed and published on GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.8.2 is deployed and published on GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+
+---
+
+## 🌟 What's New in v1.8.2
+
+- **Import Freeze Elimination**: Fixed an issue where selecting a project from the multi-project modal could hide the progress overlay before the layout transition started, causing the UI to seem unresponsive.
+- **Button Loading Feedback**: Added immediate submission spinner feedback (`isSubmitting`) to the project selection dialog to prevent repeated clicks.
+- **Background IndexedDB Serialization**: Restricted synchronous `localStorage` updates to small collections, ensuring 2MB+ songbooks are saved entirely via asynchronous IndexedDB without freezing the main thread.
 
 ---
 

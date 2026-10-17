@@ -475,6 +475,7 @@ export default function App() {
       sourceLabel?: string;
     }
   ) => {
+    setIsLoadingJson(true);
     const songs = data.songs || data.items || [];
     if (songs.length === 0) {
       setIsLoadingJson(false);
@@ -745,50 +746,59 @@ export default function App() {
   const handleSelectZipProject = (selectedSlug: string | 'all') => {
     if (!pendingZipResult) return;
     const { result, fileName } = pendingZipResult;
+    
+    // Close modal immediately to allow UI to update
     setPendingZipResult(null);
 
-    if (selectedSlug === 'all') {
-      const allSongs: Song[] = [];
-      result.projects.forEach(p => {
-        p.songs.forEach(s => {
-          allSongs.push({
-            ...s,
-            id: allSongs.length + 1,
+    // Defer heavy processing to allow React to paint the modal closure
+    setTimeout(() => {
+      setIsLoadingJson(true);
+      setLoadingStatus({
+        title: 'Preparing songbook...',
+        subtitle: `Extracting ${selectedSlug === 'all' ? 'all projects' : selectedSlug}...`,
+        progress: 30,
+      });
+
+      let targetSongbook: SongbookData;
+
+      if (selectedSlug === 'all') {
+        const allSongs: Song[] = [];
+        result.projects.forEach(p => {
+          p.songs.forEach(s => {
+            allSongs.push({
+              ...s,
+              id: allSongs.length + 1,
+            });
           });
         });
-      });
 
-      const combinedSongbook: SongbookData = {
-        title: `${fileName.replace(/\.zip$/i, '')} (All Projects)`,
-        name: `${fileName.replace(/\.zip$/i, '')} (All Projects)`,
-        songs: allSongs,
-      };
+        targetSongbook = {
+          title: `${fileName.replace(/\.zip$/i, '')} (All Projects)`,
+          name: `${fileName.replace(/\.zip$/i, '')} (All Projects)`,
+          songs: allSongs,
+        };
+      } else {
+        const selectedProject = result.projects.find(p => p.slug === selectedSlug) || result.projects[0];
+        if (!selectedProject) {
+          setIsLoadingJson(false);
+          return;
+        }
 
-      animateSongbookLoad(combinedSongbook, {
-        startProgress: 50,
+        targetSongbook = {
+          title: selectedProject.name,
+          name: selectedProject.name,
+          urlToken: selectedProject.slug,
+          slug: selectedProject.slug,
+          songs: selectedProject.songs,
+        };
+      }
+
+      animateSongbookLoad(targetSongbook, {
+        startProgress: 35,
         sourceType: 'file',
-        sourceLabel: `${fileName} (all projects)`,
+        sourceLabel: `${targetSongbook.title} (${fileName})`,
       });
-      showToast(`Loaded ${allSongs.length} songs from all ${result.projects.length} projects!`);
-    } else {
-      const selectedProject = result.projects.find(p => p.slug === selectedSlug);
-      if (!selectedProject) return;
-
-      const projectSongbook: SongbookData = {
-        title: selectedProject.name,
-        name: selectedProject.name,
-        urlToken: selectedProject.slug,
-        slug: selectedProject.slug,
-        songs: selectedProject.songs,
-      };
-
-      animateSongbookLoad(projectSongbook, {
-        startProgress: 50,
-        sourceType: 'file',
-        sourceLabel: `${selectedProject.name} (${fileName})`,
-      });
-      showToast(`Loaded "${selectedProject.name}" with ${selectedProject.songCount} songs!`);
-    }
+    }, 50);
   };
 
   const handleKytarioUrlSubmit = async () => {

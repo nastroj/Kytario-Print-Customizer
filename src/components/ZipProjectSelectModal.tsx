@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Archive, Music, Check, Layers, ChevronRight, X, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Archive, Music, Check, Layers, ChevronRight, X, Loader2 } from 'lucide-react';
 import { ExtractedProject } from '../utils/zipParser';
 
 interface ZipProjectSelectModalProps {
@@ -20,14 +20,30 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
   onCancel,
 }) => {
   const [selectedSlug, setSelectedSlug] = useState<string>(() => {
-    // Default to the project with the most songs
     return projects[0]?.slug || 'all';
   });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Sync selected slug whenever new projects are passed in or modal opens
+  useEffect(() => {
+    if (isOpen && projects.length > 0) {
+      setIsSubmitting(false);
+      setSelectedSlug(projects[0].slug);
+    }
+  }, [isOpen, projects]);
 
   if (!isOpen) return null;
 
   const currentSelectedProject = projects.find(p => p.slug === selectedSlug);
   const isAllSelected = selectedSlug === 'all';
+
+  const handleConfirm = (slugToUse?: string | 'all') => {
+    if (isSubmitting) return;
+    const target = slugToUse || selectedSlug || projects[0]?.slug || 'all';
+    setIsSubmitting(true);
+    onSelectProject(target);
+  };
 
   return (
     <div 
@@ -39,7 +55,9 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
-        onClick={onCancel}
+        onClick={() => {
+          if (!isSubmitting) onCancel();
+        }}
       />
 
       {/* Modal Dialog Card */}
@@ -72,8 +90,9 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
           </div>
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={onCancel}
-            className="text-zinc-400 hover:text-zinc-600 rounded-lg p-1 transition-colors cursor-pointer -mr-1 -mt-1"
+            className="text-zinc-400 hover:text-zinc-600 rounded-lg p-1 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed -mr-1 -mt-1"
             title="Cancel"
           >
             <X className="w-5 h-5" />
@@ -87,9 +106,13 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
             return (
               <div
                 key={proj.slug}
-                onClick={() => setSelectedSlug(proj.slug)}
-                onDoubleClick={() => onSelectProject(proj.slug)}
+                onClick={() => {
+                  if (!isSubmitting) setSelectedSlug(proj.slug);
+                }}
+                onDoubleClick={() => handleConfirm(proj.slug)}
                 className={`group relative p-3.5 rounded-xl border transition-all cursor-pointer select-none flex items-center justify-between gap-3 ${
+                  isSubmitting ? 'pointer-events-none opacity-70' : ''
+                } ${
                   isSelected
                     ? 'border-zinc-900 bg-zinc-900/[0.03] shadow-sm'
                     : 'border-zinc-200/80 hover:border-zinc-300 hover:bg-zinc-50/60 bg-white'
@@ -147,9 +170,13 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
           {/* Option: Combine all projects */}
           {projects.length > 1 && (
             <div
-              onClick={() => setSelectedSlug('all')}
-              onDoubleClick={() => onSelectProject('all')}
+              onClick={() => {
+                if (!isSubmitting) setSelectedSlug('all');
+              }}
+              onDoubleClick={() => handleConfirm('all')}
               className={`group relative p-3.5 rounded-xl border border-dashed transition-all cursor-pointer select-none flex items-center justify-between gap-3 mt-3 ${
+                isSubmitting ? 'pointer-events-none opacity-70' : ''
+              } ${
                 isAllSelected
                   ? 'border-zinc-900 bg-zinc-900/[0.04] shadow-sm'
                   : 'border-zinc-300 hover:border-zinc-400 hover:bg-zinc-50/60 bg-zinc-50/20'
@@ -204,22 +231,33 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
           <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={onCancel}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="button"
-              onClick={() => onSelectProject(selectedSlug)}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 active:scale-98 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              disabled={isSubmitting}
+              onClick={() => handleConfirm()}
+              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 active:scale-98 transition-all flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-75 disabled:cursor-wait"
             >
-              <span>
-                {isAllSelected 
-                  ? `Import All (${totalSongs} songs)`
-                  : `Import "${currentSelectedProject?.name || 'Selected'}" (${currentSelectedProject?.songCount || 0} songs)`}
-              </span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Loading songbook...</span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    {isAllSelected 
+                      ? `Import All (${totalSongs} songs)`
+                      : `Import "${currentSelectedProject?.name || 'Selected'}" (${currentSelectedProject?.songCount || 0} songs)`}
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </>
+              )}
             </button>
           </div>
         </div>

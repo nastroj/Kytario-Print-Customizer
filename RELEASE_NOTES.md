@@ -1,5 +1,15 @@
 # Release Notes
 
+## v1.8.2 - 2026-10-17
+
+### Fix for Project Import Freeze & Responsiveness
+- **Smooth Loading State Hand-off**: Resolved a state synchronization bug where selecting a project from the multi-project modal could hide the progress overlay before the layout transition began, causing the UI to appear frozen.
+- **Button Debouncing & Loading Feedback**: Added active submission indicators (`isSubmitting`) with spinner state to the project selection dialog to prevent duplicate clicks and ensure instant user feedback.
+- **Yielded Layout Transition**: Yielded thread control before mounting large songbooks (e.g. 250+ songs) so the progress bar renders cleanly before intensive DOM operations occur.
+- **Storage Serialization Optimization**: Prevented 2MB+ synchronous string serializations in `localStorage` for large songbooks, exclusively utilizing background IndexedDB persistence.
+
+---
+
 ## v1.8.1 - 2026-10-17
 
 ### Multi-Project Selection Modal for Kytario Export ZIPs
