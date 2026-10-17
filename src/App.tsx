@@ -7,13 +7,14 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
 import { Song, SongbookData, PrintSettings, ZoomMode } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Globe, ExternalLink, AlertTriangle, Minus, Plus, RotateCcw, Maximize2, BookOpen, Archive, FileArchive } from 'lucide-react';
+import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Globe, ExternalLink, AlertTriangle, Minus, Plus, RotateCcw, Maximize2, BookOpen, Archive, FileArchive, ListFilter } from 'lucide-react';
 import { safeParseSongbookJson, normalizeSongbookData, normalizeSingleSong } from './utils';
 import { isZipFile, parseKytarioZip, ZipParseResult } from './utils/zipParser';
 import { fetchSongbookFromKytario, cleanKytarioUrl, KytarioErrorDetails } from './utils/api';
 import { APP_CONFIG } from './config';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
 import { BackgroundPdfProgressModal } from './components/BackgroundPdfProgressModal';
+import { SongSelectionModal } from './components/SongSelectionModal';
 import { saveCachedSongbookToStorage, loadCachedSongbookFromStorage } from './utils/storage';
 import { ZipProjectSelectModal } from './components/ZipProjectSelectModal';
 
@@ -130,6 +131,8 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSongNavOpen, setIsSongNavOpen] = useState(false);
+  const [isSongSelectionOpen, setIsSongSelectionOpen] = useState(false);
+  const [selectedSongIds, setSelectedSongIds] = useState<Set<string | number>>(new Set());
   const [zoomMode, setZoomMode] = useState<ZoomMode>('fit-page');
   const [customZoom, setCustomZoom] = useState<number>(1.0);
   const [activeScale, setActiveScale] = useState<number>(1.0);
@@ -573,6 +576,7 @@ export default function App() {
                 } else {
                   showToast(`Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`);
                 }
+                setSelectedSongIds(new Set(songs.map(s => s.id!)));
               }, 800);
             }, 100);
           });
@@ -1323,7 +1327,10 @@ export default function App() {
         )}
 
         <SongbookPreview 
-          data={songbookData} 
+          data={{
+            ...songbookData,
+            songs: songbookData.songs?.filter(s => selectedSongIds.has(s.id!)) || []
+          }} 
           settings={settings}
           isUpdatingLayout={isUpdatingLayout}
           onDownloadStatusChange={setIsDownloadingPdf}
@@ -1337,6 +1344,16 @@ export default function App() {
           setIsSongNavOpen={setIsSongNavOpen}
         />
 
+        <div className="fixed bottom-20 right-6 z-40">
+          <button
+            onClick={() => setIsSongSelectionOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-full shadow-lg hover:bg-zinc-800 transition-colors text-sm font-bold"
+          >
+            <ListFilter className="w-4 h-4" />
+            Manage Songs
+          </button>
+        </div>
+
         {/* Project Selection Modal for Multi-Project ZIP Archives */}
         <ZipProjectSelectModal
           isOpen={pendingZipResult !== null}
@@ -1348,6 +1365,24 @@ export default function App() {
             setPendingZipResult(null);
             setIsLoadingJson(false);
           }}
+        />
+
+        <SongSelectionModal
+          isOpen={isSongSelectionOpen}
+          songs={songbookData?.songs || []}
+          selectedSongIds={selectedSongIds}
+          onToggleSong={(id) => {
+            const next = new Set(selectedSongIds);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            setSelectedSongIds(next);
+          }}
+          onToggleAll={(selectAll) => {
+            if (selectAll) setSelectedSongIds(new Set(songbookData?.songs?.map(s => s.id!) || []));
+            else setSelectedSongIds(new Set());
+          }}
+          onConfirm={() => setIsSongSelectionOpen(false)}
+          onCancel={() => setIsSongSelectionOpen(false)}
         />
 
         {/* Background Web Worker PDF Generation Status Modal */}

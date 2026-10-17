@@ -1,5 +1,15 @@
 # Release Notes
 
+## v1.8.5 - 2026-10-17
+
+### Song Visibility Manager
+- **Interactive Song List**: Added a new "Manage Songs" modal accessible from the bottom right, listing all imported songs.
+- **Granular Toggle Control**: Users can now toggle the visibility of individual songs via checkboxes, allowing for custom selection before final PDF compilation.
+- **Batch Selection**: Includes "Select All" / "Deselect All" controls for rapid batch updates.
+- **Search & Filter**: Integrated real-time search functionality to quickly locate specific songs in large imported collections.
+
+---
+
 ## v1.8.4 - 2026-10-17
 
 ### Privacy Filtering in ZIP Import
