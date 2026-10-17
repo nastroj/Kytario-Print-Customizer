@@ -1,5 +1,14 @@
 # Release Notes
 
+## v1.8.3 - 2026-10-17
+
+### Fix for Project Import Freeze & Responsiveness
+- **Deferred Heavy Processing**: Wrapped project import logic in a `setTimeout` to ensure the modal transitions and loading overlay are rendered before the heavy songbook parsing begins, preventing main-thread UI freezes.
+- **Optimized Storage Sync**: Refactored `saveCachedSongbookToStorage` to bypass synchronous `localStorage` writes for large songbooks (over 40 songs), relying exclusively on asynchronous IndexedDB to keep the UI snappy.
+- **Improved Loading Feedback**: Added `isSubmitting` spinners to the project selection dialog to prevent race conditions during import.
+
+---
+
 ## v1.8.2 - 2026-10-17
 
 ### Fix for Project Import Freeze & Responsiveness
