@@ -1,16 +1,28 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.7.1  
+**Version:** 1.8.0  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.7.1 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.8.0 is deployed and published on GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
 
 ---
 
-## 🌟 What's New in v1.7.1
+## 🌟 What's New in v1.8.0
+
+- **Kytario Export ZIP Archive Import**: Direct in-memory extraction (`jszip`) of full Kytario account export `.zip` archives. Automatically parses `projects/{project}/project.json` and all songs from `projects/{project}/songs/*.json`, accurately reconstituting ChordPro text and chords from AST tokens.
+- **Batch Multi-File JSON Upload**: Users can select and upload multiple song `.json` files at once; the app normalizes and bundles them into a unified songbook automatically.
+- **Multi-Project Detection**: Identifies all distinct projects inside a ZIP export archive, notifying the user and defaulting to the primary project with the most songs.
+- **Canonical Songbook Title Resolution**: The proxy sends a lightweight `HEAD` request to `/api/songbooks/{slug}/pdf` to parse the authentic UTF-8 songbook title from the `Content-Disposition` header (e.g. *PRO RADOST* instead of slug `bodg`).
+- **Accurate Artist vs. Author Attribution**: Differentiates between Kytario's `interpreter` (performing artist/band) and `author` (composer/lyricist), correctly mapping performers across front covers, headers, and the Table of Contents.
+- **Musical Metadata Capture**: Parses and preserves song musical key (`tonalKey`), capo fret position (`capo`), tempo, and release year.
+- **Single-Song URL Support**: Import individual song links (`/cs/skladba/{slug}-{id}`) directly, extracting lyrics and chords from Next.js App Router streaming payloads and Schema.org `MusicComposition` JSON-LD.
+- **Large Songbook Storage (IndexedDB Caching)**: Songbook caching now seamlessly utilizes IndexedDB alongside `localStorage`. Massive songbook collections (e.g. 250+ songs, 2.3+ MB) are cached safely without triggering browser `QuotaExceededError` crashes.
+- **React Key & Error Boundary Hardening**: Replaced brittle keys with composite unique identifiers across virtual pages, Table of Contents rows, and multi-column section blocks, eliminating React duplicate key warnings and strengthening error boundaries.
+
+---
 
 - **Dynamic Responsive Settings Sidebar**: Adaptive viewport height calculation that scales between 88% and 94% on mobile and laptops to maximize visible controls, while capping cleanly on large desktop monitors without dead white space.
 - **Scroll to Top Snapback & Lag Fix**: Removed `content-visibility: auto` DOM thrashing and enforced `overflow-anchor: none` on preview page containers, eliminating Chromium scroll-anchoring bounce-backs and main-thread layout freezes.
@@ -48,9 +60,11 @@ A modern, high-performance web application designed to transform Kytario songboo
 ## 🚀 Key Features
 
 ### 🌐 Direct Kytario Import & Title Enrichment
-- **Instant Online Import:** Paste any Kytario songbook link (e.g., `https://kytario.com/your-songbook` or `kytario.com/cs/your-songbook`) or code (`your-songbook`) to fetch songbook sections and songs directly.
-- **Metadata Auto-Resolution:** Automatically detects and applies the songbook's human-readable name and author across covers, headers, and PDF document metadata.
-- **JSON Drag & Drop:** Support for direct drag-and-drop of exported `.json` songbook files with multi-pass error correction.
+- **Kytario Export ZIP Import:** Direct in-memory parsing of full Kytario account/project `.zip` exports, automatically extracting project metadata and converting AST tokens into ChordPro notation.
+- **Batch Multi-File Selection:** Select and import multiple individual song `.json` files simultaneously into one consolidated collection.
+- **Instant Online Import:** Paste any Kytario songbook link (e.g., `https://kytario.com/your-songbook` or `kytario.com/cs/your-songbook`), single song link (`/cs/skladba/{slug}-{id}`), or code (`your-songbook`) to fetch songbook sections and songs directly.
+- **Canonical Metadata & Title Auto-Resolution:** Automatically fetches authentic UTF-8 songbook titles via PDF header inspection (`HEAD /api/songbooks/{slug}/pdf`) and preserves song musical keys, capo frets, tempo, and release year.
+- **JSON Drag & Drop:** Support for direct drag-and-drop of `.json` and `.zip` files with multi-pass error correction.
 
 ### 📄 Background Native PDF Generation
 - **Client-Side PDF Engine:** Generates crisp vector PDFs entirely in the browser using `pdf-lib` and `@pdf-lib/fontkit` inside a dedicated Web Worker.
@@ -87,10 +101,11 @@ A modern, high-performance web application designed to transform Kytario songboo
 | **React 19 + TypeScript** | Frontend UI framework & robust type safety |
 | **Tailwind CSS v4** | Modern utility-first styling engine |
 | **Vite 6** | High-performance build tool, dev server, and worker bundler |
+| **JSZip** | Client-side in-memory ZIP archive extraction and parsing |
 | **pdf-lib & @pdf-lib/fontkit** | Client-side vector PDF generation in Web Worker |
 | **vite-plugin-pwa** | Service worker registration, offline asset caching, and web manifest |
 | **Express (Development Proxy)** | Local CORS proxy for direct Kytario API and page title fetching |
-| **IndexedDB API** | Client-side PDF binary caching and draft settings persistence |
+| **IndexedDB API** | Client-side PDF binary caching and large songbook persistence |
 | **Lucide React** | Clean, accessible icon system |
 
 ---

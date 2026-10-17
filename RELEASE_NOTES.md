@@ -18,6 +18,14 @@
 - **React Key Hardening**: Eliminated duplicate key warnings by using unique compound keys for virtual pages, Table of Contents rows, and multi-column section blocks.
 - **Error Boundary Hardening**: Upgraded React error boundaries for reliable error capture and recovery.
 
+### Validation
+- `npm run lint` (`tsc --noEmit`)
+- `npm run build` (`vite build`)
+- Tested against full Kytario export archives (e.g. 256 songs) and live API endpoints.
+
+### Deployment
+Published as GitHub Release `v1.8.0` and deployed to GitHub Pages via `.github/workflows/deploy.yml`.
+
 ---
 
 ## v1.7.1 - 2026-10-12
