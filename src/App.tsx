@@ -6,15 +6,16 @@ import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
-import { SongbookData, PrintSettings, ZoomMode } from './types';
+import { Song, SongbookData, PrintSettings, ZoomMode } from './types';
 import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Globe, ExternalLink, AlertTriangle, Minus, Plus, RotateCcw, Maximize2, BookOpen, Archive, FileArchive } from 'lucide-react';
 import { safeParseSongbookJson, normalizeSongbookData, normalizeSingleSong } from './utils';
-import { isZipFile, parseKytarioZip } from './utils/zipParser';
+import { isZipFile, parseKytarioZip, ZipParseResult } from './utils/zipParser';
 import { fetchSongbookFromKytario, cleanKytarioUrl, KytarioErrorDetails } from './utils/api';
 import { APP_CONFIG } from './config';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
 import { BackgroundPdfProgressModal } from './components/BackgroundPdfProgressModal';
 import { saveCachedSongbookToStorage, loadCachedSongbookFromStorage } from './utils/storage';
+import { ZipProjectSelectModal } from './components/ZipProjectSelectModal';
 
 const defaultSettings: PrintSettings = {
   pageFormat: 'A4',
@@ -122,6 +123,10 @@ export default function App() {
   const [kytarioFetchDetails, setKytarioFetchDetails] = useState<KytarioErrorDetails | null>(null);
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
+  const [pendingZipResult, setPendingZipResult] = useState<{
+    result: ZipParseResult;
+    fileName: string;
+  } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSongNavOpen, setIsSongNavOpen] = useState(false);
@@ -626,14 +631,18 @@ export default function App() {
 
       try {
         const result = await parseKytarioZip(zipFile);
-        animateSongbookLoad(result.songbook, {
-          startProgress: 50,
-          sourceType: 'file',
-          sourceLabel: zipFile.name,
-        });
         if (result.projects.length > 1) {
-          showToast(`Extracted ${result.totalSongs} songs across ${result.projects.length} projects. Loaded "${result.songbook.title}".`);
+          setIsLoadingJson(false);
+          setPendingZipResult({
+            result,
+            fileName: zipFile.name,
+          });
         } else {
+          animateSongbookLoad(result.songbook, {
+            startProgress: 50,
+            sourceType: 'file',
+            sourceLabel: zipFile.name,
+          });
           showToast(`Successfully extracted ${result.totalSongs} songs from "${zipFile.name}"!`);
         }
       } catch (err: any) {
@@ -731,6 +740,55 @@ export default function App() {
       subtitle: 'Analyzing songbook payload...',
     });
     processJsonString(pastedJson);
+  };
+
+  const handleSelectZipProject = (selectedSlug: string | 'all') => {
+    if (!pendingZipResult) return;
+    const { result, fileName } = pendingZipResult;
+    setPendingZipResult(null);
+
+    if (selectedSlug === 'all') {
+      const allSongs: Song[] = [];
+      result.projects.forEach(p => {
+        p.songs.forEach(s => {
+          allSongs.push({
+            ...s,
+            id: allSongs.length + 1,
+          });
+        });
+      });
+
+      const combinedSongbook: SongbookData = {
+        title: `${fileName.replace(/\.zip$/i, '')} (All Projects)`,
+        name: `${fileName.replace(/\.zip$/i, '')} (All Projects)`,
+        songs: allSongs,
+      };
+
+      animateSongbookLoad(combinedSongbook, {
+        startProgress: 50,
+        sourceType: 'file',
+        sourceLabel: `${fileName} (all projects)`,
+      });
+      showToast(`Loaded ${allSongs.length} songs from all ${result.projects.length} projects!`);
+    } else {
+      const selectedProject = result.projects.find(p => p.slug === selectedSlug);
+      if (!selectedProject) return;
+
+      const projectSongbook: SongbookData = {
+        title: selectedProject.name,
+        name: selectedProject.name,
+        urlToken: selectedProject.slug,
+        slug: selectedProject.slug,
+        songs: selectedProject.songs,
+      };
+
+      animateSongbookLoad(projectSongbook, {
+        startProgress: 50,
+        sourceType: 'file',
+        sourceLabel: `${selectedProject.name} (${fileName})`,
+      });
+      showToast(`Loaded "${selectedProject.name}" with ${selectedProject.songCount} songs!`);
+    }
   };
 
   const handleKytarioUrlSubmit = async () => {
@@ -843,6 +901,19 @@ export default function App() {
   if (!songbookData) {
     return (
       <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-3 sm:p-6 relative">
+        {/* Project Selection Modal for Multi-Project ZIP Archives */}
+        <ZipProjectSelectModal
+          isOpen={pendingZipResult !== null}
+          fileName={pendingZipResult?.fileName || ''}
+          projects={pendingZipResult?.result.projects || []}
+          totalSongs={pendingZipResult?.result.totalSongs || 0}
+          onSelectProject={handleSelectZipProject}
+          onCancel={() => {
+            setPendingZipResult(null);
+            setIsLoadingJson(false);
+          }}
+        />
+
         {/* Full-screen Loading Spinner Overlay while parsing and preparing songbook */}
         <ProgressBar
         active={isLoadingJson}
@@ -1251,6 +1322,19 @@ export default function App() {
           onScaleChange={setActiveScale}
           isSongNavOpen={isSongNavOpen}
           setIsSongNavOpen={setIsSongNavOpen}
+        />
+
+        {/* Project Selection Modal for Multi-Project ZIP Archives */}
+        <ZipProjectSelectModal
+          isOpen={pendingZipResult !== null}
+          fileName={pendingZipResult?.fileName || ''}
+          projects={pendingZipResult?.result.projects || []}
+          totalSongs={pendingZipResult?.result.totalSongs || 0}
+          onSelectProject={handleSelectZipProject}
+          onCancel={() => {
+            setPendingZipResult(null);
+            setIsLoadingJson(false);
+          }}
         />
 
         {/* Background Web Worker PDF Generation Status Modal */}

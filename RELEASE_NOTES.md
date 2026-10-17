@@ -1,5 +1,16 @@
 # Release Notes
 
+## v1.8.1 - 2026-10-17
+
+### Multi-Project Selection Modal for Kytario Export ZIPs
+- **Interactive Project Picker**: When importing a Kytario account export `.zip` containing multiple projects or songbooks (e.g. `BODG` and `Zkouska`), the app now displays a sleek interactive selection modal.
+- **Project Inspection**: Each project card displays its display name, URL slug, description, and song count, with the primary project flagged automatically.
+- **Combined Import Option**: Added a 1-click option to "Combine All Projects" into a single master songbook, retaining all songs across all archives with sequential indexing.
+- **Instant Double-Click**: Allows double-clicking any project card to import and load immediately.
+- **Validation**: Tested against multi-project archives and single-project ZIPs.
+
+---
+
 ## v1.8.0 - 2026-10-17
 
 ### Kytario Export ZIP & Multi-File Import Support

@@ -1,12 +1,20 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.8.0  
+**Version:** 1.8.1  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.8.0 is deployed and published on GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.8.1 is deployed and published on GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+
+---
+
+## 🌟 What's New in v1.8.1
+
+- **Interactive Multi-Project Selector for ZIP Exports**: When uploading a Kytario account export `.zip` containing multiple projects or songbooks, the app displays a project selection modal allowing users to choose which project to customize.
+- **Detailed Project Cards**: Displays each project's title, song count, slug, and description, highlighting the primary project.
+- **Merge / Combine All Projects Option**: Adds a 1-click option to combine all projects found within the ZIP archive into a single comprehensive songbook.
 
 ---
 
