@@ -1,5 +1,13 @@
 # Release Notes
 
+## v1.8.7 - 2026-10-17
+
+### Instant Song Manager Opening & Lightweight Memoization
+- **Early-Exit Guard**: Added an immediate `if (!isOpen) return null;` check at the top of `SongSelectionModal` to prevent unnecessary hook evaluation and filtering overhead when the modal is closed.
+- **Lightweight Song References**: Stripped out massive lyrics and section arrays during modal filtering, referencing only lightweight song metadata (`id`, `title`, `artist`) to achieve instant response times with zero lag or freezing on large songbooks (250+ songs).
+
+---
+
 ## v1.8.6 - 2026-10-17
 
 ### Performance Optimization for Manage Songs Modal
