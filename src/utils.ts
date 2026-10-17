@@ -338,24 +338,24 @@ export function normalizeSingleSong(s: any, idx = 0): Song {
     s.headline ||
     (s.id ? `Song ${s.id}` : `Song ${idx + 1}`);
 
-  const author =
-    s.author ||
-    s.artist ||
+  // In Kytario, s.interpreter is the performer/band (e.g. Jaroslav Ježek, Nirvana, Lucie),
+  // while s.author is the composer/lyricist (e.g. Jiří Voskovec, Jan Werich).
+  const artist =
     s.interpreter ||
+    s.artist ||
+    s.author ||
     s.composer ||
     s.performer ||
     s.band ||
     s.group ||
     '';
 
-  const artist =
-    s.artist ||
+  const author =
     s.author ||
-    s.interpreter ||
     s.composer ||
+    s.artist ||
+    s.interpreter ||
     s.performer ||
-    s.band ||
-    s.group ||
     '';
 
   return {
@@ -366,6 +366,11 @@ export function normalizeSingleSong(s: any, idx = 0): Song {
     artist: String(artist),
     content: String(content),
     rating: s.rating,
+    capo: s.capo !== undefined && s.capo !== null ? s.capo : undefined,
+    key: s.tonalKey || s.key,
+    tonalKey: s.tonalKey || s.key,
+    tempo: s.tempo,
+    releaseYear: s.releaseYear,
   };
 }
 

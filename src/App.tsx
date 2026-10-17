@@ -7,12 +7,14 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
 import { SongbookData, PrintSettings, ZoomMode } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Globe, ExternalLink, AlertTriangle, Minus, Plus, RotateCcw, Maximize2, BookOpen } from 'lucide-react';
-import { safeParseSongbookJson, normalizeSongbookData } from './utils';
+import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Globe, ExternalLink, AlertTriangle, Minus, Plus, RotateCcw, Maximize2, BookOpen, Archive, FileArchive } from 'lucide-react';
+import { safeParseSongbookJson, normalizeSongbookData, normalizeSingleSong } from './utils';
+import { isZipFile, parseKytarioZip } from './utils/zipParser';
 import { fetchSongbookFromKytario, cleanKytarioUrl, KytarioErrorDetails } from './utils/api';
 import { APP_CONFIG } from './config';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
 import { BackgroundPdfProgressModal } from './components/BackgroundPdfProgressModal';
+import { saveCachedSongbookToStorage, loadCachedSongbookFromStorage } from './utils/storage';
 
 const defaultSettings: PrintSettings = {
   pageFormat: 'A4',
@@ -96,14 +98,22 @@ export default function App() {
     return null;
   });
 
+  // Asynchronously check IndexedDB storage on mount if localStorage was empty or exceeded quota
   useEffect(() => {
-    try {
-      if (songbookData) {
-        localStorage.setItem('kytario-cached-songbook', JSON.stringify(songbookData));
-      } else {
-        localStorage.removeItem('kytario-cached-songbook');
-      }
-    } catch (e) {}
+    let mounted = true;
+    if (!songbookData) {
+      loadCachedSongbookFromStorage().then((data) => {
+        if (mounted && data && (data.songs || data.items || data.sections)) {
+          setSongbookData(data);
+        }
+      }).catch(() => {});
+    }
+    return () => { mounted = false; };
+  }, []);
+
+  // Persist songbook changes to both IndexedDB and localStorage safely
+  useEffect(() => {
+    saveCachedSongbookToStorage(songbookData).catch(() => {});
   }, [songbookData]);
   const [pastedJson, setPastedJson] = useState('');
   const [kytarioUrl, setKytarioUrl] = useState('');
@@ -600,10 +610,85 @@ export default function App() {
   };
 
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processUploadedFiles = async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
 
+    // 1. Check if any file is a ZIP archive (e.g. Kytario export ZIP)
+    const zipFile = files.find(f => isZipFile(f));
+    if (zipFile) {
+      setIsLoadingJson(true);
+      setLoadingStatus({
+        title: 'Extracting Kytario export archive...',
+        subtitle: `Analyzing ${zipFile.name}...`,
+        progress: 25,
+      });
+
+      try {
+        const result = await parseKytarioZip(zipFile);
+        animateSongbookLoad(result.songbook, {
+          startProgress: 50,
+          sourceType: 'file',
+          sourceLabel: zipFile.name,
+        });
+        if (result.projects.length > 1) {
+          showToast(`Extracted ${result.totalSongs} songs across ${result.projects.length} projects. Loaded "${result.songbook.title}".`);
+        } else {
+          showToast(`Successfully extracted ${result.totalSongs} songs from "${zipFile.name}"!`);
+        }
+      } catch (err: any) {
+        console.error('ZIP extraction error:', err);
+        setIsLoadingJson(false);
+        setErrorMessage(err.message || 'Could not extract Kytario export ZIP.');
+      }
+      return;
+    }
+
+    // 2. Multiple JSON files (e.g. user selected multiple songs from projects/bodg/songs/)
+    if (files.length > 1) {
+      setIsLoadingJson(true);
+      setLoadingStatus({
+        title: 'Reading multiple song files...',
+        subtitle: `Loading ${files.length} JSON files...`,
+        progress: 20,
+      });
+
+      try {
+        const combinedSongs: any[] = [];
+        for (const file of files) {
+          const text = await file.text();
+          try {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed)) {
+              combinedSongs.push(...parsed.map((s, idx) => normalizeSingleSong(s, combinedSongs.length + idx)));
+            } else if (parsed.song) {
+              combinedSongs.push(normalizeSingleSong(parsed.song, combinedSongs.length));
+            } else if (parsed.name || parsed.title || parsed.content || parsed.sections) {
+              combinedSongs.push(normalizeSingleSong(parsed, combinedSongs.length));
+            }
+          } catch {}
+        }
+
+        if (combinedSongs.length > 0) {
+          const songbookData: SongbookData = {
+            title: 'Imported Songbook',
+            name: 'Imported Songbook',
+            songs: combinedSongs,
+          };
+          animateSongbookLoad(songbookData, {
+            startProgress: 50,
+            sourceType: 'file',
+            sourceLabel: `${files.length} files`,
+          });
+          return;
+        }
+      } catch (err: any) {
+        console.error('Multi-file read error:', err);
+      }
+    }
+
+    // 3. Single JSON file
+    const file = files[0];
     setIsLoadingJson(true);
     setLoadingStatus({
       title: 'Reading file...',
@@ -620,31 +705,19 @@ export default function App() {
       setErrorMessage('Failed to read file.');
     };
     reader.readAsText(file);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    processUploadedFiles(e.target.files);
     e.target.value = '';
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-
-    setIsLoadingJson(true);
-    setLoadingStatus({
-      title: 'Reading file...',
-      subtitle: file.name,
-    });
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      processJsonString(content, file.name);
-    };
-    reader.onerror = () => {
-      setIsLoadingJson(false);
-      setErrorMessage('Failed to read file.');
-    };
-    reader.readAsText(file);
+    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+    processUploadedFiles(e.dataTransfer.files);
   };
 
   const handlePasteSubmit = () => {
@@ -830,8 +903,8 @@ export default function App() {
                   : 'border-transparent text-zinc-400 hover:text-zinc-700'
               }`}
             >
-              <Upload className="w-3.5 h-3.5" />
-              JSON File
+              <FileArchive className="w-3.5 h-3.5" />
+              File / ZIP
             </button>
           </div>
 
@@ -866,10 +939,10 @@ export default function App() {
                 <Music className="w-12 h-12" />
               </div>
               <div className={`absolute bottom-8 right-8 text-zinc-400/20 transition-transform duration-500 ${isDragging ? 'scale-110 translate-y-2 rotate-12' : 'scale-100 rotate-0'}`}>
-                <FileJson className="w-16 h-16" />
+                <Archive className="w-16 h-16" />
               </div>
               <div className={`absolute top-1/2 right-12 text-zinc-400/10 transition-transform duration-500 ${isDragging ? 'scale-125 -translate-y-4 translate-x-2 rotate-45' : 'scale-100 rotate-12'}`}>
-                <FileText className="w-10 h-10" />
+                <FileJson className="w-10 h-10" />
               </div>
               <div className={`absolute bottom-12 left-12 text-zinc-400/10 transition-transform duration-500 ${isDragging ? 'scale-125 translate-y-4 -translate-x-2 -rotate-45' : 'scale-100 -rotate-12'}`}>
                 <Music className="w-8 h-8" />
@@ -880,9 +953,9 @@ export default function App() {
                   <Upload className={`w-7 h-7 transition-colors duration-300 ${isDragging ? 'text-zinc-900' : 'text-zinc-400'}`} />
                 </div>
                 <p className={`text-base sm:text-lg font-semibold transition-colors duration-300 mb-1 ${isDragging ? 'text-zinc-900' : 'text-zinc-700'}`}>
-                  Drag and drop your Kytario .json file here
+                  Drag and drop your Kytario .json or export .zip here
                 </p>
-                <p className="text-[12px] sm:text-sm text-zinc-500 mb-6 font-medium">Supports standard and large songbook exports</p>
+                <p className="text-[12px] sm:text-sm text-zinc-500 mb-6 font-medium">Supports single JSON, multiple song files, or full Kytario export ZIP archives</p>
                 
                 <label className={`inline-flex items-center gap-2 text-white text-xs sm:text-sm font-bold px-5 sm:px-6 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
                   isLoadingJson
@@ -894,10 +967,11 @@ export default function App() {
                   ) : (
                     <Upload className="w-4 h-4" />
                   )}
-                  <span>{isLoadingJson ? 'Reading & Processing...' : 'Browse File'}</span>
+                  <span>{isLoadingJson ? 'Reading & Processing...' : 'Browse File(s)'}</span>
                   <input
                     type="file"
-                    accept=".json,application/json,text/plain"
+                    accept=".json,.zip,application/json,application/zip,application/x-zip-compressed,text/plain"
+                    multiple
                     disabled={isLoadingJson}
                     onChange={handleFileUpload}
                     className="hidden"

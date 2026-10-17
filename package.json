@@ -1,7 +1,7 @@
 {
   "name": "kytario-print-customizer",
   "private": true,
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "A web application to process and customize Kytario songbook JSON data for printing.",
   "license": "MIT",
   "keywords": [
@@ -34,6 +34,7 @@
     "axios": "^1.20.0",
     "clsx": "^2.1.1",
     "express": "^4.22.3",
+    "jszip": "^3.10.2",
     "lucide-react": "^0.546.0",
     "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
@@ -44,6 +45,7 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "@types/jszip": "^3.4.1",
     "@types/node": "^22.14.0",
     "@types/qrcode": "^1.5.6",
     "esbuild": "^0.25.0",

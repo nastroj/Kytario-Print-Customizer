@@ -365,7 +365,7 @@ const SongPagesList = memo(function SongPagesList({
                       const fullTitle = `${item.originalIndex! + 1}. ${item.title}${item.artist ? ` - ${item.artist}` : ''}`;
                       return (
                         <div 
-                          key={item.originalIndex} 
+                          key={`toc-col-${colIdx}-item-${item.originalIndex ?? itemIdx}-${itemIdx}`} 
                           className="shrink-0 max-w-full"
                           style={{ 
                             marginBottom: `${rowMarginBottomPx}px`,
@@ -461,7 +461,7 @@ const SongPagesList = memo(function SongPagesList({
         const m = getPageMargins(settings, songDocPageIndex);
         return (
           <VirtualPage
-            key={song.id || `song-${i}`}
+            key={`song-page-${song.id ?? 'item'}-${i}`}
             id={`song-${i}`}
             isScaled={isScaled}
             scaledWidth={scaledWidth}

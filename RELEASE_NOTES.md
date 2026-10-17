@@ -1,5 +1,25 @@
 # Release Notes
 
+## v1.8.0 - 2026-10-17
+
+### Kytario Export ZIP & Multi-File Import Support
+- **Full ZIP Export Parsing**: Directly drag and drop or browse Kytario account data export ZIP archives. Automatically extracts `projects/{project}/project.json` and all song JSON files (`projects/{project}/songs/*.json`) in-memory using `jszip`.
+- **Batch Multi-File Upload**: Users can select multiple song `.json` files simultaneously; the app automatically bundles and normalizes them into a unified songbook.
+- **Multi-Project Detection**: When an export archive contains multiple projects, the app identifies all detected projects and defaults to the primary project with the most songs.
+
+### Enhanced Kytario API Integration & Title Resolution
+- **Canonical Songbook Title via PDF Endpoint**: Proxy now queries `HEAD /api/songbooks/{slug}/pdf` to retrieve authentic songbook titles (e.g. "PRO RADOST") from the `Content-Disposition: filename*=UTF-8''...` header.
+- **Accurate Artist Attribution**: Differentiates between Kytario's `interpreter` (performing artist/band) and `author` (composer/lyricist), correctly mapping performers on covers, headers, and the Table of Contents.
+- **Musical Metadata Capture**: Extracts and preserves musical key (`tonalKey`), capo fret position (`capo`), tempo, and release year.
+- **Single Song URL Support**: Enhanced proxy and HTML parser to extract song data from individual song pages (`/cs/skladba/{slug}-{id}`) and JSON-LD structured data.
+
+### Large Songbook Reliability & React Stability
+- **IndexedDB Large Songbook Caching**: Large songbooks (e.g. 250+ songs, 2+ MB) are now saved safely in IndexedDB, preventing `QuotaExceededError` crashes in browser `localStorage`.
+- **React Key Hardening**: Eliminated duplicate key warnings by using unique compound keys for virtual pages, Table of Contents rows, and multi-column section blocks.
+- **Error Boundary Hardening**: Upgraded React error boundaries for reliable error capture and recovery.
+
+---
+
 ## v1.7.1 - 2026-10-12
 
 ### Dynamic Responsive Settings Sidebar

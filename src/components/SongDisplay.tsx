@@ -469,7 +469,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
 
                 return (
                   <div 
-                    key={globalSecIndex}
+                    key={`col-${colIdx}-sec-${sIdxInCol}-${globalSecIndex}`}
                     className="song-section-block"
                   >
                     {!isFirstInColumn && (
