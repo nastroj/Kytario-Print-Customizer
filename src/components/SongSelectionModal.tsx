@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Check, X, ListFilter, Search, Eye, EyeOff, CheckCheck, XCircle } from 'lucide-react';
+import { Check, X, ListFilter, Search, Eye, EyeOff, CheckCheck, XCircle, AlertCircle, ArrowDownWideNarrow } from 'lucide-react';
 import { Song } from '../types';
 
 interface SongSelectionModalProps {
@@ -9,6 +9,8 @@ interface SongSelectionModalProps {
   onApply: (selectedSongIds: Set<string | number>) => void;
   onCancel: () => void;
 }
+
+type SortOption = 'title' | 'artist' | 'original';
 
 const ITEM_HEIGHT = 64; // Row height in px
 const OVERSCAN = 8; // Extra buffer rows
@@ -23,6 +25,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
   // Local staged selection state for 0ms instantaneous UI clicks and zero lag
   const [draftSelectedIds, setDraftSelectedIds] = useState<Set<string | number>>(() => new Set(selectedSongIds));
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState<SortOption>('original');
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(500); // Sensible default
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,6 +35,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
     if (isOpen) {
       setDraftSelectedIds(new Set(selectedSongIds));
       setSearchTerm('');
+      setSortOption('original');
       setScrollTop(0);
       if (containerRef.current) {
         containerRef.current.scrollTop = 0;
@@ -54,13 +58,22 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
 
   const filteredSongs = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return lightSongs;
-    return lightSongs.filter(s => 
-      s.title.toLowerCase().includes(term) || 
-      s.artist.toLowerCase().includes(term) ||
-      String(s.originalIndex) === term
-    );
-  }, [lightSongs, searchTerm]);
+    let result = lightSongs;
+    if (term) {
+      result = result.filter(s => 
+        s.title.toLowerCase().includes(term) || 
+        s.artist.toLowerCase().includes(term) ||
+        String(s.originalIndex) === term
+      );
+    }
+    
+    // Sort
+    return [...result].sort((a, b) => {
+      if (sortOption === 'title') return a.title.localeCompare(b.title);
+      if (sortOption === 'artist') return a.artist.localeCompare(b.artist);
+      return a.originalIndex - b.originalIndex;
+    });
+  }, [lightSongs, searchTerm, sortOption]);
 
   // Keep containerHeight measured dynamically
   useEffect(() => {
@@ -118,6 +131,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
   }, [allFilteredSelected, filteredSongs]);
 
   const handleApply = useCallback(() => {
+    if (draftSelectedIds.size === 0) return;
     onApply(draftSelectedIds);
   }, [onApply, draftSelectedIds]);
 
@@ -151,9 +165,9 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-zinc-950/60 backdrop-blur-md animate-in fade-in duration-300">
       <div 
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden border border-zinc-200"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden border border-zinc-200/90 animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-labelledby="song-manager-title"
@@ -187,32 +201,55 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
           </button>
         </div>
 
-        {/* Search & Bulk Selection Toolbar */}
+        {/* Warning Banner if 0 songs selected */}
+        {draftSelectedIds.size === 0 && (
+          <div className="bg-red-50 border-b border-red-200 px-4 py-2.5 flex items-center gap-2 text-red-700 text-xs font-semibold shrink-0 animate-in fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+            <span>Songbook cannot be empty. Please select at least one song to continue.</span>
+          </div>
+        )}
+
+        {/* Search & Sorting Toolbar */}
         <div className="p-3 sm:p-4 bg-zinc-50/50 border-b border-zinc-100 flex flex-col sm:flex-row items-center gap-2.5 shrink-0">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-zinc-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search by title, artist, or song number..."
-              className="w-full bg-white border border-zinc-200 rounded-xl pl-9 pr-8 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                if (containerRef.current) {
-                  containerRef.current.scrollTop = 0;
-                }
-              }}
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-zinc-600 p-0.5 cursor-pointer"
-                aria-label="Clear search"
+          <div className="relative flex-1 w-full flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-zinc-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search..."
+                className="w-full bg-white border border-zinc-200 rounded-xl pl-9 pr-8 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  if (containerRef.current) {
+                    containerRef.current.scrollTop = 0;
+                  }
+                }}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-zinc-600 p-0.5 cursor-pointer"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="relative w-32 shrink-0">
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value as SortOption)}
+                className="w-full h-9 bg-white border border-zinc-200 rounded-xl pl-8 pr-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all cursor-pointer appearance-none"
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+                <option value="original">Original</option>
+                <option value="title">By Title</option>
+                <option value="artist">By Artist</option>
+              </select>
+              <ArrowDownWideNarrow className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+            </div>
           </div>
           
           <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end shrink-0">
@@ -334,24 +371,39 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3.5 sm:p-4 border-t border-zinc-100 bg-zinc-50/80 flex items-center justify-between gap-3 shrink-0">
-          <div className="text-xs text-zinc-500">
-            <span className="font-bold text-zinc-900">{draftSelectedIds.size}</span> of {songs.length} songs selected
+        <div className="p-3.5 sm:p-4 border-t border-zinc-100 bg-zinc-50/80 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+          <div className="text-xs text-zinc-500 w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2">
+            <div>
+              <span className={`font-bold ${draftSelectedIds.size === 0 ? 'text-red-600' : 'text-zinc-950'}`}>
+                {draftSelectedIds.size}
+              </span>{' '}
+              of {songs.length} songs selected
+            </div>
+            {draftSelectedIds.size === 0 && (
+              <span className="text-[11px] font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md animate-pulse">
+                Select at least 1 song
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
             <button 
               type="button"
               onClick={onCancel} 
-              className="px-3.5 py-2 text-xs font-bold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60 rounded-xl transition-colors cursor-pointer"
+              className="px-4 py-2.5 text-xs sm:text-sm font-bold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 rounded-xl transition-all duration-200 cursor-pointer"
             >
               Cancel
             </button>
             <button 
               type="button"
-              onClick={handleApply} 
-              className="px-4 py-2 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+              onClick={handleApply}
+              disabled={draftSelectedIds.size === 0}
+              className={`px-4 py-2.5 text-xs sm:text-sm font-bold text-white rounded-xl transition-all shadow-md flex items-center gap-1.5 ${
+                draftSelectedIds.size === 0
+                  ? 'bg-zinc-300 text-zinc-500 cursor-not-allowed opacity-70 shadow-none'
+                  : 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 cursor-pointer'
+              }`}
             >
-              <Check className="w-3.5 h-3.5" />
+              <Check className="w-4 h-4" />
               <span>Apply Selection</span>
             </button>
           </div>

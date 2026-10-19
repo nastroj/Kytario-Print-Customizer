@@ -1452,27 +1452,26 @@ export default function App() {
           onClearLastGenerated={clearWorkerPdfLastGenerated}
         />
 
-        {/* Floating Bottom Menu - Separated Zoom & Main Action Pods */}
+        {/* Floating Bottom Menu - Unified Toolbar in Exact Requested Order */}
         <div 
-          className="fixed left-1/2 -translate-x-1/2 z-40 max-w-[calc(100vw-1rem)] flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3 print:hidden select-none pointer-events-none"
+          className="fixed left-1/2 -translate-x-1/2 z-40 w-full max-w-[calc(100vw-1rem)] flex items-center justify-center print:hidden select-none pointer-events-none px-2"
           style={{ bottom: 'max(0.75rem, calc(0.5rem + env(safe-area-inset-bottom, 0px)))' }}
         >
-          {/* 1. Zoom Controls & ToC Pod */}
-          <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-zinc-200/80 shadow-xl rounded-2xl h-12 sm:h-14 px-2.5 sm:px-3 flex items-center gap-1 sm:gap-1.5 shrink-0">
-            {/* Zoom Out */}
+          <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-zinc-200/80 shadow-2xl rounded-2xl p-1.5 flex flex-wrap items-center justify-center gap-1 shrink-0">
+            {/* 1. Zoom Out (-) */}
             <button
               onClick={handleZoomOut}
               disabled={customZoom <= 0.25}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 active:bg-zinc-200 text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
+              className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
               title="Zoom Out"
             >
               <Minus className="w-4 h-4" />
             </button>
 
-            {/* Reset Zoom & Dynamic Mode Display */}
+            {/* 2. Reset Zoom */}
             <button
               onClick={handleResetZoom}
-              className="flex flex-col items-center justify-center px-1.5 sm:px-2 min-w-[2.75rem] sm:min-w-[3.25rem] h-9 sm:h-10 rounded-lg hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-900 transition-colors cursor-pointer shrink-0"
+              className="flex flex-col items-center justify-center px-1.5 sm:px-2 min-w-[2.75rem] sm:min-w-[3.25rem] h-9 sm:h-10 rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer shrink-0"
               title="Reset Zoom to 100%"
             >
               <span className="text-xs font-mono font-bold tracking-tight leading-tight">
@@ -1484,26 +1483,13 @@ export default function App() {
               </span>
             </button>
 
-            {/* Zoom In */}
-            <button
-              onClick={handleZoomIn}
-              disabled={customZoom >= 3.0}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 active:bg-zinc-200 text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
-              title="Zoom In"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-
-            {/* Divider inside Zoom Pod */}
-            <div className="w-px h-6 bg-zinc-200/80 mx-0.5 shrink-0" />
-
-            {/* Fit View (Toggles between fit-width and fit-page) */}
+            {/* 3. Fit View */}
             <button
               onClick={() => setZoomMode((prev) => prev === 'fit-width' ? 'fit-page' : 'fit-width')}
               className={`flex flex-col items-center justify-center w-9 sm:w-10 h-9 sm:h-10 rounded-xl transition-colors cursor-pointer shrink-0 ${
                 zoomMode === 'fit-width' || zoomMode === 'fit-page'
-                  ? 'text-blue-600 font-bold bg-blue-500/10'
-                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/60 active:bg-zinc-100'
+                  ? 'text-zinc-950 font-bold bg-zinc-200'
+                  : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200'
               }`}
               title={zoomMode === 'fit-width' ? "Switch to Fit Page" : "Switch to Fit Width"}
             >
@@ -1511,34 +1497,66 @@ export default function App() {
               <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Fit</span>
             </button>
 
-            {/* Divider inside Zoom Pod */}
-            <div className="w-px h-6 bg-zinc-200/80 mx-0.5 shrink-0" />
+            {/* 4. Zoom In (+) */}
+            <button
+              onClick={handleZoomIn}
+              disabled={customZoom >= 3.0}
+              className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
+              title="Zoom In"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
 
-            {/* Song Navigation button (ToC) */}
+            {/* Divider */}
+            <div className="w-px h-6 bg-zinc-200/80 mx-1 shrink-0" />
+
+            {/* 5. Import Songbook */}
+            <button
+              onClick={() => setIsConfirmResetOpen(true)}
+              className="flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors cursor-pointer shrink-0"
+              title="Import Songbook (load different JSON)"
+            >
+              <FolderOpen className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Import</span>
+            </button>
+
+            {/* 6. Settings */}
+            <button
+              id="floating-settings-btn"
+              onClick={handleOpenMobileSidebar}
+              className="flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors relative cursor-pointer shrink-0"
+              title={hasUnappliedSettings ? `Settings (${unappliedChanges.length} unapplied changes pending)` : "Open Settings"}
+            >
+              <SlidersHorizontal className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Settings</span>
+              {hasUnappliedSettings && (
+                <span className="absolute top-0.5 right-1.5 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                </span>
+              )}
+            </button>
+
+            {/* 7. ToC (Table of Contents) */}
             <button
               id="floating-nav-btn"
-              onClick={() => {
-                setIsSongNavOpen((prev) => !prev);
-              }}
-              className={`flex flex-col items-center justify-center w-10 sm:w-11 h-9 sm:h-10 rounded-xl transition-colors cursor-pointer shrink-0 ${
+              onClick={() => setIsSongNavOpen((prev) => !prev)}
+              className={`flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl transition-colors cursor-pointer shrink-0 ${
                 isSongNavOpen
-                  ? 'text-amber-700 font-bold bg-amber-500/15'
-                  : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/60 active:bg-zinc-100'
+                  ? 'text-zinc-950 font-bold bg-zinc-200'
+                  : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200'
               }`}
               title="Table of Contents & Jump to Song"
             >
               <BookOpen className="w-4 h-4" />
               <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">ToC</span>
             </button>
-          </div>
 
-          {/* 2. Main Actions Pod */}
-          <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-zinc-200/80 shadow-xl rounded-2xl h-12 sm:h-14 px-3 sm:px-4 flex items-center justify-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Manage Songs visibility button */}
+            {/* 8. Songs (Manage Songs Visibility) */}
             <button
               id="floating-manage-songs-btn"
               onClick={() => setIsSongSelectionOpen(true)}
-              className="flex flex-col items-center justify-center w-11 sm:w-13 h-9 sm:h-10 rounded-xl text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/70 active:bg-zinc-100 transition-colors relative cursor-pointer shrink-0"
+              className="flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors relative cursor-pointer shrink-0"
               title={`Manage songs (${selectedSongIds.size} of ${songCount} visible)`}
             >
               <div className="relative">
@@ -1552,37 +1570,14 @@ export default function App() {
               <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Songs</span>
             </button>
 
-            {/* Divider */}
-            <div className="w-px h-6 bg-zinc-200/80 shrink-0" />
-
-            {/* Settings button */}
-            <button
-              id="floating-settings-btn"
-              onClick={handleOpenMobileSidebar}
-              className="flex flex-col items-center justify-center w-11 sm:w-13 h-9 sm:h-10 rounded-xl text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/70 active:bg-zinc-100 transition-colors relative cursor-pointer shrink-0"
-              title={hasUnappliedSettings ? `Settings (${unappliedChanges.length} unapplied changes pending)` : "Open Settings"}
-            >
-              <SlidersHorizontal className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Settings</span>
-              {hasUnappliedSettings && (
-                <span className="absolute top-0.5 right-1.5 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
-                </span>
-              )}
-            </button>
-
-            {/* Divider */}
-            <div className="w-px h-6 bg-zinc-200/80 shrink-0" />
-
-            {/* Download/Export PDF */}
+            {/* 9. Export PDF */}
             <button
               onClick={() => handleDownloadPdf()}
               disabled={isDownloadingPdf || isGeneratingWorkerPdf}
-              className={`flex flex-col items-center justify-center px-2.5 sm:px-3.5 min-w-[3.75rem] sm:min-w-[4.5rem] h-9 sm:h-10 rounded-xl transition-all cursor-pointer shrink-0 relative ${
+              className={`flex flex-col items-center justify-center px-2.5 sm:px-3.5 h-9 sm:h-10 rounded-xl transition-all cursor-pointer shrink-0 relative ${
                 isPdfReady
-                  ? 'text-emerald-600 hover:text-emerald-700 font-bold bg-emerald-500/10 hover:bg-emerald-500/15'
-                  : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100/70 active:bg-zinc-100'
+                  ? 'text-emerald-800 font-bold bg-emerald-100 hover:bg-emerald-200'
+                  : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200'
               }`}
               title={isPdfReady ? "PDF is ready! Click to download again instantly" : "Export and download as PDF"}
             >
@@ -1602,35 +1597,19 @@ export default function App() {
                 {isPdfReady ? 'Save PDF' : 'Export PDF'}
               </span>
             </button>
-
-            {/* Divider */}
-            <div className="w-px h-6 bg-zinc-200/80 shrink-0" />
-
-            {/* Import Songbook */}
-            <button
-              onClick={() => setIsConfirmResetOpen(true)}
-              className="flex flex-col items-center justify-center w-11 sm:w-13 h-9 sm:h-10 rounded-xl text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/70 active:bg-zinc-100 transition-colors cursor-pointer shrink-0"
-              title="Import Songbook (load different JSON)"
-            >
-              <FolderOpen className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Import</span>
-            </button>
           </div>
         </div>
 
         {/* Offline Indicator */}
         <OfflineIndicator />
 
-        {/* Toast Notification */}
+        {/* Unified Top-Right Notification Toast Container */}
         {toast && (
-          <div 
-            className="fixed right-6 z-[100] print:hidden animate-in fade-in slide-in-from-bottom-3 duration-300"
-            style={{ bottom: 'max(1.5rem, calc(1rem + env(safe-area-inset-bottom, 0px)))' }}
-          >
+          <div className="fixed top-4 right-4 z-[100] print:hidden animate-in fade-in slide-in-from-top-3 duration-300">
             <div className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-medium ${
               toast.type === 'error'
-                ? 'bg-red-900 text-white border-red-700/50'
-                : 'bg-zinc-900 text-white border-white/10'
+                ? 'bg-red-950 text-white border-red-800/60'
+                : 'bg-zinc-950 text-white border-white/15'
             }`}>
               {toast.type === 'error' ? (
                 <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />

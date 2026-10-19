@@ -152,6 +152,8 @@ const VirtualPage = memo(function VirtualPage({
         minWidth: isScaled ? `${scaledWidth}px` : defaultWidth,
         position: 'relative',
         overflowAnchor: 'none',
+        contentVisibility: 'auto',
+        containIntrinsicSize: isScaled ? `0 ${scaledHeight}px` : `0 ${defaultHeight}`,
       }}
     >
       {children}
@@ -178,6 +180,78 @@ interface SongPagesListProps {
   isDebugMode?: boolean;
   shouldCenter?: boolean;
 }
+
+interface SongPageProps {
+  song: Song;
+  i: number;
+  settings: PrintSettings;
+  isScaled: boolean;
+  scaledWidth: number;
+  scaledHeight: number;
+  cssWidth: string;
+  cssHeight: string;
+  shouldCenter: boolean;
+  isDebugMode: boolean;
+  pageContainerClass: string;
+  effectiveScale: number;
+  tocPagesLength: number;
+  showFrontCover?: boolean;
+  showTableOfContents?: boolean;
+}
+
+const SongPage = memo(function SongPage({
+  song,
+  i,
+  settings,
+  isScaled,
+  scaledWidth,
+  scaledHeight,
+  cssWidth,
+  cssHeight,
+  shouldCenter,
+  isDebugMode,
+  pageContainerClass,
+  effectiveScale,
+  tocPagesLength,
+}: SongPageProps) {
+  const songDocPageIndex = (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? tocPagesLength : 0) + i;
+  const m = getPageMargins(settings, songDocPageIndex);
+
+  return (
+    <VirtualPage
+      key={`song-page-${song.id ?? 'item'}-${i}`}
+      id={`song-${i}`}
+      isScaled={isScaled}
+      scaledWidth={scaledWidth}
+      scaledHeight={scaledHeight}
+      defaultWidth={cssWidth}
+      defaultHeight={cssHeight}
+      shouldCenter={shouldCenter}
+    >
+      <div 
+        className={`${pageContainerClass} print-page-container flex flex-col overflow-hidden origin-top-left`}
+        style={{ 
+          width: cssWidth, 
+          height: cssHeight,
+          padding: `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`,
+          transform: isScaled ? `scale(${effectiveScale})` : 'none',
+          transformOrigin: 'top left',
+          position: isScaled ? 'absolute' : 'relative',
+          top: 0,
+          left: 0,
+        }}
+      >
+        <SongDisplay 
+          song={song} 
+          index={i} 
+          docPageIndex={songDocPageIndex}
+          settings={settings} 
+          isDebugMode={isDebugMode} 
+        />
+      </div>
+    </VirtualPage>
+  );
+});
 
 const SongPagesList = memo(function SongPagesList({
   url,
@@ -460,46 +534,25 @@ const SongPagesList = memo(function SongPagesList({
       })}
 
       {/* SONG PAGES */}
-      {songs.map((song, i) => {
-        const songDocPageIndex = (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? tocPages.length : 0) + i;
-        const m = getPageMargins(settings, songDocPageIndex);
-        return (
-          <VirtualPage
-            key={`song-page-${song.id ?? 'item'}-${i}`}
-            id={`song-${i}`}
-            isScaled={isScaled}
-            scaledWidth={scaledWidth}
-            scaledHeight={scaledHeight}
-            defaultWidth={cssWidth}
-            defaultHeight={cssHeight}
-            shouldCenter={shouldCenter}
-          >
-            <div 
-              className={`${pageContainerClass} print-page-container flex flex-col overflow-hidden origin-top-left`}
-              style={{ 
-                width: cssWidth, 
-                height: cssHeight,
-                padding: `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`,
-                transform: isScaled ? `scale(${effectiveScale})` : 'none',
-                transformOrigin: 'top left',
-                position: isScaled ? 'absolute' : 'relative',
-                top: 0,
-                left: 0,
-              }}
-            >
-              <SongDisplay 
-                song={song} 
-                index={i} 
-                docPageIndex={songDocPageIndex}
-                settings={settings} 
-                isDebugMode={isDebugMode} 
-              />
-            </div>
-          </VirtualPage>
-        );
-      })}
+      {songs.map((song, i) => (
+        <SongPage
+          key={`song-page-${song.id ?? 'item'}-${i}`}
+          song={song}
+          i={i}
+          settings={settings}
+          isScaled={isScaled}
+          scaledWidth={scaledWidth}
+          scaledHeight={scaledHeight}
+          cssWidth={cssWidth}
+          cssHeight={cssHeight}
+          shouldCenter={shouldCenter}
+          isDebugMode={isDebugMode}
+          pageContainerClass={pageContainerClass}
+          effectiveScale={effectiveScale}
+          tocPagesLength={tocPages.length}
+        />
+      ))}
 
-      
       {/* Back Cover Page */}
       {settings.showBackCover !== false && songs.length > 0 && (() => {
         const backCoverDocPageIndex = (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? tocPages.length : 0) + songs.length;
@@ -770,7 +823,7 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
       <div 
         id="song-nav-modal"
         onClick={(e) => e.stopPropagation()}
-        className="fixed bottom-[135px] sm:bottom-[84px] left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-8 w-[92vw] max-w-sm sm:w-80 bg-white/95 backdrop-blur-xl border border-zinc-200/90 text-zinc-800 rounded-2xl shadow-2xl p-3 space-y-2 z-50 text-xs animate-in fade-in slide-in-from-bottom-2 duration-150 print:hidden"
+        className="fixed bottom-[4.5rem] sm:bottom-[5rem] right-[max(1rem,calc(50%-15rem))] sm:right-[max(1rem,calc(50%-18rem))] w-[92vw] max-w-sm sm:w-80 bg-white/95 backdrop-blur-xl border border-zinc-200/90 text-zinc-800 rounded-2xl shadow-2xl p-3 space-y-2 z-50 text-xs animate-in fade-in slide-in-from-bottom-2 duration-150 print:hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between pb-1.5 border-b border-zinc-100">
@@ -1766,16 +1819,18 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         <div className="h-28 sm:h-24 print:hidden" />
       </div>
 
-      {/* FLOATING QUICK ACTIONS GROUP - Cleanly positioned above bottom bar */}
+      {/* FLOATING QUICK ACTIONS GROUP - Cleanly positioned at bottom right baseline */}
       {showScrollTop && (
         <button
           type="button"
           onClick={scrollToTop}
-          className="fixed bottom-[135px] sm:bottom-[80px] right-3 sm:right-6 z-40 w-10 h-10 bg-white/95 hover:bg-zinc-100 active:bg-zinc-200 text-zinc-600 hover:text-zinc-900 rounded-full shadow-lg border border-black/10 flex items-center justify-center transition-colors cursor-pointer select-none print:hidden"
+          className="fixed z-40 w-11 sm:w-12 h-12 sm:h-14 bg-white/95 backdrop-blur-md hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 rounded-2xl shadow-xl border border-zinc-200/80 flex flex-col items-center justify-center transition-all cursor-pointer select-none print:hidden shrink-0 group"
+          style={{ bottom: 'max(5.5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))', right: 'max(0.75rem, calc(0.75rem + env(safe-area-inset-right, 0px)))' }}
           title="Scroll to Top"
           aria-label="Scroll to Top"
         >
-          <ChevronUp className="w-5 h-5" />
+          <ChevronUp className="w-4.5 h-4.5 sm:w-5 sm:h-5 group-hover:-translate-y-0.5 transition-transform" />
+          <span className="text-[8px] sm:text-[9px] font-bold mt-0.5 tracking-tight leading-none text-zinc-600 group-hover:text-zinc-950">Top</span>
         </button>
       )}
 
