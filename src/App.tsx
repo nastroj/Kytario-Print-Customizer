@@ -1398,7 +1398,7 @@ export default function App() {
         <SongbookPreview 
           data={previewData} 
           settings={settings}
-          isUpdatingLayout={isUpdatingLayout}
+          isUpdatingLayout={isUpdatingLayout || selectedSongIds !== deferredSelectedSongIds}
           onDownloadStatusChange={setIsDownloadingPdf}
           onOpenSettings={handleOpenSettings}
           zoomMode={zoomMode}
@@ -1431,6 +1431,7 @@ export default function App() {
             selectedSongIds={selectedSongIds}
             onApply={(newSelectedIds) => {
               updateSelectedSongIds(newSelectedIds);
+              showToast(`Updating preview with ${newSelectedIds.size} visible songs...`, 'info');
               setIsSongSelectionOpen(false);
             }}
             onCancel={() => setIsSongSelectionOpen(false)}

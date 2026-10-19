@@ -1,5 +1,14 @@
 # Release Notes
 
+## v1.8.15 - 2026-10-19
+
+### "Updating Preview..." Feedback Overlay & Deferred Transition Indicator
+- **Instant Preview Feedback Pill**: Automatically displays the floating black "Updating preview..." spinner pill overlay whenever selection changes are processing in the background.
+- **Immediate Toast Confirmation**: Triggers an informative toast message ("Updating preview with X visible songs...") the moment you click "Apply Selection" in the Manage Songs modal.
+- **Non-blocking Concurrent Rendering**: Leverages React `useDeferredValue` and transition hooks to ensure seamless updates without dropping frames.
+
+---
+
 ## v1.8.14 - 2026-10-19
 
 ### Concurrent React Transitions & Debounced Song Selection
