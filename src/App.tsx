@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useDeferredValue, useRef, useCallback, useMemo, startTransition } from 'react';
+import React, { useState, useEffect, useDeferredValue, useTransition, useRef, useCallback, useMemo, startTransition } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { SongbookPreview } from './components/SongbookPreview';
 import { ProgressBar } from './components/ProgressBar';
@@ -133,6 +133,10 @@ export default function App() {
   const [isSongNavOpen, setIsSongNavOpen] = useState(false);
   const [isSongSelectionOpen, setIsSongSelectionOpen] = useState(false);
   const [selectedSongIds, setSelectedSongIds] = useState<Set<string | number>>(new Set());
+  const [, startSongSelectionTransition] = useTransition();
+
+  // Debounce timer ref to handle high-frequency selection toggles gracefully
+  const songSelectionDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Automatically initialize selectedSongIds when songbook songs load
   useEffect(() => {
@@ -146,15 +150,48 @@ export default function App() {
     }
   }, [songbookData]);
 
-  // Memoized visible songs based on selectedSongIds
+  // Transition-wrapped and debounced state updater for selectedSongIds
+  const updateSelectedSongIds = useCallback((
+    updater: Set<string | number> | ((prev: Set<string | number>) => Set<string | number>),
+    debounceMs = 0
+  ) => {
+    if (debounceMs > 0) {
+      if (songSelectionDebounceTimerRef.current) {
+        clearTimeout(songSelectionDebounceTimerRef.current);
+      }
+      songSelectionDebounceTimerRef.current = setTimeout(() => {
+        startSongSelectionTransition(() => {
+          setSelectedSongIds(updater);
+        });
+      }, debounceMs);
+    } else {
+      startSongSelectionTransition(() => {
+        setSelectedSongIds(updater);
+      });
+    }
+  }, []);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (songSelectionDebounceTimerRef.current) {
+        clearTimeout(songSelectionDebounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Use deferred value for the expensive PDF preview calculation to keep the UI fluid during rapid toggling
+  const deferredSelectedSongIds = useDeferredValue(selectedSongIds);
+
+  // Memoized visible songs based on deferredSelectedSongIds
   const previewSongs = useMemo(() => {
     if (!songbookData?.songs) return [];
-    if (selectedSongIds.size === 0) return songbookData.songs;
+    if (deferredSelectedSongIds.size === 0) return songbookData.songs;
     return songbookData.songs.filter((s, idx) => {
       const id = s.id !== undefined && s.id !== null ? s.id : idx + 1;
-      return selectedSongIds.has(id);
+      return deferredSelectedSongIds.has(id);
     });
-  }, [songbookData?.songs, selectedSongIds]);
+  }, [songbookData?.songs, deferredSelectedSongIds]);
 
   // Memoized songbook data object for SongbookPreview to avoid unnecessary layout recalculations
   const previewData = useMemo(() => {
@@ -1393,9 +1430,7 @@ export default function App() {
             songs={songbookData?.songs || []}
             selectedSongIds={selectedSongIds}
             onApply={(newSelectedIds) => {
-              startTransition(() => {
-                setSelectedSongIds(newSelectedIds);
-              });
+              updateSelectedSongIds(newSelectedIds);
               setIsSongSelectionOpen(false);
             }}
             onCancel={() => setIsSongSelectionOpen(false)}

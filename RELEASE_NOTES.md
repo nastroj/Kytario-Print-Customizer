@@ -1,5 +1,14 @@
 # Release Notes
 
+## v1.8.14 - 2026-10-19
+
+### Concurrent React Transitions & Debounced Song Selection
+- **Transition Wrapper**: Wrapped all `selectedSongIds` state updates in React's `useTransition` hook (`startSongSelectionTransition`) to keep UI interactions at top priority.
+- **Debounced Updates**: Added a configurable debounced state updater to absorb high-frequency toggling without triggering redundant recalculations.
+- **Deferred Preview Rendering**: Decoupled the heavy songbook preview from selection changes via `useDeferredValue(selectedSongIds)`, ensuring the UI never lags or drops frames during rapid toggles.
+
+---
+
 ## v1.8.13 - 2026-10-19
 
 ### Control Buttons Optimization & Collision Elimination
