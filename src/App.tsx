@@ -146,6 +146,25 @@ export default function App() {
     }
   }, [songbookData]);
 
+  // Memoized visible songs based on selectedSongIds
+  const previewSongs = useMemo(() => {
+    if (!songbookData?.songs) return [];
+    if (selectedSongIds.size === 0) return songbookData.songs;
+    return songbookData.songs.filter((s, idx) => {
+      const id = s.id !== undefined && s.id !== null ? s.id : idx + 1;
+      return selectedSongIds.has(id);
+    });
+  }, [songbookData?.songs, selectedSongIds]);
+
+  // Memoized songbook data object for SongbookPreview to avoid unnecessary layout recalculations
+  const previewData = useMemo(() => {
+    if (!songbookData) return null;
+    return {
+      ...songbookData,
+      songs: previewSongs,
+    };
+  }, [songbookData, previewSongs]);
+
   const [zoomMode, setZoomMode] = useState<ZoomMode>('fit-page');
   const [customZoom, setCustomZoom] = useState<number>(1.0);
   const [activeScale, setActiveScale] = useState<number>(1.0);
@@ -1340,14 +1359,7 @@ export default function App() {
         )}
 
         <SongbookPreview 
-          data={{
-            ...songbookData,
-            songs: songbookData.songs?.filter((s, idx) => {
-              if (selectedSongIds.size === 0) return true;
-              const id = s.id !== undefined && s.id !== null ? s.id : idx + 1;
-              return selectedSongIds.has(id);
-            }) || []
-          }} 
+          data={previewData} 
           settings={settings}
           isUpdatingLayout={isUpdatingLayout}
           onDownloadStatusChange={setIsDownloadingPdf}
@@ -1389,23 +1401,12 @@ export default function App() {
             isOpen={isSongSelectionOpen}
             songs={songbookData?.songs || []}
             selectedSongIds={selectedSongIds}
-            onToggleSong={(id) => {
-              const next = new Set(selectedSongIds);
-              if (next.has(id)) next.delete(id);
-              else next.add(id);
-              setSelectedSongIds(next);
-            }}
-            onToggleAll={(selectAll, targetSongs) => {
-              const list = targetSongs || songbookData?.songs || [];
-              const next = new Set(selectedSongIds);
-              list.forEach((s, idx) => {
-                const id = s.id !== undefined && s.id !== null ? s.id : idx + 1;
-                if (selectAll) next.add(id);
-                else next.delete(id);
+            onApply={(newSelectedIds) => {
+              startTransition(() => {
+                setSelectedSongIds(newSelectedIds);
               });
-              setSelectedSongIds(next);
+              setIsSongSelectionOpen(false);
             }}
-            onConfirm={() => setIsSongSelectionOpen(false)}
             onCancel={() => setIsSongSelectionOpen(false)}
           />
         )}

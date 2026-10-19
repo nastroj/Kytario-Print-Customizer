@@ -1,14 +1,12 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Check, X, ListFilter, Search, Eye, EyeOff } from 'lucide-react';
+import { Check, X, ListFilter, Search, Eye, EyeOff, CheckCheck, XCircle } from 'lucide-react';
 import { Song } from '../types';
 
 interface SongSelectionModalProps {
   isOpen: boolean;
   songs: Song[];
   selectedSongIds: Set<string | number>;
-  onToggleSong: (songId: string | number) => void;
-  onToggleAll: (selectAll: boolean, targetSongs?: Song[]) => void;
-  onConfirm: () => void;
+  onApply: (selectedSongIds: Set<string | number>) => void;
   onCancel: () => void;
 }
 
@@ -19,15 +17,27 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
   isOpen,
   songs,
   selectedSongIds,
-  onToggleSong,
-  onToggleAll,
-  onConfirm,
+  onApply,
   onCancel,
 }) => {
+  // Local staged selection state for 0ms instantaneous UI clicks and zero lag
+  const [draftSelectedIds, setDraftSelectedIds] = useState<Set<string | number>>(() => new Set(selectedSongIds));
   const [searchTerm, setSearchTerm] = useState('');
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(500); // Sensible default
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sync draft state with incoming selectedSongIds when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setDraftSelectedIds(new Set(selectedSongIds));
+      setSearchTerm('');
+      setScrollTop(0);
+      if (containerRef.current) {
+        containerRef.current.scrollTop = 0;
+      }
+    }
+  }, [isOpen, selectedSongIds]);
 
   // Extract lightweight song references
   const lightSongs = useMemo(() => {
@@ -74,6 +84,43 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
     setScrollTop(e.currentTarget.scrollTop);
   }, []);
 
+  // Instant local toggle (0ms latency, does not trigger expensive preview re-renders)
+  const handleToggleSong = useCallback((id: string | number) => {
+    setDraftSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // Quick batch actions
+  const handleSelectAll = useCallback(() => {
+    setDraftSelectedIds(new Set(lightSongs.map(s => s.id)));
+  }, [lightSongs]);
+
+  const handleDeselectAll = useCallback(() => {
+    setDraftSelectedIds(new Set());
+  }, []);
+
+  const allFilteredSelected = filteredSongs.length > 0 && filteredSongs.every(s => draftSelectedIds.has(s.id));
+
+  const handleToggleFiltered = useCallback(() => {
+    setDraftSelectedIds(prev => {
+      const next = new Set(prev);
+      const shouldSelect = !allFilteredSelected;
+      filteredSongs.forEach(s => {
+        if (shouldSelect) next.add(s.id);
+        else next.delete(s.id);
+      });
+      return next;
+    });
+  }, [allFilteredSelected, filteredSongs]);
+
+  const handleApply = useCallback(() => {
+    onApply(draftSelectedIds);
+  }, [onApply, draftSelectedIds]);
+
   // Virtual windowing calculations with guaranteed fallbacks
   const totalCount = filteredSongs.length;
   const visibleCount = Math.max(8, Math.ceil(containerHeight / ITEM_HEIGHT));
@@ -86,14 +133,20 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
 
   const visibleSongs = useMemo(() => {
     const slice = filteredSongs.slice(startIndex, endIndex);
-    // Safety guard: if slice is empty but we have songs, show first page
     if (slice.length === 0 && filteredSongs.length > 0) {
       return filteredSongs.slice(0, 30);
     }
     return slice;
   }, [filteredSongs, startIndex, endIndex]);
 
-  const allFilteredSelected = filteredSongs.length > 0 && filteredSongs.every(s => selectedSongIds.has(s.id));
+  // Check if draft has modifications compared to original
+  const hasChanges = useMemo(() => {
+    if (draftSelectedIds.size !== selectedSongIds.size) return true;
+    for (const id of draftSelectedIds) {
+      if (!selectedSongIds.has(id)) return true;
+    }
+    return false;
+  }, [draftSelectedIds, selectedSongIds]);
 
   if (!isOpen) return null;
 
@@ -108,13 +161,20 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-zinc-100 bg-zinc-50/80 shrink-0">
           <div>
-            <h3 id="song-manager-title" className="text-base font-bold text-zinc-900 flex items-center gap-2">
-              <ListFilter className="w-5 h-5 text-amber-600" />
-              Manage Song Visibility
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 id="song-manager-title" className="text-base font-bold text-zinc-900 flex items-center gap-2">
+                <ListFilter className="w-5 h-5 text-amber-600" />
+                Manage Song Visibility
+              </h3>
+              {hasChanges && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                  Unsaved changes
+                </span>
+              )}
+            </div>
             <p className="text-xs text-zinc-500 mt-0.5">
               Showing {filteredSongs.length} of {songs.length} songs &bull;{' '}
-              <span className="font-semibold text-zinc-800">{selectedSongIds.size}</span> included in PDF
+              <span className="font-semibold text-zinc-800">{draftSelectedIds.size}</span> included in PDF
             </p>
           </div>
           <button 
@@ -154,29 +214,48 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                const selectAll = !allFilteredSelected;
-                const originalMap = new Map(songs.map((s, idx) => [s.id !== undefined && s.id !== null ? s.id : idx + 1, s]));
-                const targetOriginals = filteredSongs.map(ls => originalMap.get(ls.id)!).filter(Boolean);
-                onToggleAll(selectAll, targetOriginals);
-              }}
-              className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 active:scale-98 transition-all text-zinc-800 cursor-pointer border border-zinc-200/80"
-            >
-              {allFilteredSelected ? (
-                <>
-                  <EyeOff className="w-3.5 h-3.5 text-zinc-600" />
-                  <span>Hide Filtered</span>
-                </>
-              ) : (
-                <>
-                  <Eye className="w-3.5 h-3.5 text-zinc-600" />
-                  <span>Show Filtered</span>
-                </>
-              )}
-            </button>
+          
+          <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end shrink-0">
+            {searchTerm ? (
+              <button
+                type="button"
+                onClick={handleToggleFiltered}
+                className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 active:scale-98 transition-all text-zinc-800 cursor-pointer border border-zinc-200/80"
+              >
+                {allFilteredSelected ? (
+                  <>
+                    <EyeOff className="w-3.5 h-3.5 text-zinc-600" />
+                    <span>Hide Filtered</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-3.5 h-3.5 text-zinc-600" />
+                    <span>Show Filtered</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSelectAll}
+                  className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 active:scale-98 transition-all text-zinc-800 cursor-pointer border border-zinc-200/80"
+                  title="Include all songs"
+                >
+                  <CheckCheck className="w-3.5 h-3.5 text-zinc-600" />
+                  <span>All</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeselectAll}
+                  className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 active:scale-98 transition-all text-zinc-800 cursor-pointer border border-zinc-200/80"
+                  title="Hide all songs"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-zinc-600" />
+                  <span>None</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -198,12 +277,12 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
               {/* Rendered visible slice */}
               <div className="space-y-1.5">
                 {visibleSongs.map((song) => {
-                  const isSelected = selectedSongIds.has(song.id);
+                  const isSelected = draftSelectedIds.has(song.id);
                   return (
                     <div
                       key={song.id}
                       style={{ minHeight: ITEM_HEIGHT - 6 }}
-                      onClick={() => onToggleSong(song.id)}
+                      onClick={() => handleToggleSong(song.id)}
                       className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer ${
                         isSelected 
                           ? 'border-zinc-900 bg-zinc-900/[0.03] shadow-2xs hover:bg-zinc-900/[0.06]' 
@@ -257,7 +336,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
         {/* Footer */}
         <div className="p-3.5 sm:p-4 border-t border-zinc-100 bg-zinc-50/80 flex items-center justify-between gap-3 shrink-0">
           <div className="text-xs text-zinc-500">
-            <span className="font-bold text-zinc-900">{selectedSongIds.size}</span> of {songs.length} songs selected
+            <span className="font-bold text-zinc-900">{draftSelectedIds.size}</span> of {songs.length} songs selected
           </div>
           <div className="flex items-center gap-2">
             <button 
@@ -269,10 +348,11 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
             </button>
             <button 
               type="button"
-              onClick={onConfirm} 
-              className="px-4 py-2 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl transition-all shadow-xs cursor-pointer"
+              onClick={handleApply} 
+              className="px-4 py-2 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
             >
-              Done
+              <Check className="w-3.5 h-3.5" />
+              <span>Apply Selection</span>
             </button>
           </div>
         </div>

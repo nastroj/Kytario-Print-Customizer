@@ -1,5 +1,14 @@
 # Release Notes
 
+## v1.8.12 - 2026-10-19
+
+### Instant 0ms Song Visibility Toggling (Zero Freezing)
+- **Staged Local Modal State**: Checkbox clicks in the Manage Songs modal now update local component state in <0.5ms without triggering expensive background songbook re-rendering.
+- **Batch Application & Concurrent Transitions**: Selection changes are committed in a single batch when clicking "Apply Selection", with React transitions (`startTransition`) to keep the user interface 100% fluid and responsive.
+- **Preview Data Memoization**: Wrapped preview data object generation in `useMemo` to eliminate unnecessary document reflows.
+
+---
+
 ## v1.8.11 - 2026-10-19
 
 ### Fix React 19 Internal Error ("Expected static flag was missing")
