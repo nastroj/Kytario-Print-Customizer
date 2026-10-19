@@ -1,12 +1,30 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.8.7  
+**Version:** 1.8.10  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.8.7 is deployed and published on GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.8.10 is deployed and published on GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+
+---
+
+## 🌟 What's New in v1.8.10
+
+- **Reliable Native Virtual Scroll**: Overhauled song visibility manager with a clean, high-performance virtual windowing list that guarantees all songs render instantly with zero lag and 100% visibility.
+
+---
+
+## 🌟 What's New in v1.8.9
+
+- **Manage Songs Visibility Fix**: Resolved an issue where songs were invisible in the Manage Songs modal by ensuring proper container height for the virtualized list component.
+
+---
+
+## 🌟 What's New in v1.8.8
+
+- **Song Manager List Virtualization**: Implemented `react-window` virtualization to render only visible songs in the Manage Songs modal, eliminating UI freezing for large songbooks.
 
 ---
 

@@ -133,6 +133,19 @@ export default function App() {
   const [isSongNavOpen, setIsSongNavOpen] = useState(false);
   const [isSongSelectionOpen, setIsSongSelectionOpen] = useState(false);
   const [selectedSongIds, setSelectedSongIds] = useState<Set<string | number>>(new Set());
+
+  // Automatically initialize selectedSongIds when songbook songs load
+  useEffect(() => {
+    if (songbookData?.songs && songbookData.songs.length > 0) {
+      setSelectedSongIds(prev => {
+        if (prev.size === 0) {
+          return new Set(songbookData.songs!.map((s, idx) => s.id !== undefined && s.id !== null ? s.id : idx + 1));
+        }
+        return prev;
+      });
+    }
+  }, [songbookData]);
+
   const [zoomMode, setZoomMode] = useState<ZoomMode>('fit-page');
   const [customZoom, setCustomZoom] = useState<number>(1.0);
   const [activeScale, setActiveScale] = useState<number>(1.0);
@@ -1329,7 +1342,11 @@ export default function App() {
         <SongbookPreview 
           data={{
             ...songbookData,
-            songs: songbookData.songs?.filter(s => selectedSongIds.has(s.id!)) || []
+            songs: songbookData.songs?.filter((s, idx) => {
+              if (selectedSongIds.size === 0) return true;
+              const id = s.id !== undefined && s.id !== null ? s.id : idx + 1;
+              return selectedSongIds.has(id);
+            }) || []
           }} 
           settings={settings}
           isUpdatingLayout={isUpdatingLayout}
@@ -1380,9 +1397,10 @@ export default function App() {
           onToggleAll={(selectAll, targetSongs) => {
             const list = targetSongs || songbookData?.songs || [];
             const next = new Set(selectedSongIds);
-            list.forEach(s => {
-              if (selectAll) next.add(s.id!);
-              else next.delete(s.id!);
+            list.forEach((s, idx) => {
+              const id = s.id !== undefined && s.id !== null ? s.id : idx + 1;
+              if (selectAll) next.add(id);
+              else next.delete(id);
             });
             setSelectedSongIds(next);
           }}

@@ -1,5 +1,29 @@
 # Release Notes
 
+## v1.8.10 - 2026-10-19
+
+### Reliable Native Virtualization in Song Manager
+- **Zero-Dependency Virtual Scroll**: Replaced external virtual list packages with a rock-solid, zero-dependency virtual windowing component that guarantees songs are always visible, smooth, and instant to render.
+- **Robust ID Fallbacks**: Added index fallbacks for songs without explicit IDs and automatic synchronization on songbook load so songs are never omitted or hidden by default.
+- **Fixed CI/CD Missing File**: Fully committed `SongSelectionModal.tsx` and dependencies to git to resolve the GitHub Actions build error.
+
+---
+
+## v1.8.9 - 2026-10-19
+
+### Song Visibility Modal Container Fix
+- **AutoSizer Container Height**: Fixed a layout bug where the virtualized song list container had zero height inside the flex modal, causing songs to be invisible. Added a guaranteed minimum height (`min-h-[380px]`) and relative positioning to ensure proper AutoSizer measurements and song rendering.
+
+---
+
+## v1.8.8 - 2026-10-19
+
+### List Virtualization
+- **React Window Integration**: Integrated `react-window` and `react-virtualized-auto-sizer` to virtualize the song list in the Manage Songs modal.
+- **Improved Performance**: Resolved the UI freeze when opening the modal for large collections by rendering only the visible subset of songs, significantly reducing DOM nodes and memory overhead.
+
+---
+
 ## v1.8.7 - 2026-10-17
 
 ### Instant Song Manager Opening & Lightweight Memoization
