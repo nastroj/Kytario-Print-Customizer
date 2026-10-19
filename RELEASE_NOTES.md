@@ -1,5 +1,15 @@
 # Release Notes
 
+## v1.8.13 - 2026-10-19
+
+### Control Buttons Optimization & Collision Elimination
+- **Integrated "Manage Songs" Button**: Removed the rogue floating button that previously collided with the zoom pod on mobile. "Manage Songs" is now a first-class button integrated directly inside the primary actions pod with active count badge.
+- **Enhanced ToC & Jump Navigator**: Upgraded the Table of Contents button in the bottom bar with clear "ToC" labeling. Positioned the jump popover cleanly above the bottom toolbar (`bottom-[135px] sm:bottom-[84px]`, `z-50`) with an outside-click backdrop so it never renders behind other buttons.
+- **Dedicated ToC Page Jump**: Added a prominent "Go to Table of Contents" banner button and real-time search within the Jump navigator.
+- **Non-Colliding Floating Layout**: Structured bottom controls into stacked tiers (`flex-col sm:flex-row`) ensuring no overlapping buttons across all device screen sizes.
+
+---
+
 ## v1.8.12 - 2026-10-19
 
 ### Instant 0ms Song Visibility Toggling (Zero Freezing)
