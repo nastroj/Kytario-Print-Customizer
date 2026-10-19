@@ -24,8 +24,6 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  if (!isOpen) return null;
-
   const [searchTerm, setSearchTerm] = useState('');
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(500); // Sensible default
@@ -96,6 +94,8 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
   }, [filteredSongs, startIndex, endIndex]);
 
   const allFilteredSelected = filteredSongs.length > 0 && filteredSongs.every(s => selectedSongIds.has(s.id));
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">

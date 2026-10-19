@@ -1,5 +1,13 @@
 # Release Notes
 
+## v1.8.11 - 2026-10-19
+
+### Fix React 19 Internal Error ("Expected static flag was missing")
+- **Hook Rules Compliance**: Moved early return statements in `SongSelectionModal` after all React hooks, eliminating the React 19 internal error caused by conditional hook execution.
+- **Conditional Mounting**: Updated `App.tsx` to conditionally mount `SongSelectionModal` only when opened, ensuring clean lifecycle management and zero hook mismatch.
+
+---
+
 ## v1.8.10 - 2026-10-19
 
 ### Reliable Native Virtualization in Song Manager

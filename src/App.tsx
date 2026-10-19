@@ -1384,29 +1384,31 @@ export default function App() {
           }}
         />
 
-        <SongSelectionModal
-          isOpen={isSongSelectionOpen}
-          songs={songbookData?.songs || []}
-          selectedSongIds={selectedSongIds}
-          onToggleSong={(id) => {
-            const next = new Set(selectedSongIds);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            setSelectedSongIds(next);
-          }}
-          onToggleAll={(selectAll, targetSongs) => {
-            const list = targetSongs || songbookData?.songs || [];
-            const next = new Set(selectedSongIds);
-            list.forEach((s, idx) => {
-              const id = s.id !== undefined && s.id !== null ? s.id : idx + 1;
-              if (selectAll) next.add(id);
-              else next.delete(id);
-            });
-            setSelectedSongIds(next);
-          }}
-          onConfirm={() => setIsSongSelectionOpen(false)}
-          onCancel={() => setIsSongSelectionOpen(false)}
-        />
+        {isSongSelectionOpen && (
+          <SongSelectionModal
+            isOpen={isSongSelectionOpen}
+            songs={songbookData?.songs || []}
+            selectedSongIds={selectedSongIds}
+            onToggleSong={(id) => {
+              const next = new Set(selectedSongIds);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              setSelectedSongIds(next);
+            }}
+            onToggleAll={(selectAll, targetSongs) => {
+              const list = targetSongs || songbookData?.songs || [];
+              const next = new Set(selectedSongIds);
+              list.forEach((s, idx) => {
+                const id = s.id !== undefined && s.id !== null ? s.id : idx + 1;
+                if (selectAll) next.add(id);
+                else next.delete(id);
+              });
+              setSelectedSongIds(next);
+            }}
+            onConfirm={() => setIsSongSelectionOpen(false)}
+            onCancel={() => setIsSongSelectionOpen(false)}
+          />
+        )}
 
         {/* Background Web Worker PDF Generation Status Modal */}
         <BackgroundPdfProgressModal
