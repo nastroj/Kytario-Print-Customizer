@@ -12,9 +12,6 @@ interface SongSelectionModalProps {
 
 type SortOption = 'title' | 'artist' | 'original';
 
-const ITEM_HEIGHT = 60; // Row height in px
-const OVERSCAN = 6; // Extra buffer rows
-
 export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
   isOpen,
   songs,
@@ -26,8 +23,6 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
   const [draftSelectedIds, setDraftSelectedIds] = useState<Set<string | number>>(() => new Set(selectedSongIds));
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('original');
-  const [scrollTop, setScrollTop] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(400); // Sensible default
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Sync draft state with incoming selectedSongIds when modal opens
@@ -36,7 +31,6 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
       setDraftSelectedIds(new Set(selectedSongIds));
       setSearchTerm('');
       setSortOption('original');
-      setScrollTop(0);
       if (containerRef.current) {
         containerRef.current.scrollTop = 0;
       }
@@ -75,28 +69,6 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
     });
   }, [lightSongs, searchTerm, sortOption]);
 
-  // Keep containerHeight measured dynamically across all screen sizes & orientations
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      if (el.clientHeight > 0) {
-        setContainerHeight(el.clientHeight);
-      }
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-
-    return () => observer.disconnect();
-  }, [isOpen]);
-
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    setScrollTop(e.currentTarget.scrollTop);
-  }, []);
-
   // Instant local toggle (0ms latency, does not trigger expensive preview re-renders)
   const handleToggleSong = useCallback((id: string | number) => {
     setDraftSelectedIds(prev => {
@@ -134,24 +106,6 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
     if (draftSelectedIds.size === 0) return;
     onApply(draftSelectedIds);
   }, [onApply, draftSelectedIds]);
-
-  // Virtual windowing calculations with guaranteed fallbacks
-  const totalCount = filteredSongs.length;
-  const visibleCount = Math.max(8, Math.ceil(containerHeight / ITEM_HEIGHT));
-
-  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
-  const endIndex = Math.min(totalCount, startIndex + visibleCount + (OVERSCAN * 2));
-
-  const topSpacerHeight = startIndex * ITEM_HEIGHT;
-  const bottomSpacerHeight = Math.max(0, (totalCount - endIndex) * ITEM_HEIGHT);
-
-  const visibleSongs = useMemo(() => {
-    const slice = filteredSongs.slice(startIndex, endIndex);
-    if (slice.length === 0 && filteredSongs.length > 0) {
-      return filteredSongs.slice(0, 30);
-    }
-    return slice;
-  }, [filteredSongs, startIndex, endIndex]);
 
   // Check if draft has modifications compared to original
   const hasChanges = useMemo(() => {
@@ -304,77 +258,64 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
           </div>
         </div>
 
-        {/* High-Performance Virtualized Scroll Container (min-h-0 allows dynamic flex-shrink) */}
+        {/* Clean, Jitter-Free Scroll Container */}
         <div 
           ref={containerRef}
-          onScroll={handleScroll}
-          className="flex-1 min-h-0 overflow-y-auto px-2.5 sm:px-4 py-2 overscroll-contain select-none"
+          className="flex-1 min-h-0 overflow-y-auto px-2.5 sm:px-4 py-2 space-y-1.5 overscroll-contain select-none"
         >
           {filteredSongs.length === 0 ? (
             <div className="text-center py-16 text-zinc-400 text-xs">
               No songs found matching &ldquo;{searchTerm}&rdquo;
             </div>
           ) : (
-            <div>
-              {/* Top virtual spacer */}
-              {topSpacerHeight > 0 && <div style={{ height: topSpacerHeight }} aria-hidden="true" />}
-
-              {/* Rendered visible slice */}
-              <div className="space-y-1.5">
-                {visibleSongs.map((song) => {
-                  const isSelected = draftSelectedIds.has(song.id);
-                  return (
-                    <div
-                      key={song.id}
-                      style={{ minHeight: ITEM_HEIGHT - 6 }}
-                      onClick={() => handleToggleSong(song.id)}
-                      className={`flex items-center justify-between px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl border transition-all cursor-pointer ${
+            filteredSongs.map((song) => {
+              const isSelected = draftSelectedIds.has(song.id);
+              return (
+                <div
+                  key={song.id}
+                  onClick={() => handleToggleSong(song.id)}
+                  className={`flex items-center justify-between px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl border transition-all cursor-pointer ${
+                    isSelected 
+                      ? 'border-zinc-900 bg-zinc-900/[0.03] shadow-2xs hover:bg-zinc-900/[0.06]' 
+                      : 'border-zinc-200 hover:bg-zinc-50 bg-white opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div 
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors shrink-0 ${
                         isSelected 
-                          ? 'border-zinc-900 bg-zinc-900/[0.03] shadow-2xs hover:bg-zinc-900/[0.06]' 
-                          : 'border-zinc-200 hover:bg-zinc-50 bg-white opacity-70 hover:opacity-100'
+                          ? 'bg-zinc-900 border-zinc-900 text-white' 
+                          : 'border-zinc-300 bg-white'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                        <div 
-                          className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors shrink-0 ${
-                            isSelected 
-                              ? 'bg-zinc-900 border-zinc-900 text-white' 
-                              : 'border-zinc-300 bg-white'
-                          }`}
-                        >
-                          {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                        </div>
-                        <span className="text-[11px] font-mono text-zinc-400 shrink-0 w-6 sm:w-7">
-                          #{song.originalIndex}
-                        </span>
-                        <div className="min-w-0">
-                          <p className={`font-bold text-xs truncate ${isSelected ? 'text-zinc-900' : 'text-zinc-500'}`}>
-                            {song.title}
-                          </p>
-                          {song.artist && (
-                            <p className="text-[11px] text-zinc-400 truncate mt-0.5">
-                              {song.artist}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <span 
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ml-2 ${
-                          isSelected 
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' 
-                            : 'bg-zinc-100 text-zinc-400'
-                        }`}
-                      >
-                        {isSelected ? 'Included' : 'Hidden'}
-                      </span>
+                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
-                  );
-                })}
-              </div>
-
-              {/* Bottom virtual spacer */}
-              {bottomSpacerHeight > 0 && <div style={{ height: bottomSpacerHeight }} aria-hidden="true" />}
-            </div>
+                    <span className="text-[11px] font-mono text-zinc-400 shrink-0 w-6 sm:w-7">
+                      #{song.originalIndex}
+                    </span>
+                    <div className="min-w-0">
+                      <p className={`font-bold text-xs truncate ${isSelected ? 'text-zinc-900' : 'text-zinc-500'}`}>
+                        {song.title}
+                      </p>
+                      {song.artist && (
+                        <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                          {song.artist}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span 
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ml-2 ${
+                      isSelected 
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' 
+                        : 'bg-zinc-100 text-zinc-400'
+                    }`}
+                  >
+                    {isSelected ? 'Included' : 'Hidden'}
+                  </span>
+                </div>
+              );
+            })
           )}
         </div>
 
