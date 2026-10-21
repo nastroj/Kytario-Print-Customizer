@@ -917,7 +917,7 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
               const sTitle = s.title || s.name || `Song #${originalIndex}`;
               return (
                 <button
-                  key={s.id || idx}
+                  key={s.id !== undefined && s.id !== null ? `${s.id}-${idx}` : idx}
                   onClick={() => {
                     onScrollTo(`song-${originalIndex - 1}`);
                     onClose?.();

@@ -1,5 +1,21 @@
 # Release Notes
 
+## v1.8.16 - 2026-10-21
+
+### Kytario ZIP Song Ordering & Real Songbook Name Extraction
+- **Original Project Song Ordering**: When importing from a Kytario export ZIP archive, the songs now strictly preserve their authentic chronological project creation order (based on song creation timestamps) instead of defaulting to alphabetical sorting.
+- **Real Songbook Name Detection**: Automatically extracts the true songbook name from `project.json` (such as `"PRO RADOST"` for the `bodg` token) inside the `songbooks` list, falling back gracefully to project name or slug only when necessary.
+- **Song Selection Sorting Options**: Added a versatile sorting dropdown inside the Manage Songs modal to sort tracks on-the-fly by **Title**, **Artist**, or **Original Songbook Order**.
+- **Responsive Floating Toolbar & Scroll-to-Top**: 
+  - Floating action bar now wraps responsively on mobile portrait viewports to ensure zero hidden or clipped buttons.
+  - Repositioned the floating "Scroll to Top" button to stay comfortably above the bottom controls, eliminating any overlap on all screen sizes.
+  - Aligned the Table of Contents jump popover flush with the right end of the toolbar.
+- **Sleek Dark Zinc Aesthetic**: Replaced the indigo accents with an elegant dark gray / zinc theme across the bottom toolbar, modals, backdrop blurs (`backdrop-blur-md`), and status toasts.
+- **Rendering Performance & Windowing**: Added `content-visibility: auto` to virtualized pages and applied `React.memo` / `useMemo` optimizations to song layout rendering for butter-smooth scrolling.
+- **Unique Child Keys**: Enforced guaranteed unique keys across all song list iterations to prevent React duplicate key warnings and maintain component identity.
+
+---
+
 ## v1.8.15 - 2026-10-19
 
 ### "Updating Preview..." Feedback Overlay & Deferred Transition Indicator

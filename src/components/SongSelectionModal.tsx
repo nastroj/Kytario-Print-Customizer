@@ -268,11 +268,11 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
               No songs found matching &ldquo;{searchTerm}&rdquo;
             </div>
           ) : (
-            filteredSongs.map((song) => {
+            filteredSongs.map((song, idx) => {
               const isSelected = draftSelectedIds.has(song.id);
               return (
                 <div
-                  key={song.id}
+                  key={`${song.id}-${idx}`}
                   onClick={() => handleToggleSong(song.id)}
                   className={`flex items-center justify-between px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl border transition-all cursor-pointer ${
                     isSelected 

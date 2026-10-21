@@ -1,12 +1,24 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.8.15  
+**Version:** 1.8.16  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.8.15 is deployed and published on GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.8.16 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+
+---
+
+## 🌟 What's New in v1.8.16
+
+- **Kytario ZIP Song Ordering**: Preserves the original project song creation order rather than forcing alphabetical sorting when importing Kytario export ZIP files.
+- **Accurate Songbook Name Detection**: Automatically reads the true songbook name from `project.json` (e.g. `"PRO RADOST"` for the `bodg` token) inside `songbooks`, rather than using generic project names.
+- **Song Selection Sorting Options**: Added a sort dropdown in the Manage Songs dialog with support for Title, Artist, and Original Songbook Order.
+- **Responsive Floating Toolbar & Scroll-to-Top**: Multi-line button wrapping on mobile screens, collision-free "Scroll to Top" button positioning, and ToC jump menu aligned with the floating bar.
+- **Unified Dark Zinc Theme**: Sleek dark gray (zinc) palette across the floating toolbar, modals, backdrop blurs, and status notifications.
+- **Virtual Scrolling & Rendering Performance**: Enhanced layout speed with `content-visibility: auto` and React memoization on songbook pages.
+- **Unique Child Keys**: Fixed React duplicate key warnings for robust, flicker-free rendering.
 
 ---
 

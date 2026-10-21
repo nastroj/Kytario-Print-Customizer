@@ -359,7 +359,7 @@ export function normalizeSingleSong(s: any, idx = 0): Song {
     '';
 
   return {
-    id: s.id || idx + 1,
+    id: s.id ? `${s.id}` : `song-${idx + 1}-${Math.random().toString(36).substring(2, 7)}`,
     title: String(title),
     name: String(title),
     author: String(author),
@@ -372,6 +372,7 @@ export function normalizeSingleSong(s: any, idx = 0): Song {
     tempo: s.tempo,
     releaseYear: s.releaseYear,
     isPrivate: !!(s.isPrivate || s.visibility === 'private'),
+    createdAt: s.createdAt,
   };
 }
 

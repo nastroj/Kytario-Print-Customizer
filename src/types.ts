@@ -16,6 +16,7 @@ export interface Song {
   tempo?: number | string;
   releaseYear?: number | string;
   isPrivate?: boolean;
+  createdAt?: string;
 }
 
 export interface SongbookData {
