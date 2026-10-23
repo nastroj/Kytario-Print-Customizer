@@ -266,7 +266,7 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 1. **Commit and push changes to `main`:**
    ```bash
    git add .
-   git commit -m "chore: release v1.4.9"
+   git commit -m "chore: release v1.8.16"
    git push origin main
    ```
 
@@ -275,11 +275,29 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
    - Under **Build and deployment** > **Source**, ensure **GitHub Actions** is selected.
    - The workflow will build the project and publish the `dist` artifact to GitHub Pages automatically.
 
+3. **Configure Optional Cloudflare Worker Proxy (for 1-click Kytario URL imports):**
+   - GitHub Pages is a purely static host with no Node.js backend. Because `kytario.com` does not send `Access-Control-Allow-Origin: *` headers, browser security (CORS) blocks direct client-side fetch requests to Kytario's API.
+   - To enable seamless 1-click URL imports on your GitHub Pages site, deploy the free, ready-made Cloudflare Worker script located in [`cloudflare-worker.js`](cloudflare-worker.js):
+     1. Log in to [Cloudflare Dashboard](https://dash.cloudflare.com) and go to **Workers & Pages** > **Create application** > **Create Worker**.
+     2. Name it (e.g. `kytario-proxy`) and click **Deploy**.
+     3. Click **Edit code**, copy and paste the contents of `cloudflare-worker.js`, and click **Deploy**.
+     4. Copy your worker URL (e.g., `https://kytario-proxy.<your-subdomain>.workers.dev`).
+     5. In your GitHub repository:
+        - Navigate to **Settings** > **Secrets and variables** > **Actions** > **Variables** tab.
+        - Click **New repository variable**.
+        - Name: `VITE_KYTARIO_PROXY_URL`
+        - Value: `https://kytario-proxy.<your-subdomain>.workers.dev`
+     6. Re-run or trigger the **Deploy to GitHub Pages** workflow.
+   - Alternatively, you can paste the proxy URL directly into the app UI under **Optional: Configure Cloudflare Worker Proxy** without needing to re-deploy!
+
 ---
 
 ## 📖 How to Use
 
-1. **Import Songbook:** Enter a Kytario songbook link (e.g., `https://kytario.com/your-songbook`) or drag and drop your exported `.json` file into the upload zone.
+1. **Import Songbook:**
+   - **Kytario URL:** Paste your songbook link (e.g., `https://kytario.com/cs/bodg`). On GitHub Pages, use your configured Cloudflare Worker or the quick 2-step JSON copy if CORS relays are unavailable.
+   - **ZIP Archive Export:** Drag and drop your Kytario `.zip` export file directly onto the upload zone. Preserves custom songbook order and authentic titles automatically!
+   - **JSON Upload / Paste:** Paste your songbook JSON payload or select exported `.json` files.
 2. **Configure Layout:** Use the sidebar to configure page size, orientation, columns, margins, font sizing, and double-sided book printing mode.
 3. **Customize Styling & Covers:** Set color schemes, font family, and cover page designs (custom titles, subtitles, uploaded images, QR code link).
 4. **Apply Changes:** Click **Apply Changes** in the sidebar to recompute the SmartFit layout and update the live preview.

@@ -521,6 +521,30 @@ export async function checkSongbookExists(tokenOrUrl: string): Promise<{ exists:
   }
 }
 
+/**
+ * Retrieves the currently configured Kytario proxy URL, either from local storage or build-time environment.
+ */
+export function getStoredProxyUrl(): string {
+  if (typeof window !== 'undefined') {
+    const local = localStorage.getItem('kytario_proxy_url')?.trim();
+    if (local) return local;
+  }
+  return import.meta.env.VITE_KYTARIO_PROXY_URL?.trim() || '';
+}
+
+/**
+ * Stores or clears a custom Kytario proxy URL in local storage.
+ */
+export function setStoredProxyUrl(url: string): void {
+  if (typeof window === 'undefined') return;
+  const clean = url.trim();
+  if (clean) {
+    localStorage.setItem('kytario_proxy_url', clean);
+  } else {
+    localStorage.removeItem('kytario_proxy_url');
+  }
+}
+
 export async function fetchSongbookFromKytario(url: string): Promise<any> {
   let cleanUrl = cleanKytarioUrl(url);
   let token = extractKytarioSlug(cleanUrl);
@@ -571,13 +595,20 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
   );
 
   const targetParam = token || cleanUrl;
-  const configuredProxyUrl = import.meta.env.VITE_KYTARIO_PROXY_URL?.trim();
+  const configuredProxyUrl = getStoredProxyUrl();
 
   // Prefer a configured hosted proxy on static hosts, otherwise use the local backend.
   if (configuredProxyUrl || !isStaticHost) {
     try {
       const proxyBase = configuredProxyUrl || '/api/proxy/kytario';
-      const proxyUrl = `${proxyBase.replace(/\/+$/, '')}/${encodeURIComponent(targetParam)}?url=${encodeURIComponent(cleanUrl)}&token=${encodeURIComponent(token || '')}`;
+      let proxyUrl = '';
+      if (proxyBase.endsWith('?') || proxyBase.includes('?url=')) {
+        const targetApi = `https://kytario.com/api/songbooks/${encodeURIComponent(token || targetParam)}/sections`;
+        proxyUrl = `${proxyBase}${encodeURIComponent(targetApi)}`;
+      } else {
+        proxyUrl = `${proxyBase.replace(/\/+$/, '')}/${encodeURIComponent(targetParam)}?url=${encodeURIComponent(cleanUrl)}&token=${encodeURIComponent(token || '')}`;
+      }
+
       const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(25000) });
       if (response.ok) {
         const data = await response.json();

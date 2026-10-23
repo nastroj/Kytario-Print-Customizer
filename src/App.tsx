@@ -10,7 +10,7 @@ import { Song, SongbookData, PrintSettings, ZoomMode } from './types';
 import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Globe, ExternalLink, AlertTriangle, Minus, Plus, RotateCcw, Maximize2, BookOpen, Archive, FileArchive, ListFilter } from 'lucide-react';
 import { safeParseSongbookJson, normalizeSongbookData, normalizeSingleSong } from './utils';
 import { isZipFile, parseKytarioZip, ZipParseResult } from './utils/zipParser';
-import { fetchSongbookFromKytario, cleanKytarioUrl, KytarioErrorDetails } from './utils/api';
+import { fetchSongbookFromKytario, cleanKytarioUrl, KytarioErrorDetails, getStoredProxyUrl, setStoredProxyUrl } from './utils/api';
 import { APP_CONFIG } from './config';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
 import { BackgroundPdfProgressModal } from './components/BackgroundPdfProgressModal';
@@ -122,6 +122,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'upload' | 'paste' | 'url'>('url');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [kytarioFetchDetails, setKytarioFetchDetails] = useState<KytarioErrorDetails | null>(null);
+  const [showProxyConfig, setShowProxyConfig] = useState(false);
+  const [customProxyInput, setCustomProxyInput] = useState(() => getStoredProxyUrl());
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [pendingZipResult, setPendingZipResult] = useState<{
@@ -1257,6 +1259,62 @@ export default function App() {
                       <Clipboard className="w-3.5 h-3.5" />
                       <span>2. Go to Paste Tab</span>
                     </button>
+                  </div>
+
+                  <div className="pt-2 border-t border-amber-200/70">
+                    <button
+                      type="button"
+                      onClick={() => setShowProxyConfig(!showProxyConfig)}
+                      className="text-xs font-semibold text-amber-800 hover:text-amber-900 flex items-center justify-between w-full py-1 text-left cursor-pointer"
+                    >
+                      <span>⚙️ Optional: Configure Cloudflare Worker Proxy</span>
+                      <span className="text-[11px] underline text-amber-700">{showProxyConfig ? 'Hide' : 'Set Proxy URL'}</span>
+                    </button>
+                    {showProxyConfig && (
+                      <div className="mt-2 p-3 bg-white/95 rounded-lg border border-amber-200 text-xs space-y-2">
+                        <p className="text-zinc-600 leading-relaxed text-[11px]">
+                          To enable automated 1-click imports on GitHub Pages, enter your Cloudflare Worker URL (e.g. <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-800 font-mono">https://kytario-proxy.workers.dev</code>):
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <input
+                            type="url"
+                            value={customProxyInput}
+                            onChange={(e) => setCustomProxyInput(e.target.value)}
+                            placeholder="https://kytario-proxy.workers.dev"
+                            className="flex-1 rounded border border-zinc-300 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-800 bg-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStoredProxyUrl(customProxyInput);
+                              setToast({ message: 'Proxy URL saved! Retrying import...', type: 'info' });
+                              handleKytarioUrlSubmit();
+                            }}
+                            className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded text-xs font-bold transition-colors cursor-pointer shrink-0"
+                          >
+                            Save & Retry
+                          </button>
+                        </div>
+                        {customProxyInput && (
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStoredProxyUrl('');
+                                setCustomProxyInput('');
+                                setToast({ message: 'Custom proxy cleared', type: 'info' });
+                              }}
+                              className="text-[10px] text-zinc-500 hover:text-red-600 underline cursor-pointer"
+                            >
+                              Reset to default
+                            </button>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-zinc-500 leading-tight">
+                          💡 You can copy the ready-to-use worker script from <code className="text-zinc-700 font-semibold">cloudflare-worker.js</code> in the repository.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
