@@ -304,7 +304,7 @@ async function renderFrontCoverPage(
 
   const bTitle = (isCustom && settings.frontCoverTitle?.trim())
     ? settings.frontCoverTitle.trim()
-    : (settings.frontCoverTitle?.trim() || songbookData.title || (songbookData as any).name || 'ZPĚVNÍK');
+    : (settings.frontCoverTitle?.trim() || songbookData.title || (songbookData as any).name || 'SONGBOOK');
 
   const { displayUrl, qrTarget } = resolveCoverUrl({
     isCustom,
@@ -556,7 +556,7 @@ async function renderBackCoverPage(
 
   const bTitle = (isCustom && settings.backCoverTitle?.trim())
     ? settings.backCoverTitle.trim()
-    : (settings.backCoverTitle?.trim() || songbookData.title || (songbookData as any).name || 'ZPĚVNÍK');
+    : (settings.backCoverTitle?.trim() || songbookData.title || (songbookData as any).name || 'SONGBOOK');
 
   const { displayUrl, qrTarget } = resolveCoverUrl({
     isCustom,
@@ -816,7 +816,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
 
     const rawSongs = songbookData.songs || (songbookData as any).items || (songbookData as any).songbookSongs?.map((i: any) => i.song) || [];
     const totalSongs = rawSongs.length;
-    const bookTitle = songbookData.title || songbookData.name || 'Zpěvník';
+    const bookTitle = songbookData.title || songbookData.name || 'Songbook';
 
     postProgress({
       percent: 2,
@@ -929,7 +929,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       postProgress({
         percent: 8,
         phase: 'cover',
-        message: 'Generuji titulní stranu zpěvníku...',
+        message: 'Generating cover page...',
         totalSongs,
       });
 
@@ -1122,7 +1122,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           color: colTitle,
         });
 
-        const subText = `Obsah${tocPagesCount > 1 ? ` • Strana 1 z ${tocPagesCount}` : ''}`;
+        const subText = `Table of Contents${tocPagesCount > 1 ? ` • Page 1 of ${tocPagesCount}` : ''}`;
         const subPt = 9 * ptPerPx;
         const subW = regularFont.widthOfTextAtSize(subText, subPt);
         page.drawText(subText, {
@@ -1135,7 +1135,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
 
         currentY -= headerH1Pt;
       } else {
-        const titleUpper = `${bookTitle.toUpperCase()} (POKRAČOVÁNÍ)`;
+        const titleUpper = `${bookTitle.toUpperCase()} (CONTINUED)`;
         const titleW = boldFont.widthOfTextAtSize(titleUpper, tocTitleSubPt);
         page.drawText(titleUpper, {
           x: pMarginPtLeft + (pPrintableWidth - Math.min(pPrintableWidth, titleW)) / 2,
@@ -1145,7 +1145,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           color: colTitle,
         });
 
-        const subText = `Obsah • Strana ${pageIndex} z ${tocPagesCount}`;
+        const subText = `Table of Contents • Page ${pageIndex} of ${tocPagesCount}`;
         const subPt = 9 * ptPerPx;
         const subW = regularFont.widthOfTextAtSize(subText, subPt);
         page.drawText(subText, {
@@ -1611,7 +1611,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
               page = doc.addPage([pageWidth, pageHeight]);
               currentCol = 0;
               colY = pageHeight - songMarginPtTop - (22 * ptPerPx);
-              page.drawText(`${titleStr} (pokračování)`, {
+              page.drawText(`${titleStr} (continued)`, {
                 x: songMarginPtLeft,
                 y: colY + (4 * ptPerPx),
                 size: Math.max(9, titlePt * 0.75),
@@ -1789,7 +1789,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         postProgress({
           percent: 95,
           phase: 'finalizing',
-          message: 'Generuji zadní stranu...',
+          message: 'Generating back cover page...',
           totalSongs
         });
         const backCoverPageIndex = doc.getPageCount();

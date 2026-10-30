@@ -653,7 +653,24 @@ async function createServer() {
     });
   }
 
-  const port = process.env.PORT || 3000;
+  // Parse CLI args (e.g. --port 3000 or -p 3000)
+  let cliPort: number | undefined;
+  for (let i = 2; i < process.argv.length; i++) {
+    if ((process.argv[i] === '--port' || process.argv[i] === '-p') && process.argv[i + 1]) {
+      const parsed = Number(process.argv[i + 1]);
+      if (!isNaN(parsed) && parsed > 0) {
+        cliPort = parsed;
+        break;
+      }
+    }
+  }
+
+  // Determine listening port: prefer CLI --port, then 3000 in dev mode, then process.env.PORT (unless colliding with Nginx on 8080)
+  let port = cliPort || (isDev ? 3000 : Number(process.env.PORT) || 3000);
+  if (process.env.NGINX_PORT && String(port) === String(process.env.NGINX_PORT)) {
+    port = Number(process.env.DEFAULT_APP_PORT) || 3000;
+  }
+
   httpServer.listen(Number(port), '0.0.0.0', () => {
     console.log(`Server listening on port ${port} (0.0.0.0)`);
   });

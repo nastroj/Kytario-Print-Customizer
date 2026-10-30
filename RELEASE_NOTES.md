@@ -1,5 +1,16 @@
 # Release Notes
 
+## v1.8.17 - 2026-10-30
+
+### Cover Footer Cleanup, Full English Localization & Production Build Fixes
+- **Clean Covers (Default Footer Removed)**: Completely removed default promotional attribution footer text (`DEFAULT_FOOTER_TEXT`) from front and back covers. Cover pages now default to a clean, watermark-free presentation unless explicitly toggled on and customized by the user.
+- **Complete English Localization**: Translated all remaining Czech status messages during PDF generation (such as "Generating cover page...", "Preparing songs...", "Generating table of contents...", and "Finalizing PDF...") for consistent language throughout the app.
+- **Workbox Pre-cache & Large Worker Fix**: Configured `maximumFileSizeToCacheInBytes: 6 * 1024 * 1024` in `vite.config.ts`, ensuring large assets like `pdfWorker.js` (2.21 MiB containing `pdf-lib` and fontkit) are pre-cached properly without throwing Workbox build limit errors.
+- **Resilient Server Port Resolution**: Updated `server.ts` to support CLI `--port` flags and default cleanly to port 3000 in development, preventing port collisions with container environment variables (`PORT=8080`).
+- **Build & Lockfile Synchronization**: Synchronized `package.json` and `package-lock.json` for reliable CI/CD deployment on GitHub Pages and Cloudflare Pages.
+
+---
+
 ## v1.8.16 - 2026-10-21
 
 ### Kytario ZIP Song Ordering & Real Songbook Name Extraction

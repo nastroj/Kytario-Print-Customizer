@@ -1,12 +1,22 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.8.16  
+**Version:** 1.8.17  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.8.16 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.8.17 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+
+---
+
+## 🌟 What's New in v1.8.17
+
+- **Clean Covers (Default Footer Removed)**: Removed default promotional attribution footer text (`DEFAULT_FOOTER_TEXT`) from cover pages. Front and back covers are now clean without default watermarks unless explicitly toggled on and customized.
+- **Full English Localization**: Translated all remaining Czech status and generation messages into English throughout the PDF generation pipeline and UI.
+- **Workbox Large Worker Asset Pre-cache**: Configured `maximumFileSizeToCacheInBytes: 6 * 1024 * 1024` in `vite.config.ts`, resolving Workbox build errors for `pdfWorker.js` (2.21 MiB).
+- **Resilient Server Port Resolution**: Enhanced `server.ts` to parse CLI `--port` flags and default to port 3000 in dev mode, preventing port collision with container environment variables.
+- **Lockfile & CI/CD Synchronization**: Updated dependencies and lockfiles for deterministic builds across GitHub Pages and Cloudflare Pages.
 
 ---
 
@@ -266,7 +276,7 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 1. **Commit and push changes to `main`:**
    ```bash
    git add .
-   git commit -m "chore: release v1.8.16"
+   git commit -m "chore: release v1.8.17"
    git push origin main
    ```
 

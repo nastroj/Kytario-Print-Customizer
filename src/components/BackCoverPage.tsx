@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { PrintSettings } from '../types';
 import { Book } from 'lucide-react';
-import { DEFAULT_FOOTER_TEXT } from './FrontCoverPage';
 import { resolveCoverUrl } from '../utils';
 
 interface BackCoverPageProps {
@@ -26,7 +25,7 @@ export function BackCoverPage({
 
   const displayTitle = (isCustom && settings.backCoverTitle?.trim())
     ? settings.backCoverTitle.trim()
-    : (settings.backCoverTitle?.trim() || title || 'ZPĚVNÍK');
+    : (settings.backCoverTitle?.trim() || title || 'SONGBOOK');
 
   const { displayUrl, qrTarget } = resolveCoverUrl({
     isCustom,

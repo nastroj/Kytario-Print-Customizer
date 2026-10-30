@@ -390,7 +390,7 @@ const SongPagesList = memo(function SongPagesList({
                     className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
                     style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a') }}
                   >
-                    <span>Obsah{tocPages.length > 1 ? ` • Strana 1 z ${tocPages.length}` : ''}</span>
+                    <span>Table of Contents{tocPages.length > 1 ? ` • Page 1 of ${tocPages.length}` : ''}</span>
                     <span className="print:hidden normal-case font-normal text-[11px]" style={{ opacity: 0.8 }}>
                       • tap to jump
                     </span>
@@ -409,13 +409,13 @@ const SongPagesList = memo(function SongPagesList({
                       lineHeight: 1.2
                     }}
                   >
-                    {title} <span className="text-zinc-400 font-normal text-xs normal-case">(pokračování)</span>
+                    {title} <span className="text-zinc-400 font-normal text-xs normal-case">(continued)</span>
                   </h2>
                   <p 
                     className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
                     style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a') }}
                   >
-                    <span>Obsah • Strana {tocPage.pageIndex} z {tocPages.length}</span>
+                    <span>Table of Contents • Page {tocPage.pageIndex} of {tocPages.length}</span>
                     <span className="print:hidden normal-case font-normal text-[11px]" style={{ opacity: 0.8 }}>
                       • tap to jump
                     </span>
