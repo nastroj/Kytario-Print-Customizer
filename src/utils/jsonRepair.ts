@@ -3,6 +3,7 @@
  * songbook import pipeline (safeParseSongbookJson, corrupted-text recovery).
  */
 
+import type { JsonValue } from '../types/rawSongbook';
 /**
  * Preprocesses raw JSON input by stripping BOM, invisible characters, markdown fences,
  * and extracting JSON blocks if surrounded by conversational or extraneous text.
@@ -147,7 +148,7 @@ function balanceJsonBrackets(raw: string): string {
 /**
  * Attempts to parse comma-separated or newline-separated (NDJSON) objects without outer brackets.
  */
-function tryParseSequenceOrNdjson(str: string): any[] | null {
+function tryParseSequenceOrNdjson(str: string): JsonValue[] | null {
   const trimmed = str.trim();
   if (!trimmed.startsWith('[') && trimmed.startsWith('{')) {
     try {
@@ -163,7 +164,7 @@ function tryParseSequenceOrNdjson(str: string): any[] | null {
         .split(/\r?\n/)
         .map((l) => l.trim())
         .filter(Boolean);
-      const objects: any[] = [];
+      const objects: JsonValue[] = [];
       for (const line of lines) {
         try {
           const p = JSON.parse(

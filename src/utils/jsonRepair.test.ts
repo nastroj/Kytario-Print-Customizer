@@ -100,7 +100,7 @@ describe('tryParseSequenceOrNdjson', () => {
       '{"title":"A","content":"x"},{"title":"B","content":"y"}',
     );
     expect(result).toHaveLength(2);
-    expect(result?.[1].title).toBe('B');
+    expect((result?.[1] as { title?: string })?.title).toBe('B');
   });
 
   it('parses newline-delimited JSON when wrapping fails', () => {

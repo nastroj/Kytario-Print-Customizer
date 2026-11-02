@@ -3,6 +3,7 @@
  * or non-standard Songbook JSON with multi-pass recovery.
  */
 import type { SongbookData, Song } from '../types';
+import { isRecord, type JsonValue, type RawSongbookLike } from '../types/rawSongbook';
 import {
   preprocessJsonText,
   fixUnescapedControlCharsInJson,
@@ -13,6 +14,16 @@ import {
 import { recoverSongsFromCorruptedText } from './normalizeSong';
 import { normalizeSongbookData } from './normalizeSongbook';
 import { extractSongbookUrlAndSlug } from './urlSlug';
+
+/**
+ * Converts an arbitrary parsed-JSON value into the raw songbook record type.
+ * Arrays are wrapped in `{ songs }` so downstream extraction still finds them.
+ */
+function asRawSongbook(value: JsonValue): RawSongbookLike {
+  if (isRecord(value)) return value;
+  if (Array.isArray(value)) return { songs: value };
+  return {};
+}
 
 export function safeParseSongbookJson(rawJson: string): {
   data: SongbookData;
@@ -28,8 +39,8 @@ export function safeParseSongbookJson(rawJson: string): {
 
   // Attempt 1: Standard JSON.parse directly
   try {
-    const parsed = JSON.parse(cleaned);
-    const data = normalizeSongbookData(parsed, cleaned);
+    const parsed = JSON.parse(cleaned) as JsonValue;
+    const data = normalizeSongbookData(asRawSongbook(parsed), cleaned);
     if (data.songs && data.songs.length > 0) {
       return { data, isRepaired: false, recoveredCount: data.songs.length };
     }
@@ -40,8 +51,8 @@ export function safeParseSongbookJson(rawJson: string): {
   // Attempt 2: Fix unescaped newlines/tabs inside strings and trailing commas
   try {
     const sanitized = fixUnescapedControlCharsInJson(removeTrailingCommas(cleaned));
-    const parsed = JSON.parse(sanitized);
-    const data = normalizeSongbookData(parsed, sanitized);
+    const parsed = JSON.parse(sanitized) as JsonValue;
+    const data = normalizeSongbookData(asRawSongbook(parsed), sanitized);
     if (data.songs && data.songs.length > 0) {
       return { data, isRepaired: true, recoveredCount: data.songs.length };
     }
@@ -53,8 +64,8 @@ export function safeParseSongbookJson(rawJson: string): {
   try {
     const balanced = balanceJsonBrackets(cleaned);
     const sanitizedBalanced = fixUnescapedControlCharsInJson(removeTrailingCommas(balanced));
-    const parsed = JSON.parse(sanitizedBalanced);
-    const data = normalizeSongbookData(parsed, sanitizedBalanced);
+    const parsed = JSON.parse(sanitizedBalanced) as JsonValue;
+    const data = normalizeSongbookData(asRawSongbook(parsed), sanitizedBalanced);
     if (data.songs && data.songs.length > 0) {
       return { data, isRepaired: true, recoveredCount: data.songs.length };
     }
@@ -65,7 +76,7 @@ export function safeParseSongbookJson(rawJson: string): {
   // Attempt 4: Try parsing NDJSON or comma-separated object sequences
   const seqObjects = tryParseSequenceOrNdjson(cleaned);
   if (seqObjects && seqObjects.length > 0) {
-    const data = normalizeSongbookData(seqObjects, cleaned);
+    const data = normalizeSongbookData(seqObjects as unknown as RawSongbookLike, cleaned);
     if (data.songs && data.songs.length > 0) {
       return { data, isRepaired: true, recoveredCount: data.songs.length };
     }

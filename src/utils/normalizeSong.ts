@@ -4,67 +4,94 @@
  * for severely corrupted/truncated files.
  */
 import type { Song } from '../types';
+import {
+  asRecord,
+  firstRawString,
+  rawBoolean,
+  rawNumber,
+  rawString,
+  type JsonValue,
+  type RawLike,
+  type RawSongLike,
+} from '../types/rawSongbook';
 import { convertKytarioSectionsToChordpro, getStringContent } from './chordpro';
 import { fixUnescapedControlCharsInJson, removeTrailingCommas } from './jsonRepair';
 
+/** Content keys checked (in order) when extracting lyrics/chord text. */
+const CONTENT_KEYS = [
+  'content',
+  'lyrics',
+  'text',
+  'chordpro',
+  'body',
+  'chords',
+  'song_text',
+  'text_original',
+  'original_text',
+  'tab',
+  'lines',
+] as const;
+
+/** Title keys checked (in order) when resolving a song's display name. */
+const TITLE_KEYS = ['title', 'name', 'songName', 'song_title', 'headline'] as const;
+
+/** Reads a raw property as string|number|undefined for Song metadata fields. */
+function rawScalar(obj: RawLike, key: string): string | number | undefined {
+  const v = obj[key];
+  return typeof v === 'string' || typeof v === 'number' ? v : undefined;
+}
+
 /**
  * Normalizes a single raw object into a complete Song entity.
+ * Input is untrusted JSON; all field access goes through typed helpers.
+ * Also accepts an already-normalized `Song` (used by the ZIP importer to
+ * re-normalize indices).
  */
-export function normalizeSingleSong(s: any, idx = 0): Song {
+export function normalizeSingleSong(input: RawSongLike | Song, idx = 0): Song {
+  const s: RawLike = { ...input };
   let content = '';
-  if (
-    Array.isArray(s.sections) &&
-    s.sections.some((sec: any) => sec && Array.isArray(sec.tokens))
-  ) {
-    content = convertKytarioSectionsToChordpro(s.sections);
+  if (Array.isArray(s.sections) && s.sections.some((sec) => Array.isArray(asRecord(sec)?.tokens))) {
+    content = convertKytarioSectionsToChordpro(s.sections as unknown[]);
   }
 
   if (!content) {
-    content =
-      getStringContent(s.content) ||
-      getStringContent(s.lyrics) ||
-      getStringContent(s.text) ||
-      getStringContent(s.chordpro) ||
-      getStringContent(s.body) ||
-      getStringContent(s.chords) ||
-      getStringContent(s.song_text) ||
-      getStringContent(s.text_original) ||
-      getStringContent(s.original_text) ||
-      getStringContent(s.tab) ||
-      getStringContent(s.lines) ||
-      '';
+    for (const key of CONTENT_KEYS) {
+      content = getStringContent(s[key] as JsonValue);
+      if (content) break;
+    }
   }
 
-  const title =
-    s.title ||
-    s.name ||
-    s.songName ||
-    s.song_title ||
-    s.headline ||
-    (s.id ? `Song ${s.id}` : `Song ${idx + 1}`);
+  const idValue = s.id;
+  const idText =
+    typeof idValue === 'string' || typeof idValue === 'number' ? String(idValue) : '';
 
-  // In Kytario, s.interpreter is the performer/band (e.g. Jaroslav Ježek, Nirvana, Lucie),
-  // while s.author is the composer/lyricist (e.g. Jiří Voskovec, Jan Werich).
+  const title = firstRawString(s, TITLE_KEYS) || (idText ? `Song ${idText}` : `Song ${idx + 1}`);
+
+  // In Kytario, interpreter is the performer/band (e.g. Jaroslav Ježek, Nirvana, Lucie),
+  // while author is the composer/lyricist (e.g. Jiří Voskovec, Jan Werich).
   const artist =
-    s.interpreter || s.artist || s.author || s.composer || s.performer || s.band || s.group || '';
+    firstRawString(s, ['interpreter', 'artist', 'author', 'composer', 'performer', 'band', 'group']) || '';
 
-  const author = s.author || s.composer || s.artist || s.interpreter || s.performer || '';
+  const author = firstRawString(s, ['author', 'composer', 'artist', 'interpreter', 'performer']) || '';
+
+  const capoValue = s.capo;
+  const key = firstRawString(s, ['tonalKey', 'key']);
 
   return {
-    id: s.id ? `${s.id}` : `song-${idx + 1}-${Math.random().toString(36).substring(2, 7)}`,
+    id: idText ? idText : `song-${idx + 1}-${Math.random().toString(36).substring(2, 7)}`,
     title: String(title),
     name: String(title),
     author: String(author),
     artist: String(artist),
     content: String(content),
-    rating: s.rating,
-    capo: s.capo !== undefined && s.capo !== null ? s.capo : undefined,
-    key: s.tonalKey || s.key,
-    tonalKey: s.tonalKey || s.key,
-    tempo: s.tempo,
-    releaseYear: s.releaseYear,
-    isPrivate: !!(s.isPrivate || s.visibility === 'private'),
-    createdAt: s.createdAt,
+    rating: rawNumber(s, 'rating'),
+    capo: capoValue === undefined || capoValue === null ? undefined : (capoValue as string | number),
+    key: key || undefined,
+    tonalKey: key || undefined,
+    tempo: rawScalar(s, 'tempo'),
+    releaseYear: rawScalar(s, 'releaseYear'),
+    isPrivate: rawBoolean(s, 'isPrivate') || rawString(s, 'visibility') === 'private',
+    createdAt: rawString(s, 'createdAt') || undefined,
   };
 }
 
@@ -72,19 +99,22 @@ export function normalizeSingleSong(s: any, idx = 0): Song {
  * Deeply extracts songs from any JSON object, array, or dictionary structure.
  * Uses a non-short-circuiting approach to collect all possible songs across multiple properties.
  */
-export function extractSongsFromAny(data: any, seen = new Set()): Song[] {
-  if (!data || seen.has(data)) return [];
-  if (typeof data === 'object') seen.add(data);
+export function extractSongsFromAny(data: JsonValue | unknown, seen = new Set<object>()): Song[] {
+  if (!data || typeof data !== 'object') return [];
+  const dataObj = data as object;
+  if (seen.has(dataObj)) return [];
+  seen.add(dataObj);
 
   const songs: Song[] = [];
 
   // 1. Handle Arrays (e.g. [ {song}, {song} ] or [ {section}, {section} ])
   if (Array.isArray(data)) {
-    for (const item of data) {
-      if (!item) continue;
+    for (const item of data as JsonValue[]) {
+      if (!item || typeof item !== 'object') continue;
       // Kytario sometimes wraps songs in an 'item' or 'song' property
-      const s = item.song || item.item || item;
-      if (typeof s === 'object') {
+      const wrapped = asRecord(item) ?? undefined;
+      const s = (wrapped && (asRecord(wrapped.song) || asRecord(wrapped.item))) || wrapped;
+      if (s) {
         const nested = extractSongsFromAny(s, seen);
         songs.push(...nested);
       }
@@ -92,35 +122,27 @@ export function extractSongsFromAny(data: any, seen = new Set()): Song[] {
     return songs;
   }
 
-  if (typeof data !== 'object') return [];
+  const record = asRecord(data);
+  if (!record) return [];
 
   // 2. Check if the current object IS a song
-  const hasTitle = !!(
-    data.title ||
-    data.name ||
-    data.songName ||
-    data.song_title ||
-    data.song_name ||
-    data.headline ||
-    data.title_name
-  );
+  const hasTitle = !!firstRawString(record, [
+    'title',
+    'name',
+    'songName',
+    'song_title',
+    'song_name',
+    'headline',
+    'title_name',
+  ]);
 
-  const contentValue =
-    data.content ||
-    data.lyrics ||
-    data.text ||
-    data.chordpro ||
-    data.body ||
-    data.chords ||
-    data.song_text ||
-    data.text_original ||
-    data.original_text ||
-    data.tab ||
-    data.lines;
+  const contentValue = CONTENT_KEYS.map((k) => record[k]).find((v) => v !== undefined);
 
   const hasTokenSections =
-    Array.isArray(data.sections) &&
-    data.sections.some((sec: any) => sec && Array.isArray(sec.tokens) && sec.tokens.length > 0);
+    Array.isArray(record.sections) &&
+    record.sections.some(
+      (sec) => Array.isArray(asRecord(sec)?.tokens) && (asRecord(sec)?.tokens as unknown[]).length > 0,
+    );
 
   const hasContent =
     hasTokenSections ||
@@ -134,14 +156,8 @@ export function extractSongsFromAny(data: any, seen = new Set()): Song[] {
 
   // A song is identified if it has content OR a title.
   // We prioritize objects with content to avoid treating entire sections as single songs if they have a title.
-  if (hasContent && hasTitle) {
-    songs.push(normalizeSingleSong(data, songs.length));
-    return songs;
-  }
-
-  // If it ONLY has content, it's probably a song without a title
-  if (hasContent && !hasTitle) {
-    songs.push(normalizeSingleSong(data, songs.length));
+  if (hasContent) {
+    songs.push(normalizeSingleSong(record, songs.length));
     return songs;
   }
 
@@ -169,7 +185,8 @@ export function extractSongsFromAny(data: any, seen = new Set()): Song[] {
 
   let hasNestedSongs = false;
   for (const prop of commonProps) {
-    if (data[prop] && (Array.isArray(data[prop]) || typeof data[prop] === 'object')) {
+    const v = record[prop];
+    if (v && (Array.isArray(v) || typeof v === 'object')) {
       hasNestedSongs = true;
       break;
     }
@@ -178,35 +195,38 @@ export function extractSongsFromAny(data: any, seen = new Set()): Song[] {
   if (hasTitle && !hasNestedSongs) {
     // Looks like a song metadata (title only), we import it as a song with empty lyrics
     // This allows ToC to be populated even if lyrics fetch fails for some reason.
-    songs.push(normalizeSingleSong(data, songs.length));
+    songs.push(normalizeSingleSong(record, songs.length));
     return songs;
   }
 
   // 3. Otherwise, look for songs in common property names
   for (const prop of commonProps) {
-    if (data[prop]) {
+    const value = record[prop];
+    if (value) {
       // Special case for sections that might contain songs directly
-      if ((prop === 'sections' || prop === 'items') && Array.isArray(data[prop])) {
-        for (const item of data[prop]) {
-          if (item && item.songs && Array.isArray(item.songs)) {
-            songs.push(...extractSongsFromAny(item.songs, seen));
+      if ((prop === 'sections' || prop === 'items') && Array.isArray(value)) {
+        for (const item of value) {
+          const itemRec = asRecord(item);
+          if (itemRec && Array.isArray(itemRec.songs)) {
+            songs.push(...extractSongsFromAny(itemRec.songs, seen));
           } else {
             songs.push(...extractSongsFromAny(item, seen));
           }
         }
       } else {
-        songs.push(...extractSongsFromAny(data[prop], seen));
+        songs.push(...extractSongsFromAny(value, seen));
       }
     }
   }
 
   // 4. If still no songs found, perform exhaustive search over all object properties
   if (songs.length === 0) {
-    for (const key of Object.keys(data)) {
+    for (const key of Object.keys(record)) {
       if (commonProps.includes(key)) continue; // Already checked
-      if (data[key] && typeof data[key] === 'object') {
+      const v = record[key];
+      if (v && typeof v === 'object') {
         // Only recurse into objects that might be containers (avoiding circular or massive depth if possible)
-        songs.push(...extractSongsFromAny(data[key], seen));
+        songs.push(...extractSongsFromAny(v, seen));
       }
     }
   }
@@ -277,9 +297,10 @@ export function recoverSongsFromCorruptedText(raw: string): Song[] {
     const sanitized = fixUnescapedControlCharsInJson(removeTrailingCommas(slice));
 
     try {
-      const parsed = JSON.parse(sanitized);
-      const s = parsed.song || parsed.item || parsed;
-      if (s && (s.title || s.name || s.content || s.lyrics || s.text)) {
+      const parsed = JSON.parse(sanitized) as JsonValue;
+      const parsedRec = asRecord(parsed);
+      const s = (parsedRec && (asRecord(parsedRec.song) || asRecord(parsedRec.item))) || parsedRec;
+      if (s && firstRawString(s, ['title', 'name', 'content', 'lyrics', 'text'])) {
         songs.push(normalizeSingleSong(s, songs.length));
       }
     } catch {

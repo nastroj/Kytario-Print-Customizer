@@ -1,6 +1,12 @@
 /**
  * Songbook URL / slug normalization, discovery, and cover-page URL resolution.
  */
+import {
+  asRecord,
+  isRecord,
+  type JsonValue,
+  type RawLike,
+} from '../types/rawSongbook';
 
 /**
  * Normalizes an arbitrary URL, path, or slug into clean full URL, short/display URL, and slug.
@@ -81,36 +87,40 @@ export function normalizeUrlAndShortUrl(
  * Searches songbook raw data or raw text for URL, slug, shortUrl, or code.
  */
 export function extractSongbookUrlAndSlug(
-  raw: any,
+  raw: JsonValue | unknown,
   rawJsonText?: string,
 ): { url: string; shortUrl: string; slug?: string } {
-  const candidates: any[] = [];
-  if (raw && typeof raw === 'object') {
-    candidates.push(raw);
-    if (raw.songbook && typeof raw.songbook === 'object') candidates.push(raw.songbook);
-    if (raw.data && typeof raw.data === 'object') {
-      candidates.push(raw.data);
-      if (raw.data.songbook && typeof raw.data.songbook === 'object')
-        candidates.push(raw.data.songbook);
+  const candidates: RawLike[] = [];
+  const root = asRecord(raw);
+  if (root) {
+    candidates.push(root);
+    // Collect known nested container objects that may carry the identifiers
+    const containerKeys = ['songbook', 'data', 'payload', 'result', 'meta', 'metadata', 'info', 'collection'] as const;
+    for (const key of containerKeys) {
+      const nested = asRecord(root[key]);
+      if (nested) {
+        candidates.push(nested);
+        const innerSongbook = asRecord(nested.songbook);
+        if (innerSongbook) candidates.push(innerSongbook);
+      }
     }
-    if (raw.payload && typeof raw.payload === 'object') {
-      candidates.push(raw.payload);
-      if (raw.payload.songbook && typeof raw.payload.songbook === 'object')
-        candidates.push(raw.payload.songbook);
-    }
-    if (raw.result && typeof raw.result === 'object') {
-      candidates.push(raw.result);
-      if (raw.result.songbook && typeof raw.result.songbook === 'object')
-        candidates.push(raw.result.songbook);
-    }
-    if (raw.meta && typeof raw.meta === 'object') candidates.push(raw.meta);
-    if (raw.metadata && typeof raw.metadata === 'object') candidates.push(raw.metadata);
-    if (raw.info && typeof raw.info === 'object') candidates.push(raw.info);
-    if (raw.collection && typeof raw.collection === 'object') candidates.push(raw.collection);
-    if (Array.isArray(raw.songbookSongs) && raw.songbookSongs[0]?.song?.project) {
-      candidates.push(raw.songbookSongs[0].song.project);
+    const songbookSongs = root.songbookSongs;
+    if (Array.isArray(songbookSongs)) {
+      const first = asRecord(songbookSongs[0]);
+      const song = first && asRecord(first.song);
+      const project = song && asRecord(song.project);
+      if (project) candidates.push(project);
     }
   }
+
+  /** Reads the first non-empty trimmed string value for any of the keys. */
+  const readStringKey = (obj: RawLike, keys: readonly string[]): string | undefined => {
+    for (const k of keys) {
+      const v = obj[k];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    return undefined;
+  };
 
   const slugKeys = [
     'urlToken',
@@ -158,30 +168,15 @@ export function extractSongbookUrlAndSlug(
 
   for (const obj of candidates) {
     if (!foundSlug) {
-      for (const k of slugKeys) {
-        if (typeof obj[k] === 'string' && obj[k].trim()) {
-          foundSlug = obj[k].trim();
-          break;
-        }
-      }
+      foundSlug = readStringKey(obj, slugKeys);
     }
     if (!foundUrl) {
-      for (const k of urlKeys) {
-        if (typeof obj[k] === 'string' && obj[k].trim()) {
-          foundUrl = obj[k].trim();
-          break;
-        }
-      }
+      foundUrl = readStringKey(obj, urlKeys);
     }
     // Check if obj.id is a string slug (non-numeric)
-    if (
-      !foundSlug &&
-      !foundUrl &&
-      typeof obj.id === 'string' &&
-      obj.id.trim() &&
-      !/^\d+$/.test(obj.id.trim())
-    ) {
-      foundSlug = obj.id.trim();
+    if (!foundSlug && !foundUrl) {
+      const idStr = readStringKey(obj, ['id']);
+      if (idStr && !/^\d+$/.test(idStr)) foundSlug = idStr;
     }
     if (foundUrl && foundSlug) break;
   }

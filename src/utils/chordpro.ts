@@ -1,81 +1,110 @@
 /**
  * Helpers for converting Kytario AST token sections into ChordPro-style text.
  */
+import {
+  asRecord,
+  firstRawString,
+  rawNumber,
+  type JsonValue,
+  type RawLike,
+  type RawSectionLike,
+} from '../types/rawSongbook';
 
 /**
  * Converts Kytario AST token sections into ChordPro formatted text.
+ * Accepts the untrusted section array shape found in imported payloads;
+ * non-object sections and tokens are skipped defensively.
  */
-export function convertKytarioSectionsToChordpro(sections: any[]): string {
+export function convertKytarioSectionsToChordpro(sections: readonly unknown[]): string {
   if (!Array.isArray(sections) || sections.length === 0) return '';
   let fullText = '';
-  for (const sec of sections) {
+  for (const rawSec of sections) {
+    const sec = asRecord(rawSec);
     if (!sec) continue;
     // Always add a section title line to distinguish from inline references, even if empty
-    const title = (sec.title && String(sec.title).trim()) || '';
+    const title = firstRawString(sec, ['title']).trim();
     fullText += `- ${title}`.trim() + '\n';
 
-    if (Array.isArray(sec.tokens)) {
-      for (const t of sec.tokens) {
+    const tokens = Array.isArray(sec.tokens) ? (sec.tokens as JsonValue[]) : undefined;
+    if (tokens) {
+      for (const rawTok of tokens) {
+        const t = asRecord(rawTok);
         if (!t) continue;
-        if (t.type === 0) {
-          fullText += t.content !== undefined ? String(t.content) : '';
-        } else if (t.type === 1 || t.type === 2) {
-          const chord = t.content !== undefined ? String(t.content).trim() : '';
+        const type = rawNumber(t, 'type');
+        const content = t.content;
+        if (type === 0) {
+          fullText += content !== undefined ? String(content) : '';
+        } else if (type === 1 || type === 2) {
+          const chord = content !== undefined ? String(content).trim() : '';
           if (chord) {
             fullText += `[${chord}]`;
           }
-        } else if (t.type === 3) {
-          const count = Number(t.content) || 1;
+        } else if (type === 3) {
+          const count = Number(content) || 1;
           fullText += ' '.repeat(Math.max(1, count));
-        } else if (t.type === 4) {
+        } else if (type === 4) {
           fullText += '|: ';
-        } else if (t.type === 5) {
-          const count = t.content !== undefined ? String(t.content) : '2';
+        } else if (type === 5) {
+          const count = content !== undefined ? String(content) : '2';
           fullText += ` :| (${count}x)`;
-        } else if (t.type === 6) {
+        } else if (type === 6) {
           fullText += '\n';
-        } else if (t.content !== undefined) {
-          fullText += String(t.content);
+        } else if (content !== undefined) {
+          fullText += String(content);
         }
       }
-    } else if (typeof sec.content === 'string') {
-      fullText += sec.content;
-    } else if (typeof sec.text === 'string') {
-      fullText += sec.text;
+    } else {
+      const contentStr = firstRawString(sec, ['content']);
+      const textStr = firstRawString(sec, ['text']);
+      if (typeof sec.content === 'string') fullText += contentStr;
+      else if (typeof sec.text === 'string') fullText += textStr;
     }
     fullText += '\n\n';
   }
   return fullText.trim();
 }
 
+/** True when the value is a non-null, non-array plain object. */
+function isPlainObject(val: JsonValue): val is RawLike {
+  return typeof val === 'object' && val !== null && !Array.isArray(val);
+}
+
 /**
  * Internal helper to find string content from a potential song object field.
+ * Handles strings, arrays of line objects/strings, and single wrapper objects.
  */
-export function getStringContent(val: any): string {
-  if (!val) return '';
+export function getStringContent(val: JsonValue | undefined): string {
+  if (val === undefined || val === null || val === '') return '';
   if (typeof val === 'string') return val;
+  if (typeof val !== 'object') return String(val);
   if (Array.isArray(val)) {
     return val
-      .map((l: any) =>
-        typeof l === 'string'
-          ? l
-          : l?.text || l?.content || l?.val || l?.line || l?.text_original || l?.lyrics || '',
-      )
+      .map((l) => {
+        if (typeof l === 'string') return l;
+        if (isPlainObject(l)) {
+          return firstRawString(l, [
+            'text',
+            'content',
+            'val',
+            'line',
+            'text_original',
+            'lyrics',
+          ]);
+        }
+        return '';
+      })
       .join('\n');
   }
-  if (typeof val === 'object') {
-    return (
-      val.text ||
-      val.content ||
-      val.lyrics ||
-      val.body ||
-      val.val ||
-      val.raw ||
-      val.text_original ||
-      val.original_text ||
-      val.chordpro ||
-      ''
-    );
-  }
-  return String(val);
+  // Wrapper object with one of the known content keys
+  return firstRawString(val, [
+    'text',
+    'content',
+    'lyrics',
+    'body',
+    'val',
+    'raw',
+    'text_original',
+    'original_text',
+    'chordpro',
+  ]);
 }

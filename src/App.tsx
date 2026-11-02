@@ -22,6 +22,7 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
 import { Song, SongbookData, PrintSettings, ZoomMode } from './types';
+import type { JsonValue, RawLike } from './types/rawSongbook';
 import {
   FileJson,
   Upload,
@@ -779,21 +780,24 @@ export default function App() {
       });
 
       try {
-        const combinedSongs: any[] = [];
+        const combinedSongs: Song[] = [];
         const unreadableFiles: string[] = [];
         for (const file of files) {
           try {
             // Non-blocking async read (File.text() with FileReader fallback)
             const text = await readFileAsText(file);
-            const parsed = JSON.parse(text);
+            const parsed: JsonValue = JSON.parse(text);
             if (Array.isArray(parsed)) {
               combinedSongs.push(
-                ...parsed.map((s, idx) => normalizeSingleSong(s, combinedSongs.length + idx)),
+                ...parsed.map((s, idx) =>
+                  normalizeSingleSong(s as RawLike, combinedSongs.length + idx),
+                ),
               );
-            } else if (parsed.song) {
-              combinedSongs.push(normalizeSingleSong(parsed.song, combinedSongs.length));
-            } else if (parsed.name || parsed.title || parsed.content || parsed.sections) {
-              combinedSongs.push(normalizeSingleSong(parsed, combinedSongs.length));
+            } else if (!Array.isArray(parsed) && parsed && typeof parsed === 'object' && 'song' in parsed) {
+              const songVal = (parsed as RawLike).song;
+              combinedSongs.push(normalizeSingleSong(songVal as RawLike, combinedSongs.length));
+            } else if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && (('name' in parsed) || ('title' in parsed) || ('content' in parsed) || ('sections' in parsed))) {
+              combinedSongs.push(normalizeSingleSong(parsed as RawLike, combinedSongs.length));
             } else {
               unreadableFiles.push(file.name);
             }

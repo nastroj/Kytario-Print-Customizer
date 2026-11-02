@@ -2,6 +2,13 @@
  * Normalizes various songbook JSON structures into a unified SongbookData shape.
  */
 import type { SongbookData } from '../types';
+import {
+  asRecord,
+  firstRawString,
+  isRecord,
+  type JsonValue,
+  type RawSongbookLike,
+} from '../types/rawSongbook';
 import { extractSongsFromAny } from './normalizeSong';
 import { extractSongbookUrlAndSlug } from './urlSlug';
 
@@ -37,49 +44,77 @@ export function cleanSongbookTitle(rawTitle: string): string {
   return text || rawTitle.trim();
 }
 
+/** Reads a nested raw record chain, e.g. `rawPath(o, 'songbook', 'title')`. */
+function rawPath(obj: RawSongbookLike | undefined, ...keys: string[]): JsonValue | undefined {
+  let cur: JsonValue | undefined = obj;
+  for (const key of keys) {
+    const rec = asRecord(cur);
+    if (!rec) return undefined;
+    cur = rec[key];
+  }
+  return cur;
+}
+
+/** Reads the first non-empty string from a list of (possibly nested) paths. */
+function firstRawPath(obj: RawSongbookLike | undefined, paths: readonly string[][]): string {
+  for (const path of paths) {
+    const v = rawPath(obj, ...path);
+    if (typeof v === 'string' && v.length > 0) return v;
+    if (typeof v === 'number') return String(v);
+  }
+  return '';
+}
+
 /**
  * Normalizes various songbook JSON structures into a unified SongbookData
+ * Input is untrusted JSON; all field access goes through typed helpers.
  */
-export function normalizeSongbookData(raw: any, rawJsonText?: string): SongbookData {
+export function normalizeSongbookData(raw: RawSongbookLike, rawJsonText?: string): SongbookData {
   if (!raw) return { title: 'Untitled Songbook', songs: [] };
 
   const songs = extractSongsFromAny(raw);
 
   let title = 'Songbook';
-  if (typeof raw === 'object' && !Array.isArray(raw)) {
+  if (isRecord(raw)) {
     title =
-      raw.name ||
-      raw.title ||
-      raw.songbookTitle ||
-      raw.songbook_name ||
-      raw.songbook?.name ||
-      raw.songbook?.title ||
-      raw.data?.songbook?.name ||
-      raw.data?.name ||
-      raw.data?.title ||
-      raw.payload?.name ||
-      raw.payload?.title ||
-      raw.songbookSongs?.[0]?.song?.project?.name ||
-      'Songbook';
+      firstRawPath(raw, [
+        ['name'],
+        ['title'],
+        ['songbookTitle'],
+        ['songbook_name'],
+        ['songbook', 'name'],
+        ['songbook', 'title'],
+        ['data', 'songbook', 'name'],
+        ['data', 'name'],
+        ['data', 'title'],
+        ['payload', 'name'],
+        ['payload', 'title'],
+        ['songbookSongs', '0', 'song', 'project', 'name'],
+      ]) || 'Songbook';
   }
 
   title = cleanSongbookTitle(title);
   if (!title) title = 'Songbook';
 
   const urlInfo = extractSongbookUrlAndSlug(raw, rawJsonText);
-  const urlToken =
-    typeof raw === 'object' && raw !== null
-      ? raw.urlToken ||
-        raw.url_token ||
-        raw.slugToken ||
-        raw.slug_token ||
-        raw.slug ||
-        raw.songbookSongs?.[0]?.song?.project?.urlToken ||
-        urlInfo.slug
-      : urlInfo.slug;
+  const songbookSongsValue = rawPath(raw, 'songbookSongs');
+  const firstProject = Array.isArray(songbookSongsValue)
+    ? asRecord(asRecord(asRecord(songbookSongsValue[0])?.song)?.project)
+    : undefined;
+  const urlToken = isRecord(raw)
+    ? firstRawString(raw, [
+        'urlToken',
+        'url_token',
+        'slugToken',
+        'slug_token',
+        'slug',
+      ]) ||
+      (firstProject ? firstRawString(firstProject, ['urlToken']) : '') ||
+      urlInfo.slug
+    : urlInfo.slug;
 
   return {
-    ...(typeof raw === 'object' && !Array.isArray(raw) ? raw : {}),
+    ...(isRecord(raw) ? raw : {}),
     title,
     name: title,
     urlToken,
@@ -87,5 +122,5 @@ export function normalizeSongbookData(raw: any, rawJsonText?: string): SongbookD
     shortUrl: urlInfo.shortUrl,
     slug: urlInfo.slug,
     songs,
-  };
+  } as SongbookData;
 }
