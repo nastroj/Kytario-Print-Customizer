@@ -5,6 +5,7 @@ import path from 'path';
 import {fileURLToPath} from 'url';
 import {defineConfig, loadEnv} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
+/// <reference types="vitest/config" />
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -165,6 +166,11 @@ export default defineConfig(({ command, mode }) => {
       hmr: !disableHmr,
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: disableHmr ? null : {},
+    },
+    test: {
+      environment: 'node',
+      globals: true,
+      include: ['src/**/*.test.{ts,tsx}'],
     },
   };
 });
