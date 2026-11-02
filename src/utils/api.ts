@@ -112,22 +112,24 @@ function decodeHtmlEntities(str: string): string {
     .trim();
 }
 
-function sanitizeExtractedTitle(rawTitle: string): string | null {
+function sanitizeExtractedTitle(rawTitle: string, token?: string): string | null {
   if (!rawTitle) return null;
   let text = decodeHtmlEntities(rawTitle).trim();
 
   text = cleanSongbookTitle(text);
 
-  // Ignore generic fallback titles
+  if (!text) return null;
+
+  // Ignore generic fallback titles or titles that match token/slug case-insensitively
   const lower = text.toLowerCase();
   if (
-    !text ||
     lower === 'kytario' ||
     lower === 'songbook' ||
     lower === 'zpěvník' ||
     lower === 'zpevnik' ||
     lower === 'digital songbook' ||
-    lower === 'digitální zpěvník'
+    lower === 'digitální zpěvník' ||
+    (token && lower === token.trim().toLowerCase())
   ) {
     return null;
   }
@@ -135,7 +137,7 @@ function sanitizeExtractedTitle(rawTitle: string): string | null {
   return text;
 }
 
-export function extractTitleFromHtml(html: string): string | null {
+export function extractTitleFromHtml(html: string, token?: string): string | null {
   if (typeof html !== 'string') return null;
 
   // 1. OpenGraph / Twitter / Standard Meta Tags (Primary source for Kytario songbook titles)
@@ -144,7 +146,7 @@ export function extractTitleFromHtml(html: string): string | null {
   let metaMatch;
   while ((metaMatch = metaRegex.exec(html)) !== null) {
     if (metaMatch[1]) {
-      const clean = sanitizeExtractedTitle(metaMatch[1]);
+      const clean = sanitizeExtractedTitle(metaMatch[1], token);
       if (clean) return clean;
     }
   }
@@ -153,7 +155,7 @@ export function extractTitleFromHtml(html: string): string | null {
     /<meta\s+[^>]*?content=["']([^"']+)["']\s+(?:property|name)=["'](?:og:title|twitter:title|title)["']/gi;
   while ((metaMatch = metaRevRegex.exec(html)) !== null) {
     if (metaMatch[1]) {
-      const clean = sanitizeExtractedTitle(metaMatch[1]);
+      const clean = sanitizeExtractedTitle(metaMatch[1], token);
       if (clean) return clean;
     }
   }
@@ -161,7 +163,7 @@ export function extractTitleFromHtml(html: string): string | null {
   // 2. <title> Tag
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   if (titleMatch && titleMatch[1]) {
-    const clean = sanitizeExtractedTitle(titleMatch[1]);
+    const clean = sanitizeExtractedTitle(titleMatch[1], token);
     if (clean) return clean;
   }
 
@@ -169,13 +171,13 @@ export function extractTitleFromHtml(html: string): string | null {
   const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
   if (h1Match && h1Match[1]) {
     const stripped = h1Match[1].replace(/<[^>]+>/g, '');
-    const clean = sanitizeExtractedTitle(stripped);
+    const clean = sanitizeExtractedTitle(stripped, token);
     if (clean) return clean;
   }
 
   const strongMatch = html.match(/<strong>\s*([^<]+?)\s*<\/strong>/i);
   if (strongMatch && strongMatch[1]) {
-    const clean = sanitizeExtractedTitle(strongMatch[1]);
+    const clean = sanitizeExtractedTitle(strongMatch[1], token);
     if (clean) return clean;
   }
 
@@ -192,7 +194,7 @@ export function extractTitleFromHtml(html: string): string | null {
         const candidate =
           obj.songbookName || obj.headline || (obj.name !== authorName ? obj.name : null);
         if (candidate && typeof candidate === 'string') {
-          const clean = sanitizeExtractedTitle(candidate);
+          const clean = sanitizeExtractedTitle(candidate, token);
           if (clean) return clean;
         }
       }
@@ -321,18 +323,26 @@ async function fetchViaPublicProxies(token: string, rawUrl?: string): Promise<an
   const candidateUrls: string[] = [];
 
   if (rawUrl && /^https?:\/\//i.test(rawUrl.trim())) {
-    candidateUrls.push(rawUrl.trim().split('#')[0]);
+    const cleanRaw = rawUrl.trim().split('#')[0];
+    candidateUrls.push(cleanRaw);
+    if (cleanRaw.toLowerCase() !== cleanRaw) {
+      candidateUrls.push(cleanRaw.toLowerCase());
+    }
   }
 
-  if (token) {
-    candidateUrls.push(`https://kytario.com/api/songbooks/${token}/sections`);
-    candidateUrls.push(`https://kytario.com/cs/${token}`);
-    candidateUrls.push(`https://kytario.com/sk/${token}`);
-    candidateUrls.push(`https://kytario.com/en/${token}`);
-    candidateUrls.push(`https://kytario.com/${token}`);
-    candidateUrls.push(`https://kytario.com/zpevnik/${token}`);
-    candidateUrls.push(`https://kytario.com/api/v1/songbooks/${token}/sections`);
-    candidateUrls.push(`https://kytario.com/api/songbooks/${token}`);
+  const candidateTokens = Array.from(
+    new Set([token, token.toLowerCase(), token.toUpperCase()].filter(Boolean)),
+  );
+
+  for (const tok of candidateTokens) {
+    candidateUrls.push(`https://kytario.com/api/songbooks/${tok}/sections`);
+    candidateUrls.push(`https://kytario.com/cs/${tok}`);
+    candidateUrls.push(`https://kytario.com/sk/${tok}`);
+    candidateUrls.push(`https://kytario.com/en/${tok}`);
+    candidateUrls.push(`https://kytario.com/${tok}`);
+    candidateUrls.push(`https://kytario.com/zpevnik/${tok}`);
+    candidateUrls.push(`https://kytario.com/api/v1/songbooks/${tok}/sections`);
+    candidateUrls.push(`https://kytario.com/api/songbooks/${tok}`);
   }
 
   const uniqueEndpoints = Array.from(new Set(candidateUrls));
@@ -438,16 +448,49 @@ async function fetchViaPublicProxies(token: string, rawUrl?: string): Promise<an
 
 async function enrichTitleInClient(data: any, token: string, rawUrl?: string) {
   if (!data) return;
+
+  const candidateTokens = Array.from(
+    new Set([token, token.toLowerCase(), token.toUpperCase()].filter(Boolean)),
+  );
+
+  // 1. Try HEAD request to PDF endpoint for candidate tokens first
+  for (const tok of candidateTokens) {
+    try {
+      const pdfUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(tok)}/pdf`;
+      const res = await fetch(pdfUrl, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        const cd = res.headers.get('content-disposition');
+        if (cd) {
+          const match = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="([^"]+)"/i);
+          if (match && match[1]) {
+            let filename = decodeURIComponent(match[1])
+              .replace(/\.pdf$/i, '')
+              .trim()
+              .replace(/^'+|'+$/g, '');
+            const clean = sanitizeExtractedTitle(filename, tok);
+            if (clean) {
+              data.title = clean;
+              data.name = clean;
+              data.songbookTitle = clean;
+              return;
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Try webpage scraping via public proxy
   const urlsToTry: string[] = [];
   if (rawUrl && /^https?:\/\//i.test(rawUrl.trim())) {
     urlsToTry.push(rawUrl.trim().split('#')[0]);
   }
-  if (token) {
-    urlsToTry.push(`https://kytario.com/${token}`);
-    urlsToTry.push(`https://kytario.com/cs/${token}`);
-    urlsToTry.push(`https://kytario.com/sk/${token}`);
-    urlsToTry.push(`https://kytario.com/en/${token}`);
-    urlsToTry.push(`https://kytario.com/zpevnik/${token}`);
+  for (const tok of candidateTokens) {
+    urlsToTry.push(`https://kytario.com/${tok}`);
+    urlsToTry.push(`https://kytario.com/cs/${tok}`);
+    urlsToTry.push(`https://kytario.com/sk/${tok}`);
+    urlsToTry.push(`https://kytario.com/en/${tok}`);
+    urlsToTry.push(`https://kytario.com/zpevnik/${tok}`);
   }
 
   const uniqueUrls = Array.from(new Set(urlsToTry));
@@ -459,7 +502,7 @@ async function enrichTitleInClient(data: any, token: string, rawUrl?: string) {
       if (res.ok) {
         const wrapper = await res.json();
         if (wrapper && wrapper.contents) {
-          const title = extractTitleFromHtml(wrapper.contents);
+          const title = extractTitleFromHtml(wrapper.contents, token);
           if (title) {
             data.title = title;
             data.name = title;
@@ -547,27 +590,37 @@ export function extractSongbookTokensFromProjectHtml(
  */
 export async function checkSongbookExists(
   tokenOrUrl: string,
-): Promise<{ exists: boolean; status?: number; error?: string }> {
+): Promise<{ exists: boolean; status?: number; error?: string; resolvedToken?: string }> {
   try {
-    const token = extractKytarioSlug(tokenOrUrl) || tokenOrUrl.trim();
-    if (!token) return { exists: false, error: 'Empty songbook token' };
+    const rawToken = extractKytarioSlug(tokenOrUrl) || tokenOrUrl.trim();
+    if (!rawToken) return { exists: false, error: 'Empty songbook token' };
 
-    const checkUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(token)}/sections`;
-    const res = await fetch(checkUrl, {
-      method: 'GET',
-      signal: AbortSignal.timeout(4000),
-    });
+    const candidateTokens = Array.from(
+      new Set([rawToken, rawToken.toLowerCase(), rawToken.toUpperCase()].filter(Boolean)),
+    );
 
-    if (res.status === 404 || res.status === 400) {
-      return {
-        exists: false,
-        status: res.status,
-        error: `Songbook "${token}" was not found (404).`,
-      };
+    for (const token of candidateTokens) {
+      const checkUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(token)}/sections`;
+      try {
+        const res = await fetch(checkUrl, {
+          method: 'GET',
+          signal: AbortSignal.timeout(4000),
+        });
+
+        if (res.status !== 404 && res.status !== 400) {
+          return { exists: true, status: res.status, resolvedToken: token };
+        }
+      } catch {
+        // Continue to next candidate
+      }
     }
-    return { exists: true, status: res.status };
+
+    return {
+      exists: false,
+      status: 404,
+      error: `Songbook "${rawToken}" was not found (404).`,
+    };
   } catch (err: any) {
-    // If network error or timeout, let main proxy / fallback handle it without blocking
     return { exists: true };
   }
 }

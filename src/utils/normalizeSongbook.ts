@@ -78,29 +78,6 @@ export function normalizeSongbookData(raw: RawSongbookLike, rawJsonText?: string
   if (!raw) return { title: 'Untitled Songbook', songs: [] };
 
   const songs = extractSongsFromAny(raw);
-
-  let title = 'Songbook';
-  if (isRecord(raw)) {
-    title =
-      firstRawPath(raw, [
-        ['name'],
-        ['title'],
-        ['songbookTitle'],
-        ['songbook_name'],
-        ['songbook', 'name'],
-        ['songbook', 'title'],
-        ['data', 'songbook', 'name'],
-        ['data', 'name'],
-        ['data', 'title'],
-        ['payload', 'name'],
-        ['payload', 'title'],
-        ['songbookSongs', '0', 'song', 'project', 'name'],
-      ]) || 'Songbook';
-  }
-
-  title = cleanSongbookTitle(title);
-  if (!title) title = 'Songbook';
-
   const urlInfo = extractSongbookUrlAndSlug(raw, rawJsonText);
   const songbookSongsValue = rawPath(raw, 'songbookSongs');
   const firstProject = Array.isArray(songbookSongsValue)
@@ -117,6 +94,52 @@ export function normalizeSongbookData(raw: RawSongbookLike, rawJsonText?: string
       (firstProject ? firstRawString(firstProject, ['urlToken']) : '') ||
       urlInfo.slug
     : urlInfo.slug;
+
+  let title = '';
+  if (isRecord(raw)) {
+    const candidates = [
+      firstRawPath(raw, [['title']]),
+      firstRawPath(raw, [['songbookTitle']]),
+      firstRawPath(raw, [['songbook', 'title']]),
+      firstRawPath(raw, [['data', 'title']]),
+      firstRawPath(raw, [['payload', 'title']]),
+      firstRawPath(raw, [['name']]),
+      firstRawPath(raw, [['songbook_name']]),
+      firstRawPath(raw, [['songbook', 'name']]),
+      firstRawPath(raw, [['data', 'songbook', 'name']]),
+      firstRawPath(raw, [['data', 'name']]),
+      firstRawPath(raw, [['payload', 'name']]),
+      firstRawPath(raw, [['songbookSongs', '0', 'song', 'project', 'name']]),
+    ].filter(Boolean);
+
+    for (const cand of candidates) {
+      const cleaned = cleanSongbookTitle(cand);
+      if (cleaned) {
+        const lower = cleaned.toLowerCase();
+        // Ignore generic placeholder titles
+        if (
+          lower === 'kytario' ||
+          lower === 'songbook' ||
+          lower === 'zpěvník' ||
+          lower === 'zpevnik' ||
+          lower === 'digital songbook' ||
+          lower === 'digitální zpěvník'
+        ) {
+          continue;
+        }
+        // Ignore candidate if it matches the urlToken / slug case-insensitively (e.g. "BODG" vs "bodg")
+        if (urlToken && lower === urlToken.trim().toLowerCase()) {
+          continue;
+        }
+        title = cleaned;
+        break;
+      }
+    }
+  }
+
+  if (!title) {
+    title = 'Songbook';
+  }
 
   return {
     ...(isRecord(raw) ? raw : {}),

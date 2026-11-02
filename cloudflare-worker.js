@@ -86,25 +86,43 @@ export default {
         );
       }
 
-      // 3. Fetch canonical songbook sections payload from Kytario API
-      const kytarioApiUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(token)}/sections`;
-      const upstreamResponse = await fetch(kytarioApiUrl, {
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
-      });
+      const candidateTokens = Array.from(
+        new Set([token, token.toLowerCase(), token.toUpperCase()].filter(Boolean)),
+      );
 
-      if (!upstreamResponse.ok) {
+      // 3. Fetch canonical songbook sections payload from Kytario API trying candidate tokens
+      let upstreamResponse = null;
+      let successfulToken = token;
+
+      for (const tok of candidateTokens) {
+        const kytarioApiUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(tok)}/sections`;
+        try {
+          const res = await fetch(kytarioApiUrl, {
+            headers: {
+              Accept: 'application/json, text/plain, */*',
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            },
+          });
+          if (res.ok) {
+            upstreamResponse = res;
+            successfulToken = tok;
+            break;
+          }
+        } catch (err) {
+          // Continue to next candidate
+        }
+      }
+
+      if (!upstreamResponse || !upstreamResponse.ok) {
         return new Response(
           JSON.stringify({
-            error: `Kytario upstream returned status ${upstreamResponse.status}`,
-            status: upstreamResponse.status,
+            error: `Kytario upstream returned status ${upstreamResponse ? upstreamResponse.status : 404}`,
+            status: upstreamResponse ? upstreamResponse.status : 404,
             token,
           }),
           {
-            status: upstreamResponse.status,
+            status: upstreamResponse ? upstreamResponse.status : 404,
             headers: {
               'Content-Type': 'application/json',
               'Access-Control-Allow-Origin': '*',
@@ -116,33 +134,42 @@ export default {
       let payload = await upstreamResponse.json();
 
       // 4. Optionally enrich with authentic songbook title from PDF Content-Disposition
-      try {
-        const pdfHeadRes = await fetch(
-          `https://kytario.com/api/songbooks/${encodeURIComponent(token)}/pdf`,
-          {
-            method: 'HEAD',
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      for (const tok of candidateTokens) {
+        try {
+          const pdfHeadRes = await fetch(
+            `https://kytario.com/api/songbooks/${encodeURIComponent(tok)}/pdf`,
+            {
+              method: 'HEAD',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              },
             },
-          },
-        );
-        const cd = pdfHeadRes.headers.get('content-disposition');
-        if (cd) {
-          const match = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="([^"]+)"/i);
-          if (match && match[1]) {
-            let filename = decodeURIComponent(match[1])
-              .replace(/\.pdf$/i, '')
-              .trim()
-              .replace(/^'+|'+$/g, '');
-            if (filename && filename.toLowerCase() !== 'kytario' && !payload.title) {
-              payload.title = filename;
-              payload.name = filename;
-              payload.songbookTitle = filename;
+          );
+          const cd = pdfHeadRes.headers.get('content-disposition');
+          if (cd) {
+            const match = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="([^"]+)"/i);
+            if (match && match[1]) {
+              let filename = decodeURIComponent(match[1])
+                .replace(/\.pdf$/i, '')
+                .trim()
+                .replace(/^'+|'+$/g, '');
+              const lowerFile = filename.toLowerCase();
+              if (
+                filename &&
+                lowerFile !== 'kytario' &&
+                lowerFile !== tok.toLowerCase() &&
+                lowerFile !== token.toLowerCase()
+              ) {
+                payload.title = filename;
+                payload.name = filename;
+                payload.songbookTitle = filename;
+                break;
+              }
             }
           }
+        } catch (headErr) {
+          // Non-blocking title enrichment
         }
-      } catch (headErr) {
-        // Non-blocking title enrichment
       }
 
       // 5. Return JSON with full CORS permissions

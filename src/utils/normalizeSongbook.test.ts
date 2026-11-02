@@ -61,8 +61,20 @@ describe('normalizeSongbookData', () => {
     expect(data.title).toBe('Rockové hity');
   });
 
-  it('defaults to "Songbook" when no title is discoverable', () => {
+  it('defaults to "Songbook" when no title is discoverable or candidate matches slug', () => {
     expect(normalizeSongbookData({ songs: [{ title: 'X', content: 'y' }] }).title).toBe('Songbook');
+    const slugMatch = normalizeSongbookData({
+      urlToken: 'bodg',
+      songbookSongs: [{ song: { project: { name: 'BODG', urlToken: 'bodg' }, title: 'S', content: 'c' } }],
+    });
+    expect(slugMatch.title).toBe('Songbook');
+
+    const enrichedTitle = normalizeSongbookData({
+      title: 'PRO RADOST',
+      urlToken: 'bodg',
+      songbookSongs: [{ song: { project: { name: 'BODG', urlToken: 'bodg' }, title: 'S', content: 'c' } }],
+    });
+    expect(enrichedTitle.title).toBe('PRO RADOST');
   });
 
   it('propagates url/slug info discovered from the payload', () => {
