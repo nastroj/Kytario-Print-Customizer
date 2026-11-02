@@ -18,3 +18,10 @@ export interface ParsedLine {
   hasChords: boolean;
   isRepetitionLine?: boolean;
 }
+
+export interface SongSection {
+  marker: string;
+  isRefrain: boolean;
+  lines: string[];
+  parsedLines: ParsedLine[];
+}

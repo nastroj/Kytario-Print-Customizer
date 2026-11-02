@@ -1,4 +1,12 @@
 /**
+ * URL and songbook metadata helpers: normalizing Kytario URLs/slugs,
+ * building cover URLs, cleaning titles and normalizing whole songbooks.
+ */
+import { SongbookData } from '../types';
+import { APP_CONFIG } from '../config';
+import { extractSongsFromAny } from './jsonParsers';
+
+/**
  * Normalizes an arbitrary URL, path, or slug into clean full URL, short/display URL, and slug.
  */
 export function normalizeUrlAndShortUrl(

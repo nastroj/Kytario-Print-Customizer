@@ -1,4 +1,4 @@
-import { cleanSongbookTitle } from '../utils';
+import { cleanSongbookTitle } from './urlHelpers';
 
 export interface KytarioErrorDetails {
   isCorsOrStaticHost: boolean;
