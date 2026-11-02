@@ -12,7 +12,7 @@ interface FrontCoverPageProps {
   settings: PrintSettings;
 }
 
-export const DEFAULT_FOOTER_TEXT = `Vytvořeno s ❤️ pomocí kytario.com | Vytvoř si zpěvník, sdílej ho a hraj. Posouvejte text živě společně, transponuj do libovolné tóniny nebo exportuj do PDF - zdarma pro tebe i tvé přátele. 🙂`;
+export const DEFAULT_FOOTER_TEXT = '';
 
 export function FrontCoverPage({
   title,
@@ -28,7 +28,7 @@ export function FrontCoverPage({
   // Resolve effective values based on auto/custom mode
   const displayTitle = (isCustom && settings.frontCoverTitle?.trim())
     ? settings.frontCoverTitle.trim()
-    : (settings.frontCoverTitle?.trim() || title || 'ZPĚVNÍK');
+    : (settings.frontCoverTitle?.trim() || title || 'SONGBOOK');
 
   const { displayUrl, qrTarget } = resolveCoverUrl({
     isCustom,

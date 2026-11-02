@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useDeferredValue, useRef, useCallback, useMemo, startTransition } from 'react';
+import React, { useState, useEffect, useDeferredValue, useTransition, useRef, useCallback, useMemo, startTransition } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { SongbookPreview } from './components/SongbookPreview';
 import { ProgressBar } from './components/ProgressBar';
@@ -6,13 +6,17 @@ import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
-import { SongbookData, PrintSettings, ZoomMode } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Globe, ExternalLink, AlertTriangle, Minus, Plus, RotateCcw, Maximize2, BookOpen } from 'lucide-react';
-import { safeParseSongbookJson, normalizeSongbookData } from './utils';
-import { fetchSongbookFromKytario, cleanKytarioUrl, KytarioErrorDetails } from './utils/api';
+import { Song, SongbookData, PrintSettings, ZoomMode } from './types';
+import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Globe, ExternalLink, AlertTriangle, Minus, Plus, RotateCcw, Maximize2, BookOpen, Archive, FileArchive, ListFilter } from 'lucide-react';
+import { safeParseSongbookJson, normalizeSongbookData, normalizeSingleSong } from './utils';
+import { isZipFile, parseKytarioZip, ZipParseResult } from './utils/zipParser';
+import { fetchSongbookFromKytario, cleanKytarioUrl, KytarioErrorDetails, getStoredProxyUrl, setStoredProxyUrl } from './utils/api';
 import { APP_CONFIG } from './config';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
 import { BackgroundPdfProgressModal } from './components/BackgroundPdfProgressModal';
+import { SongSelectionModal } from './components/SongSelectionModal';
+import { saveCachedSongbookToStorage, loadCachedSongbookFromStorage } from './utils/storage';
+import { ZipProjectSelectModal } from './components/ZipProjectSelectModal';
 
 const defaultSettings: PrintSettings = {
   pageFormat: 'A4',
@@ -96,25 +100,110 @@ export default function App() {
     return null;
   });
 
+  // Asynchronously check IndexedDB storage on mount if localStorage was empty or exceeded quota
   useEffect(() => {
-    try {
-      if (songbookData) {
-        localStorage.setItem('kytario-cached-songbook', JSON.stringify(songbookData));
-      } else {
-        localStorage.removeItem('kytario-cached-songbook');
-      }
-    } catch (e) {}
+    let mounted = true;
+    if (!songbookData) {
+      loadCachedSongbookFromStorage().then((data) => {
+        if (mounted && data && (data.songs || data.items || data.sections)) {
+          setSongbookData(data);
+        }
+      }).catch(() => {});
+    }
+    return () => { mounted = false; };
+  }, []);
+
+  // Persist songbook changes to both IndexedDB and localStorage safely
+  useEffect(() => {
+    saveCachedSongbookToStorage(songbookData).catch(() => {});
   }, [songbookData]);
   const [pastedJson, setPastedJson] = useState('');
   const [kytarioUrl, setKytarioUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'upload' | 'paste' | 'url'>('url');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [kytarioFetchDetails, setKytarioFetchDetails] = useState<KytarioErrorDetails | null>(null);
+  const [showProxyConfig, setShowProxyConfig] = useState(false);
+  const [customProxyInput, setCustomProxyInput] = useState(() => getStoredProxyUrl());
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
+  const [pendingZipResult, setPendingZipResult] = useState<{
+    result: ZipParseResult;
+    fileName: string;
+  } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSongNavOpen, setIsSongNavOpen] = useState(false);
+  const [isSongSelectionOpen, setIsSongSelectionOpen] = useState(false);
+  const [selectedSongIds, setSelectedSongIds] = useState<Set<string | number>>(new Set());
+  const [, startSongSelectionTransition] = useTransition();
+
+  // Debounce timer ref to handle high-frequency selection toggles gracefully
+  const songSelectionDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Automatically initialize selectedSongIds when songbook songs load
+  useEffect(() => {
+    if (songbookData?.songs && songbookData.songs.length > 0) {
+      setSelectedSongIds(prev => {
+        if (prev.size === 0) {
+          return new Set(songbookData.songs!.map((s, idx) => s.id !== undefined && s.id !== null ? s.id : idx + 1));
+        }
+        return prev;
+      });
+    }
+  }, [songbookData]);
+
+  // Transition-wrapped and debounced state updater for selectedSongIds
+  const updateSelectedSongIds = useCallback((
+    updater: Set<string | number> | ((prev: Set<string | number>) => Set<string | number>),
+    debounceMs = 0
+  ) => {
+    if (debounceMs > 0) {
+      if (songSelectionDebounceTimerRef.current) {
+        clearTimeout(songSelectionDebounceTimerRef.current);
+      }
+      songSelectionDebounceTimerRef.current = setTimeout(() => {
+        startSongSelectionTransition(() => {
+          setSelectedSongIds(updater);
+        });
+      }, debounceMs);
+    } else {
+      startSongSelectionTransition(() => {
+        setSelectedSongIds(updater);
+      });
+    }
+  }, []);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (songSelectionDebounceTimerRef.current) {
+        clearTimeout(songSelectionDebounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Use deferred value for the expensive PDF preview calculation to keep the UI fluid during rapid toggling
+  const deferredSelectedSongIds = useDeferredValue(selectedSongIds);
+
+  // Memoized visible songs based on deferredSelectedSongIds
+  const previewSongs = useMemo(() => {
+    if (!songbookData?.songs) return [];
+    if (deferredSelectedSongIds.size === 0) return songbookData.songs;
+    return songbookData.songs.filter((s, idx) => {
+      const id = s.id !== undefined && s.id !== null ? s.id : idx + 1;
+      return deferredSelectedSongIds.has(id);
+    });
+  }, [songbookData?.songs, deferredSelectedSongIds]);
+
+  // Memoized songbook data object for SongbookPreview to avoid unnecessary layout recalculations
+  const previewData = useMemo(() => {
+    if (!songbookData) return null;
+    return {
+      ...songbookData,
+      songs: previewSongs,
+    };
+  }, [songbookData, previewSongs]);
+
   const [zoomMode, setZoomMode] = useState<ZoomMode>('fit-page');
   const [customZoom, setCustomZoom] = useState<number>(1.0);
   const [activeScale, setActiveScale] = useState<number>(1.0);
@@ -460,6 +549,7 @@ export default function App() {
       sourceLabel?: string;
     }
   ) => {
+    setIsLoadingJson(true);
     const songs = data.songs || data.items || [];
     if (songs.length === 0) {
       setIsLoadingJson(false);
@@ -557,6 +647,7 @@ export default function App() {
                 } else {
                   showToast(`Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`);
                 }
+                setSelectedSongIds(new Set(songs.map(s => s.id!)));
               }, 800);
             }, 100);
           });
@@ -600,10 +691,89 @@ export default function App() {
   };
 
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processUploadedFiles = async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
 
+    // 1. Check if any file is a ZIP archive (e.g. Kytario export ZIP)
+    const zipFile = files.find(f => isZipFile(f));
+    if (zipFile) {
+      setIsLoadingJson(true);
+      setLoadingStatus({
+        title: 'Extracting Kytario export archive...',
+        subtitle: `Analyzing ${zipFile.name}...`,
+        progress: 25,
+      });
+
+      try {
+        const result = await parseKytarioZip(zipFile);
+        if (result.projects.length > 1) {
+          setIsLoadingJson(false);
+          setPendingZipResult({
+            result,
+            fileName: zipFile.name,
+          });
+        } else {
+          animateSongbookLoad(result.songbook, {
+            startProgress: 50,
+            sourceType: 'file',
+            sourceLabel: zipFile.name,
+          });
+          showToast(`Successfully extracted ${result.totalSongs} songs from "${zipFile.name}"!`);
+        }
+      } catch (err: any) {
+        console.error('ZIP extraction error:', err);
+        setIsLoadingJson(false);
+        setErrorMessage(err.message || 'Could not extract Kytario export ZIP.');
+      }
+      return;
+    }
+
+    // 2. Multiple JSON files (e.g. user selected multiple songs from projects/bodg/songs/)
+    if (files.length > 1) {
+      setIsLoadingJson(true);
+      setLoadingStatus({
+        title: 'Reading multiple song files...',
+        subtitle: `Loading ${files.length} JSON files...`,
+        progress: 20,
+      });
+
+      try {
+        const combinedSongs: any[] = [];
+        for (const file of files) {
+          const text = await file.text();
+          try {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed)) {
+              combinedSongs.push(...parsed.map((s, idx) => normalizeSingleSong(s, combinedSongs.length + idx)));
+            } else if (parsed.song) {
+              combinedSongs.push(normalizeSingleSong(parsed.song, combinedSongs.length));
+            } else if (parsed.name || parsed.title || parsed.content || parsed.sections) {
+              combinedSongs.push(normalizeSingleSong(parsed, combinedSongs.length));
+            }
+          } catch {}
+        }
+
+        if (combinedSongs.length > 0) {
+          const songbookData: SongbookData = {
+            title: 'Imported Songbook',
+            name: 'Imported Songbook',
+            songs: combinedSongs,
+          };
+          animateSongbookLoad(songbookData, {
+            startProgress: 50,
+            sourceType: 'file',
+            sourceLabel: `${files.length} files`,
+          });
+          return;
+        }
+      } catch (err: any) {
+        console.error('Multi-file read error:', err);
+      }
+    }
+
+    // 3. Single JSON file
+    const file = files[0];
     setIsLoadingJson(true);
     setLoadingStatus({
       title: 'Reading file...',
@@ -620,31 +790,19 @@ export default function App() {
       setErrorMessage('Failed to read file.');
     };
     reader.readAsText(file);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    processUploadedFiles(e.target.files);
     e.target.value = '';
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-
-    setIsLoadingJson(true);
-    setLoadingStatus({
-      title: 'Reading file...',
-      subtitle: file.name,
-    });
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      processJsonString(content, file.name);
-    };
-    reader.onerror = () => {
-      setIsLoadingJson(false);
-      setErrorMessage('Failed to read file.');
-    };
-    reader.readAsText(file);
+    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+    processUploadedFiles(e.dataTransfer.files);
   };
 
   const handlePasteSubmit = () => {
@@ -658,6 +816,67 @@ export default function App() {
       subtitle: 'Analyzing songbook payload...',
     });
     processJsonString(pastedJson);
+  };
+
+  const handleSelectZipProject = (selectedSlug: string | 'all', onlyPublic: boolean) => {
+    if (!pendingZipResult) return;
+    const { result, fileName } = pendingZipResult;
+    
+    // Close modal immediately to allow UI to update
+    setPendingZipResult(null);
+
+    // Defer heavy processing to allow React to paint the modal closure
+    setTimeout(() => {
+      setIsLoadingJson(true);
+      setLoadingStatus({
+        title: 'Preparing songbook...',
+        subtitle: `Extracting ${selectedSlug === 'all' ? 'all projects' : selectedSlug}...`,
+        progress: 30,
+      });
+
+      let targetSongbook: SongbookData;
+
+      if (selectedSlug === 'all') {
+        const allSongs: Song[] = [];
+        result.projects.forEach(p => {
+          p.songs.forEach(s => {
+            if (onlyPublic && s.isPrivate) return;
+            allSongs.push({
+              ...s,
+              id: allSongs.length + 1,
+            });
+          });
+        });
+
+        targetSongbook = {
+          title: `${fileName.replace(/\.zip$/i, '')} (All Projects)`,
+          name: `${fileName.replace(/\.zip$/i, '')} (All Projects)`,
+          songs: allSongs,
+        };
+      } else {
+        const selectedProject = result.projects.find(p => p.slug === selectedSlug) || result.projects[0];
+        if (!selectedProject) {
+          setIsLoadingJson(false);
+          return;
+        }
+
+        const songs = selectedProject.songs.filter(s => !onlyPublic || !s.isPrivate);
+
+        targetSongbook = {
+          title: selectedProject.name,
+          name: selectedProject.name,
+          urlToken: selectedProject.slug,
+          slug: selectedProject.slug,
+          songs: songs,
+        };
+      }
+
+      animateSongbookLoad(targetSongbook, {
+        startProgress: 35,
+        sourceType: 'file',
+        sourceLabel: `${targetSongbook.title} (${fileName})`,
+      });
+    }, 50);
   };
 
   const handleKytarioUrlSubmit = async () => {
@@ -770,6 +989,19 @@ export default function App() {
   if (!songbookData) {
     return (
       <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-3 sm:p-6 relative">
+        {/* Project Selection Modal for Multi-Project ZIP Archives */}
+        <ZipProjectSelectModal
+          isOpen={pendingZipResult !== null}
+          fileName={pendingZipResult?.fileName || ''}
+          projects={pendingZipResult?.result.projects || []}
+          totalSongs={pendingZipResult?.result.totalSongs || 0}
+          onSelectProject={(slug, onlyPublic) => handleSelectZipProject(slug, onlyPublic)}
+          onCancel={() => {
+            setPendingZipResult(null);
+            setIsLoadingJson(false);
+          }}
+        />
+
         {/* Full-screen Loading Spinner Overlay while parsing and preparing songbook */}
         <ProgressBar
         active={isLoadingJson}
@@ -830,8 +1062,8 @@ export default function App() {
                   : 'border-transparent text-zinc-400 hover:text-zinc-700'
               }`}
             >
-              <Upload className="w-3.5 h-3.5" />
-              JSON File
+              <FileArchive className="w-3.5 h-3.5" />
+              File / ZIP
             </button>
           </div>
 
@@ -866,10 +1098,10 @@ export default function App() {
                 <Music className="w-12 h-12" />
               </div>
               <div className={`absolute bottom-8 right-8 text-zinc-400/20 transition-transform duration-500 ${isDragging ? 'scale-110 translate-y-2 rotate-12' : 'scale-100 rotate-0'}`}>
-                <FileJson className="w-16 h-16" />
+                <Archive className="w-16 h-16" />
               </div>
               <div className={`absolute top-1/2 right-12 text-zinc-400/10 transition-transform duration-500 ${isDragging ? 'scale-125 -translate-y-4 translate-x-2 rotate-45' : 'scale-100 rotate-12'}`}>
-                <FileText className="w-10 h-10" />
+                <FileJson className="w-10 h-10" />
               </div>
               <div className={`absolute bottom-12 left-12 text-zinc-400/10 transition-transform duration-500 ${isDragging ? 'scale-125 translate-y-4 -translate-x-2 -rotate-45' : 'scale-100 -rotate-12'}`}>
                 <Music className="w-8 h-8" />
@@ -880,9 +1112,9 @@ export default function App() {
                   <Upload className={`w-7 h-7 transition-colors duration-300 ${isDragging ? 'text-zinc-900' : 'text-zinc-400'}`} />
                 </div>
                 <p className={`text-base sm:text-lg font-semibold transition-colors duration-300 mb-1 ${isDragging ? 'text-zinc-900' : 'text-zinc-700'}`}>
-                  Drag and drop your Kytario .json file here
+                  Drag and drop your Kytario .json or export .zip here
                 </p>
-                <p className="text-[12px] sm:text-sm text-zinc-500 mb-6 font-medium">Supports standard and large songbook exports</p>
+                <p className="text-[12px] sm:text-sm text-zinc-500 mb-6 font-medium">Supports single JSON, multiple song files, or full Kytario export ZIP archives</p>
                 
                 <label className={`inline-flex items-center gap-2 text-white text-xs sm:text-sm font-bold px-5 sm:px-6 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
                   isLoadingJson
@@ -894,10 +1126,11 @@ export default function App() {
                   ) : (
                     <Upload className="w-4 h-4" />
                   )}
-                  <span>{isLoadingJson ? 'Reading & Processing...' : 'Browse File'}</span>
+                  <span>{isLoadingJson ? 'Reading & Processing...' : 'Browse File(s)'}</span>
                   <input
                     type="file"
-                    accept=".json,application/json,text/plain"
+                    accept=".json,.zip,application/json,application/zip,application/x-zip-compressed,text/plain"
+                    multiple
                     disabled={isLoadingJson}
                     onChange={handleFileUpload}
                     className="hidden"
@@ -1026,6 +1259,62 @@ export default function App() {
                       <Clipboard className="w-3.5 h-3.5" />
                       <span>2. Go to Paste Tab</span>
                     </button>
+                  </div>
+
+                  <div className="pt-2 border-t border-amber-200/70">
+                    <button
+                      type="button"
+                      onClick={() => setShowProxyConfig(!showProxyConfig)}
+                      className="text-xs font-semibold text-amber-800 hover:text-amber-900 flex items-center justify-between w-full py-1 text-left cursor-pointer"
+                    >
+                      <span>⚙️ Optional: Configure Cloudflare Worker Proxy</span>
+                      <span className="text-[11px] underline text-amber-700">{showProxyConfig ? 'Hide' : 'Set Proxy URL'}</span>
+                    </button>
+                    {showProxyConfig && (
+                      <div className="mt-2 p-3 bg-white/95 rounded-lg border border-amber-200 text-xs space-y-2">
+                        <p className="text-zinc-600 leading-relaxed text-[11px]">
+                          To enable automated 1-click imports on GitHub Pages, enter your Cloudflare Worker URL (e.g. <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-800 font-mono">https://kytario-proxy.workers.dev</code>):
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <input
+                            type="url"
+                            value={customProxyInput}
+                            onChange={(e) => setCustomProxyInput(e.target.value)}
+                            placeholder="https://kytario-proxy.workers.dev"
+                            className="flex-1 rounded border border-zinc-300 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-800 bg-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStoredProxyUrl(customProxyInput);
+                              setToast({ message: 'Proxy URL saved! Retrying import...', type: 'info' });
+                              handleKytarioUrlSubmit();
+                            }}
+                            className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded text-xs font-bold transition-colors cursor-pointer shrink-0"
+                          >
+                            Save & Retry
+                          </button>
+                        </div>
+                        {customProxyInput && (
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStoredProxyUrl('');
+                                setCustomProxyInput('');
+                                setToast({ message: 'Custom proxy cleared', type: 'info' });
+                              }}
+                              className="text-[10px] text-zinc-500 hover:text-red-600 underline cursor-pointer"
+                            >
+                              Reset to default
+                            </button>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-zinc-500 leading-tight">
+                          💡 You can copy the ready-to-use worker script from <code className="text-zinc-700 font-semibold">cloudflare-worker.js</code> in the repository.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1165,9 +1454,9 @@ export default function App() {
         )}
 
         <SongbookPreview 
-          data={songbookData} 
+          data={previewData} 
           settings={settings}
-          isUpdatingLayout={isUpdatingLayout}
+          isUpdatingLayout={isUpdatingLayout || selectedSongIds !== deferredSelectedSongIds}
           onDownloadStatusChange={setIsDownloadingPdf}
           onOpenSettings={handleOpenSettings}
           zoomMode={zoomMode}
@@ -1177,7 +1466,35 @@ export default function App() {
           onScaleChange={setActiveScale}
           isSongNavOpen={isSongNavOpen}
           setIsSongNavOpen={setIsSongNavOpen}
+          onOpenManageSongs={() => setIsSongSelectionOpen(true)}
         />
+
+        {/* Project Selection Modal for Multi-Project ZIP Archives */}
+        <ZipProjectSelectModal
+          isOpen={pendingZipResult !== null}
+          fileName={pendingZipResult?.fileName || ''}
+          projects={pendingZipResult?.result.projects || []}
+          totalSongs={pendingZipResult?.result.totalSongs || 0}
+          onSelectProject={(slug, onlyPublic) => handleSelectZipProject(slug, onlyPublic)}
+          onCancel={() => {
+            setPendingZipResult(null);
+            setIsLoadingJson(false);
+          }}
+        />
+
+        {isSongSelectionOpen && (
+          <SongSelectionModal
+            isOpen={isSongSelectionOpen}
+            songs={songbookData?.songs || []}
+            selectedSongIds={selectedSongIds}
+            onApply={(newSelectedIds) => {
+              updateSelectedSongIds(newSelectedIds);
+              showToast(`Updating preview with ${newSelectedIds.size} visible songs...`, 'info');
+              setIsSongSelectionOpen(false);
+            }}
+            onCancel={() => setIsSongSelectionOpen(false)}
+          />
+        )}
 
         {/* Background Web Worker PDF Generation Status Modal */}
         <BackgroundPdfProgressModal
@@ -1193,27 +1510,26 @@ export default function App() {
           onClearLastGenerated={clearWorkerPdfLastGenerated}
         />
 
-        {/* Floating Bottom Menu - Separated Zoom & Main Action Pods */}
+        {/* Floating Bottom Menu - Unified Toolbar in Exact Requested Order */}
         <div 
-          className="fixed left-1/2 -translate-x-1/2 z-40 max-w-[calc(100vw-1.5rem)] flex flex-wrap items-center justify-center gap-2 sm:gap-3 print:hidden select-none pointer-events-none"
+          className="fixed left-1/2 -translate-x-1/2 z-40 w-full max-w-[calc(100vw-1rem)] flex items-center justify-center print:hidden select-none pointer-events-none px-2"
           style={{ bottom: 'max(0.75rem, calc(0.5rem + env(safe-area-inset-bottom, 0px)))' }}
         >
-          {/* 1. Zoom Controls Pod */}
-          <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-zinc-200/80 shadow-xl rounded-2xl h-14 sm:h-16 px-2.5 sm:px-3 flex items-center gap-1 sm:gap-1.5 shrink-0">
-            {/* Zoom Out */}
+          <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-zinc-200/80 shadow-2xl rounded-2xl p-1.5 flex flex-wrap items-center justify-center gap-1 shrink-0">
+            {/* 1. Zoom Out (-) */}
             <button
               onClick={handleZoomOut}
               disabled={customZoom <= 0.25}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 active:bg-zinc-200 text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
+              className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
               title="Zoom Out"
             >
               <Minus className="w-4 h-4" />
             </button>
 
-            {/* Reset Zoom & Dynamic Mode Display */}
+            {/* 2. Reset Zoom */}
             <button
               onClick={handleResetZoom}
-              className="flex flex-col items-center justify-center px-1.5 sm:px-2 min-w-[2.75rem] sm:min-w-[3.25rem] h-9 sm:h-10 rounded-lg hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-900 transition-colors cursor-pointer shrink-0"
+              className="flex flex-col items-center justify-center px-1.5 sm:px-2 min-w-[2.75rem] sm:min-w-[3.25rem] h-9 sm:h-10 rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer shrink-0"
               title="Reset Zoom to 100%"
             >
               <span className="text-xs font-mono font-bold tracking-tight leading-tight">
@@ -1225,26 +1541,13 @@ export default function App() {
               </span>
             </button>
 
-            {/* Zoom In */}
-            <button
-              onClick={handleZoomIn}
-              disabled={customZoom >= 3.0}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 active:bg-zinc-200 text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
-              title="Zoom In"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-
-            {/* Divider inside Zoom Pod */}
-            <div className="w-px h-6 sm:h-7 bg-zinc-200/80 mx-0.5 shrink-0" />
-
-            {/* Fit View (Toggles between fit-width and fit-page) */}
+            {/* 3. Fit View */}
             <button
               onClick={() => setZoomMode((prev) => prev === 'fit-width' ? 'fit-page' : 'fit-width')}
-              className={`flex flex-col items-center justify-center w-10 sm:w-11 h-10 sm:h-11 rounded-xl transition-colors cursor-pointer shrink-0 ${
+              className={`flex flex-col items-center justify-center w-9 sm:w-10 h-9 sm:h-10 rounded-xl transition-colors cursor-pointer shrink-0 ${
                 zoomMode === 'fit-width' || zoomMode === 'fit-page'
-                  ? 'text-blue-600 font-bold bg-blue-500/10'
-                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/60 active:bg-zinc-100'
+                  ? 'text-zinc-950 font-bold bg-zinc-200'
+                  : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200'
               }`}
               title={zoomMode === 'fit-width' ? "Switch to Fit Page" : "Switch to Fit Width"}
             >
@@ -1252,83 +1555,103 @@ export default function App() {
               <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Fit</span>
             </button>
 
-            {/* Song Navigation button (Content / ToC) - Immediately adjacent to Fit */}
+            {/* 4. Zoom In (+) */}
             <button
-              id="floating-nav-btn"
-              onClick={() => {
-                setIsSongNavOpen((prev) => !prev);
-              }}
-              className={`flex flex-col items-center justify-center w-10 sm:w-11 h-10 sm:h-11 rounded-xl transition-colors cursor-pointer shrink-0 ${
-                isSongNavOpen
-                  ? 'text-blue-600 font-bold bg-blue-500/10'
-                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/60 active:bg-zinc-100'
-              }`}
-              title="Table of Contents / Jump to Song"
+              onClick={handleZoomIn}
+              disabled={customZoom >= 3.0}
+              className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
+              title="Zoom In"
             >
-              <BookOpen className="w-4 h-4" />
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Content</span>
-            </button>
-          </div>
-
-          {/* 2. Main Actions Pod (Wider, Spacious, Primary) */}
-          <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-zinc-200/80 shadow-xl rounded-2xl h-14 sm:h-16 px-3 sm:px-5 md:px-6 flex items-center justify-center gap-2 sm:gap-4 md:gap-5 shrink-0">
-            {/* Import Songbook */}
-            <button
-              onClick={() => setIsConfirmResetOpen(true)}
-              className="flex flex-col items-center justify-center w-12 sm:w-14 md:w-16 h-11 sm:h-12 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/60 active:bg-zinc-100 transition-colors cursor-pointer shrink-0"
-              title="Import Songbook (load different JSON)"
-            >
-              <FolderOpen className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-              <span className="text-[10px] sm:text-[11px] font-bold mt-1 tracking-tight">Import</span>
+              <Plus className="w-4 h-4" />
             </button>
 
             {/* Divider */}
-            <div className="w-px h-6 sm:h-7 bg-zinc-200/80 shrink-0" />
+            <div className="w-px h-6 bg-zinc-200/80 mx-1 shrink-0" />
 
-            {/* Settings button */}
+            {/* 5. Import Songbook */}
+            <button
+              onClick={() => setIsConfirmResetOpen(true)}
+              className="flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors cursor-pointer shrink-0"
+              title="Import Songbook (load different JSON)"
+            >
+              <FolderOpen className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Import</span>
+            </button>
+
+            {/* 6. Settings */}
             <button
               id="floating-settings-btn"
               onClick={handleOpenMobileSidebar}
-              className="flex flex-col items-center justify-center w-12 sm:w-14 md:w-16 h-11 sm:h-12 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/60 active:bg-zinc-100 transition-colors relative cursor-pointer shrink-0"
+              className="flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors relative cursor-pointer shrink-0"
               title={hasUnappliedSettings ? `Settings (${unappliedChanges.length} unapplied changes pending)` : "Open Settings"}
             >
-              <SlidersHorizontal className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-              <span className="text-[10px] sm:text-[11px] font-bold mt-1 tracking-tight">Settings</span>
+              <SlidersHorizontal className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Settings</span>
               {hasUnappliedSettings && (
-                <span className="absolute top-1 right-2 sm:top-1.5 sm:right-3 flex h-2 w-2">
+                <span className="absolute top-0.5 right-1.5 flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
                 </span>
               )}
             </button>
 
-            {/* Divider */}
-            <div className="w-px h-6 sm:h-7 bg-zinc-200/80 shrink-0" />
+            {/* 7. ToC (Table of Contents) */}
+            <button
+              id="floating-nav-btn"
+              onClick={() => setIsSongNavOpen((prev) => !prev)}
+              className={`flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl transition-colors cursor-pointer shrink-0 ${
+                isSongNavOpen
+                  ? 'text-zinc-950 font-bold bg-zinc-200'
+                  : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200'
+              }`}
+              title="Table of Contents & Jump to Song"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">ToC</span>
+            </button>
 
-            {/* Download/Export PDF */}
+            {/* 8. Songs (Manage Songs Visibility) */}
+            <button
+              id="floating-manage-songs-btn"
+              onClick={() => setIsSongSelectionOpen(true)}
+              className="flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors relative cursor-pointer shrink-0"
+              title={`Manage songs (${selectedSongIds.size} of ${songCount} visible)`}
+            >
+              <div className="relative">
+                <ListFilter className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                {selectedSongIds.size < songCount && (
+                  <span className="absolute -top-1 -right-2 text-[8px] font-bold bg-amber-500 text-white px-1 rounded-full leading-none py-0.5">
+                    {selectedSongIds.size}
+                  </span>
+                )}
+              </div>
+              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Songs</span>
+            </button>
+
+            {/* 9. Export PDF */}
             <button
               onClick={() => handleDownloadPdf()}
               disabled={isDownloadingPdf || isGeneratingWorkerPdf}
-              className={`flex flex-col items-center justify-center px-2.5 sm:px-3.5 min-w-[4rem] sm:min-w-[4.75rem] md:min-w-[5.25rem] h-11 sm:h-12 rounded-xl transition-all cursor-pointer shrink-0 relative ${
+              className={`flex flex-col items-center justify-center px-2.5 sm:px-3.5 h-9 sm:h-10 rounded-xl transition-all cursor-pointer shrink-0 relative ${
                 isPdfReady
-                  ? 'text-emerald-600 hover:text-emerald-700 font-bold bg-emerald-500/10 hover:bg-emerald-500/15'
-                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/60 active:bg-zinc-100'
+                  ? 'text-emerald-800 font-bold bg-emerald-100 hover:bg-emerald-200'
+                  : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200'
               }`}
               title={isPdfReady ? "PDF is ready! Click to download again instantly" : "Export and download as PDF"}
             >
               {isDownloadingPdf || isGeneratingWorkerPdf ? (
-                <Loader2 className="w-4.5 h-4.5 sm:w-5 sm:h-5 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <div className="relative">
-                  <FileDown className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+                  <FileDown className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                   {isPdfReady && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    <span className="absolute -top-0.5 -right-0.5 flex h-1.5 w-1.5">
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
                     </span>
                   )}
                 </div>
               )}
-              <span className="text-[10px] sm:text-[11px] font-bold mt-1 tracking-tight whitespace-nowrap">
+              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight whitespace-nowrap">
                 {isPdfReady ? 'Save PDF' : 'Export PDF'}
               </span>
             </button>
@@ -1338,16 +1661,13 @@ export default function App() {
         {/* Offline Indicator */}
         <OfflineIndicator />
 
-        {/* Toast Notification */}
+        {/* Unified Top-Right Notification Toast Container */}
         {toast && (
-          <div 
-            className="fixed right-6 z-[100] print:hidden animate-in fade-in slide-in-from-bottom-3 duration-300"
-            style={{ bottom: 'max(1.5rem, calc(1rem + env(safe-area-inset-bottom, 0px)))' }}
-          >
+          <div className="fixed top-4 right-4 z-[100] print:hidden animate-in fade-in slide-in-from-top-3 duration-300">
             <div className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-medium ${
               toast.type === 'error'
-                ? 'bg-red-900 text-white border-red-700/50'
-                : 'bg-zinc-900 text-white border-white/10'
+                ? 'bg-red-950 text-white border-red-800/60'
+                : 'bg-zinc-950 text-white border-white/15'
             }`}>
               {toast.type === 'error' ? (
                 <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />

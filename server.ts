@@ -265,21 +265,62 @@ async function createServer() {
       }
     }
 
-    // 2. JSON-LD structured data script tags
+    // 2. JSON-LD structured data script tags (includes single song MusicComposition)
     const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
     for (const m of ldMatches) {
       try {
         const parsed = JSON.parse(m[1]);
-        const obj = Array.isArray(parsed) ? parsed[0] : parsed;
-        if (obj && (hasSongsPayload(obj) || (Array.isArray(obj.track) && obj.track.length > 0))) {
-          return obj;
+        const items = Array.isArray(parsed) 
+          ? parsed 
+          : (Array.isArray(parsed?.['@graph']) ? parsed['@graph'] : [parsed]);
+
+        for (const item of items) {
+          if (!item) continue;
+          if (item['@type'] === 'MusicComposition' || item['@type'] === 'MusicRecording') {
+            const songName = item.name || item.headline || 'Song';
+            const lyricsText = item.lyrics?.text || item.text || '';
+            const artistName = item.composer?.name || item.byArtist?.name || item.author?.name || '';
+            return {
+              title: songName,
+              name: songName,
+              songs: [{
+                title: songName,
+                name: songName,
+                content: lyricsText,
+                lyrics: lyricsText,
+                artist: artistName,
+                key: item.musicalKey,
+                tonalKey: item.musicalKey,
+                genre: item.genre,
+              }],
+            };
+          }
+          if (hasSongsPayload(item) || (Array.isArray(item.track) && item.track.length > 0)) {
+            return item;
+          }
         }
       } catch {
         // Continue
       }
     }
 
-    // 3. Any application/json script tag containing songs or sections
+    // 3. Next.js App Router RSC Stream search for song or songbook JSON
+    const rscSongRegex = /"song"\s*:\s*(\{(?:(?!<script)[\s\S])*?"sections"\s*:\s*\[[\s\S]*?\]\s*\})/g;
+    let rscMatch;
+    while ((rscMatch = rscSongRegex.exec(html)) !== null) {
+      try {
+        const songData = JSON.parse(rscMatch[1]);
+        if (songData && (songData.name || songData.title)) {
+          return {
+            title: songData.name || songData.title,
+            name: songData.name || songData.title,
+            songs: [songData],
+          };
+        }
+      } catch {}
+    }
+
+    // 4. Any application/json script tag containing songs or sections
     const jsonScriptMatches = html.matchAll(/<script[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi);
     for (const m of jsonScriptMatches) {
       try {
@@ -358,6 +399,30 @@ async function createServer() {
 
   async function fetchKytarioWebpageTitle(token: string, rawUrl?: string): Promise<string | null> {
     if (!token && !rawUrl) return null;
+
+    // 1. Fast & canonical check: inspect Content-Disposition on the PDF export endpoint
+    if (token) {
+      try {
+        const headRes = await axios.head(`https://kytario.com/api/songbooks/${encodeURIComponent(token)}/pdf`, {
+          timeout: 4000,
+          validateStatus: (s) => s === 200,
+        });
+        const cd = headRes.headers['content-disposition'];
+        if (cd) {
+          const match = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="([^"]+)"/i);
+          if (match && match[1]) {
+            let filename = decodeURIComponent(match[1]).replace(/\.pdf$/i, '').trim();
+            filename = filename.replace(/^'+|'+$/g, '').trim();
+            const clean = sanitizeExtractedTitle(filename);
+            if (clean) {
+              return clean;
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // 2. Webpage HTML scraping fallback
     const urlsToTry: string[] = [];
 
     if (rawUrl && /^https?:\/\//i.test(rawUrl.trim())) {
@@ -588,7 +653,24 @@ async function createServer() {
     });
   }
 
-  const port = process.env.PORT || 3000;
+  // Parse CLI args (e.g. --port 3000 or -p 3000)
+  let cliPort: number | undefined;
+  for (let i = 2; i < process.argv.length; i++) {
+    if ((process.argv[i] === '--port' || process.argv[i] === '-p') && process.argv[i + 1]) {
+      const parsed = Number(process.argv[i + 1]);
+      if (!isNaN(parsed) && parsed > 0) {
+        cliPort = parsed;
+        break;
+      }
+    }
+  }
+
+  // Determine listening port: prefer CLI --port, then 3000 in dev mode, then process.env.PORT (unless colliding with Nginx on 8080)
+  let port = cliPort || (isDev ? 3000 : Number(process.env.PORT) || 3000);
+  if (process.env.NGINX_PORT && String(port) === String(process.env.NGINX_PORT)) {
+    port = Number(process.env.DEFAULT_APP_PORT) || 3000;
+  }
+
   httpServer.listen(Number(port), '0.0.0.0', () => {
     console.log(`Server listening on port ${port} (0.0.0.0)`);
   });

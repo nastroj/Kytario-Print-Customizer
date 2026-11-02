@@ -22,6 +22,9 @@ import {
   FileText,
   ChevronDown,
   Bug,
+  Search,
+  X,
+  ListFilter,
 } from 'lucide-react';
 
 interface SongbookPreviewProps {
@@ -37,6 +40,7 @@ interface SongbookPreviewProps {
   onScaleChange?: (scale: number) => void;
   isSongNavOpen?: boolean;
   setIsSongNavOpen?: (open: boolean | ((prev: boolean) => boolean)) => void;
+  onOpenManageSongs?: () => void;
 }
 
 const ZOOM_STEPS = [0.25, 0.35, 0.5, 0.65, 0.75, 0.9, 1.0, 1.15, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0];
@@ -148,6 +152,8 @@ const VirtualPage = memo(function VirtualPage({
         minWidth: isScaled ? `${scaledWidth}px` : defaultWidth,
         position: 'relative',
         overflowAnchor: 'none',
+        contentVisibility: 'auto',
+        containIntrinsicSize: isScaled ? `0 ${scaledHeight}px` : `0 ${defaultHeight}`,
       }}
     >
       {children}
@@ -174,6 +180,78 @@ interface SongPagesListProps {
   isDebugMode?: boolean;
   shouldCenter?: boolean;
 }
+
+interface SongPageProps {
+  song: Song;
+  i: number;
+  settings: PrintSettings;
+  isScaled: boolean;
+  scaledWidth: number;
+  scaledHeight: number;
+  cssWidth: string;
+  cssHeight: string;
+  shouldCenter: boolean;
+  isDebugMode: boolean;
+  pageContainerClass: string;
+  effectiveScale: number;
+  tocPagesLength: number;
+  showFrontCover?: boolean;
+  showTableOfContents?: boolean;
+}
+
+const SongPage = memo(function SongPage({
+  song,
+  i,
+  settings,
+  isScaled,
+  scaledWidth,
+  scaledHeight,
+  cssWidth,
+  cssHeight,
+  shouldCenter,
+  isDebugMode,
+  pageContainerClass,
+  effectiveScale,
+  tocPagesLength,
+}: SongPageProps) {
+  const songDocPageIndex = (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? tocPagesLength : 0) + i;
+  const m = getPageMargins(settings, songDocPageIndex);
+
+  return (
+    <VirtualPage
+      key={`song-page-${song.id ?? 'item'}-${i}`}
+      id={`song-${i}`}
+      isScaled={isScaled}
+      scaledWidth={scaledWidth}
+      scaledHeight={scaledHeight}
+      defaultWidth={cssWidth}
+      defaultHeight={cssHeight}
+      shouldCenter={shouldCenter}
+    >
+      <div 
+        className={`${pageContainerClass} print-page-container flex flex-col overflow-hidden origin-top-left`}
+        style={{ 
+          width: cssWidth, 
+          height: cssHeight,
+          padding: `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`,
+          transform: isScaled ? `scale(${effectiveScale})` : 'none',
+          transformOrigin: 'top left',
+          position: isScaled ? 'absolute' : 'relative',
+          top: 0,
+          left: 0,
+        }}
+      >
+        <SongDisplay 
+          song={song} 
+          index={i} 
+          docPageIndex={songDocPageIndex}
+          settings={settings} 
+          isDebugMode={isDebugMode} 
+        />
+      </div>
+    </VirtualPage>
+  );
+});
 
 const SongPagesList = memo(function SongPagesList({
   url,
@@ -312,7 +390,7 @@ const SongPagesList = memo(function SongPagesList({
                     className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
                     style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a') }}
                   >
-                    <span>Obsah{tocPages.length > 1 ? ` • Strana 1 z ${tocPages.length}` : ''}</span>
+                    <span>Table of Contents{tocPages.length > 1 ? ` • Page 1 of ${tocPages.length}` : ''}</span>
                     <span className="print:hidden normal-case font-normal text-[11px]" style={{ opacity: 0.8 }}>
                       • tap to jump
                     </span>
@@ -331,13 +409,13 @@ const SongPagesList = memo(function SongPagesList({
                       lineHeight: 1.2
                     }}
                   >
-                    {title} <span className="text-zinc-400 font-normal text-xs normal-case">(pokračování)</span>
+                    {title} <span className="text-zinc-400 font-normal text-xs normal-case">(continued)</span>
                   </h2>
                   <p 
                     className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
                     style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a') }}
                   >
-                    <span>Obsah • Strana {tocPage.pageIndex} z {tocPages.length}</span>
+                    <span>Table of Contents • Page {tocPage.pageIndex} of {tocPages.length}</span>
                     <span className="print:hidden normal-case font-normal text-[11px]" style={{ opacity: 0.8 }}>
                       • tap to jump
                     </span>
@@ -365,7 +443,7 @@ const SongPagesList = memo(function SongPagesList({
                       const fullTitle = `${item.originalIndex! + 1}. ${item.title}${item.artist ? ` - ${item.artist}` : ''}`;
                       return (
                         <div 
-                          key={item.originalIndex} 
+                          key={`toc-col-${colIdx}-item-${item.originalIndex ?? itemIdx}-${itemIdx}`} 
                           className="shrink-0 max-w-full"
                           style={{ 
                             marginBottom: `${rowMarginBottomPx}px`,
@@ -456,46 +534,25 @@ const SongPagesList = memo(function SongPagesList({
       })}
 
       {/* SONG PAGES */}
-      {songs.map((song, i) => {
-        const songDocPageIndex = (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? tocPages.length : 0) + i;
-        const m = getPageMargins(settings, songDocPageIndex);
-        return (
-          <VirtualPage
-            key={song.id || `song-${i}`}
-            id={`song-${i}`}
-            isScaled={isScaled}
-            scaledWidth={scaledWidth}
-            scaledHeight={scaledHeight}
-            defaultWidth={cssWidth}
-            defaultHeight={cssHeight}
-            shouldCenter={shouldCenter}
-          >
-            <div 
-              className={`${pageContainerClass} print-page-container flex flex-col overflow-hidden origin-top-left`}
-              style={{ 
-                width: cssWidth, 
-                height: cssHeight,
-                padding: `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`,
-                transform: isScaled ? `scale(${effectiveScale})` : 'none',
-                transformOrigin: 'top left',
-                position: isScaled ? 'absolute' : 'relative',
-                top: 0,
-                left: 0,
-              }}
-            >
-              <SongDisplay 
-                song={song} 
-                index={i} 
-                docPageIndex={songDocPageIndex}
-                settings={settings} 
-                isDebugMode={isDebugMode} 
-              />
-            </div>
-          </VirtualPage>
-        );
-      })}
+      {songs.map((song, i) => (
+        <SongPage
+          key={`song-page-${song.id ?? 'item'}-${i}`}
+          song={song}
+          i={i}
+          settings={settings}
+          isScaled={isScaled}
+          scaledWidth={scaledWidth}
+          scaledHeight={scaledHeight}
+          cssWidth={cssWidth}
+          cssHeight={cssHeight}
+          shouldCenter={shouldCenter}
+          isDebugMode={isDebugMode}
+          pageContainerClass={pageContainerClass}
+          effectiveScale={effectiveScale}
+          tocPagesLength={tocPages.length}
+        />
+      ))}
 
-      
       {/* Back Cover Page */}
       {settings.showBackCover !== false && songs.length > 0 && (() => {
         const backCoverDocPageIndex = (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? tocPages.length : 0) + songs.length;
@@ -728,49 +785,163 @@ interface QuickSongNavigatorProps {
   songs: Song[];
   isSongNavOpen: boolean;
   onScrollTo: (id: string) => void;
+  onClose?: () => void;
+  onOpenManageSongs?: () => void;
 }
 
 const QuickSongNavigator = memo(function QuickSongNavigator({ 
   songs, 
   isSongNavOpen, 
-  onScrollTo 
+  onScrollTo,
+  onClose,
+  onOpenManageSongs,
 }: QuickSongNavigatorProps) {
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return songs;
+    return songs.filter((s, idx) => {
+      const title = (s.title || s.name || '').toLowerCase();
+      const artist = (s.artist || s.author || '').toLowerCase();
+      const num = String(idx + 1);
+      return title.includes(q) || artist.includes(q) || num === q;
+    });
+  }, [songs, search]);
+
   if (!isSongNavOpen || songs.length === 0) return null;
 
   return (
-    <div className="relative">
+    <>
+      {/* Click outside backdrop for easy closing */}
+      <div 
+        className="fixed inset-0 z-40 bg-black/25 backdrop-blur-2xs print:hidden"
+        onClick={onClose}
+      />
+      
+      {/* Floating Navigator Card */}
       <div 
         id="song-nav-modal"
         onClick={(e) => e.stopPropagation()}
-        className="absolute bottom-0 right-0 w-64 max-h-72 overflow-y-auto bg-white/95 backdrop-blur-xl border border-black/10 text-zinc-800 rounded-lg shadow-2xl p-2 space-y-1 z-40 text-xs animate-in fade-in slide-in-from-bottom-2 duration-200"
+        className="fixed bottom-[4.5rem] sm:bottom-[5rem] right-[max(1rem,calc(50%-15rem))] sm:right-[max(1rem,calc(50%-18rem))] w-[92vw] max-w-sm sm:w-80 bg-white/95 backdrop-blur-xl border border-zinc-200/90 text-zinc-800 rounded-2xl shadow-2xl p-3 space-y-2 z-50 text-xs animate-in fade-in slide-in-from-bottom-2 duration-150 print:hidden"
       >
-        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-black/5 mb-1 flex items-center justify-between">
-          <span>Jump to Song ({songs.length})</span>
-          <button 
-            onClick={() => onScrollTo('toc-page')}
-            className="hover:underline text-zinc-600 hover:text-zinc-900 font-semibold cursor-pointer"
-          >
-            ToC
-          </button>
+        {/* Header */}
+        <div className="flex items-center justify-between pb-1.5 border-b border-zinc-100">
+          <div className="flex items-center gap-1.5 font-bold text-zinc-900 text-xs">
+            <BookOpen className="w-4 h-4 text-amber-600" />
+            <span>Table of Contents & Jump</span>
+            <span className="text-[10px] font-mono text-zinc-400 bg-zinc-100 px-1.5 py-0.2 rounded-md">
+              {songs.length}
+            </span>
+          </div>
+          {onClose && (
+            <button 
+              type="button"
+              onClick={onClose}
+              className="text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 p-1 rounded-lg transition-colors cursor-pointer"
+              aria-label="Close Navigator"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        <div className="space-y-0.5">
-          {songs.map((s, idx) => {
-            const sTitle = s.title || s.name || `Song #${idx + 1}`;
-            return (
-              <button
-                key={idx}
-                onClick={() => onScrollTo(`song-${idx}`)}
-                className="w-full px-2 py-1.5 rounded-lg text-left text-zinc-600 hover:bg-black/5 hover:text-zinc-900 transition-colors truncate flex items-center gap-2 cursor-pointer"
-              >
-                <span className="w-5 font-mono text-zinc-400 font-semibold shrink-0 text-right">{idx + 1}.</span>
-                <span className="truncate">{sTitle}</span>
-              </button>
-            );
-          })}
+        {/* Big, Clear Table of Contents (ToC) Jump Button */}
+        <button 
+          type="button"
+          onClick={() => {
+            onScrollTo('toc-page');
+            onClose?.();
+          }}
+          className="w-full flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/25 text-amber-950 font-bold text-xs transition-colors border border-amber-500/25 cursor-pointer shadow-2xs group"
+        >
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-amber-700 group-hover:scale-110 transition-transform" />
+            <span>Go to Table of Contents (ToC)</span>
+          </div>
+          <span className="text-[10px] font-semibold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-md">
+            View ToC
+          </span>
+        </button>
+
+        {/* Manage Songs shortcut */}
+        {onOpenManageSongs && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose?.();
+              onOpenManageSongs();
+            }}
+            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-zinc-700 hover:text-zinc-950 bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 transition-colors border border-zinc-200/80 cursor-pointer text-xs"
+          >
+            <span className="flex items-center gap-2 font-medium">
+              <ListFilter className="w-3.5 h-3.5 text-zinc-500" />
+              Manage Song Visibility
+            </span>
+            <span className="text-[10px] font-mono text-zinc-500 font-bold bg-zinc-200/70 px-1.5 py-0.5 rounded">
+              {songs.length}
+            </span>
+          </button>
+        )}
+
+        {/* Filter songs input */}
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search song or artist..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-8 pr-7 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-2 text-zinc-400 hover:text-zinc-600 p-0.5 cursor-pointer"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+
+        {/* Song List */}
+        <div className="max-h-52 sm:max-h-60 overflow-y-auto space-y-0.5 pr-1 divide-y divide-zinc-50">
+          {filtered.length === 0 ? (
+            <div className="py-6 text-center text-zinc-400 text-xs">
+              No songs found matching &ldquo;{search}&rdquo;
+            </div>
+          ) : (
+            filtered.map((s, idx) => {
+              const originalIndex = songs.indexOf(s) + 1;
+              const sTitle = s.title || s.name || `Song #${originalIndex}`;
+              return (
+                <button
+                  key={s.id !== undefined && s.id !== null ? `${s.id}-${idx}` : idx}
+                  onClick={() => {
+                    onScrollTo(`song-${originalIndex - 1}`);
+                    onClose?.();
+                  }}
+                  className="w-full px-2 py-1.5 rounded-lg text-left text-zinc-700 hover:bg-zinc-100/90 active:bg-zinc-200 hover:text-zinc-950 transition-colors truncate flex items-center gap-2 cursor-pointer group"
+                >
+                  <span className="w-6 font-mono text-[10px] text-zinc-400 font-semibold shrink-0 text-right group-hover:text-zinc-600">
+                    {originalIndex}.
+                  </span>
+                  <div className="min-w-0 flex-1 truncate">
+                    <span className="font-medium truncate block text-xs">{sTitle}</span>
+                    {s.artist && (
+                      <span className="text-[10px] text-zinc-400 truncate block">
+                        {s.artist}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
-    </div>
+    </>
   );
 });
 
@@ -787,6 +958,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   onScaleChange,
   isSongNavOpen: propsIsSongNavOpen,
   setIsSongNavOpen: propsSetSongNavOpen,
+  onOpenManageSongs,
 }) => {
   const songs = useMemo(() => {
     if (!data) return [];
@@ -1647,52 +1819,53 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         <div className="h-28 sm:h-24 print:hidden" />
       </div>
 
-      {/* FLOATING QUICK ACTIONS GROUP (PAGES NAVIGATOR, DEBUG HUD & SCROLL TO TOP - OUT OF THE WAY OF BOTTOM BAR) */}
-      <div className="fixed bottom-[64px] sm:bottom-[68px] right-10 sm:right-14 z-30 print:hidden flex flex-col gap-2">
-        {/* Scroll to Top */}
-        {showScrollTop && (
-          <button
-            type="button"
-            onClick={scrollToTop}
-            className="w-10 h-10 bg-white/95 hover:bg-zinc-100 active:bg-zinc-200 text-zinc-600 hover:text-zinc-900 rounded-full shadow-lg border border-black/10 flex items-center justify-center transition-colors cursor-pointer select-none"
-            title="Scroll to Top"
-            aria-label="Scroll to Top"
-          >
-            <ChevronUp className="w-5 h-5" />
-          </button>
-        )}
+      {/* FLOATING QUICK ACTIONS GROUP - Cleanly positioned at bottom right baseline */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="fixed z-40 w-11 sm:w-12 h-12 sm:h-14 bg-white/95 backdrop-blur-md hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 rounded-2xl shadow-xl border border-zinc-200/80 flex flex-col items-center justify-center transition-all cursor-pointer select-none print:hidden shrink-0 group"
+          style={{ bottom: 'max(5.5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))', right: 'max(0.75rem, calc(0.75rem + env(safe-area-inset-right, 0px)))' }}
+          title="Scroll to Top"
+          aria-label="Scroll to Top"
+        >
+          <ChevronUp className="w-4.5 h-4.5 sm:w-5 sm:h-5 group-hover:-translate-y-0.5 transition-transform" />
+          <span className="text-[8px] sm:text-[9px] font-bold mt-0.5 tracking-tight leading-none text-zinc-600 group-hover:text-zinc-950">Top</span>
+        </button>
+      )}
 
-        {/* Quick Song Navigator Popover - Now controlled from floating bar in App.tsx */}
-        <QuickSongNavigator 
-          songs={songs}
-          isSongNavOpen={isSongNavOpen}
-          onScrollTo={handleScrollTo}
-        />
+      {/* Quick Song Navigator Popover */}
+      <QuickSongNavigator 
+        songs={songs}
+        isSongNavOpen={isSongNavOpen}
+        onScrollTo={handleScrollTo}
+        onClose={() => setIsSongNavOpen?.(false)}
+        onOpenManageSongs={onOpenManageSongs}
+      />
 
-        {/* Toggle Hidden Song Fit Debug View - ONLY rendered if ENABLE_DEBUG_HUD is true in src/config.ts */}
-        {isDebugFeatureEnabled && (
-          <button
-            id="toggle-debug-view-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsDebugOpen(prev => {
-                const next = !prev;
-                try { localStorage.setItem('kytario-debug-view', String(next)); } catch (err) {}
-                return next;
-              });
-            }}
-            className={`w-10 h-10 bg-white/95 hover:bg-zinc-100 text-zinc-600 rounded-full shadow-lg border border-black/10 flex items-center justify-center transition-colors cursor-pointer ${
-              isDebugOpen 
-                ? 'bg-amber-500/20 text-amber-600 font-bold hover:bg-amber-500/30' 
-                : 'hover:bg-black/5 hover:text-zinc-900'
-            }`}
-            title="Toggle Song Fit Debug View"
-            aria-label="Toggle Debug View"
-          >
-            <Bug className="w-5 h-5" />
-          </button>
-        )}
-      </div>
+      {/* Toggle Hidden Song Fit Debug View - ONLY rendered if ENABLE_DEBUG_HUD is true in src/config.ts */}
+      {isDebugFeatureEnabled && (
+        <button
+          id="toggle-debug-view-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsDebugOpen(prev => {
+              const next = !prev;
+              try { localStorage.setItem('kytario-debug-view', String(next)); } catch (err) {}
+              return next;
+            });
+          }}
+          className={`fixed bottom-[185px] sm:bottom-[130px] right-3 sm:right-6 z-40 w-10 h-10 bg-white/95 hover:bg-zinc-100 text-zinc-600 rounded-full shadow-lg border border-black/10 flex items-center justify-center transition-colors cursor-pointer print:hidden ${
+            isDebugOpen 
+              ? 'bg-amber-500/20 text-amber-600 font-bold hover:bg-amber-500/30' 
+              : 'hover:bg-black/5 hover:text-zinc-900'
+          }`}
+          title="Toggle Song Fit Debug View"
+          aria-label="Toggle Debug View"
+        >
+          <Bug className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Global styles for preview transitions and printing */}
       <style>{`

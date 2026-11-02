@@ -1,16 +1,146 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.7.1  
+**Version:** 1.8.17  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.7.1 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.8.17 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
 
 ---
 
-## 🌟 What's New in v1.7.1
+## 🌟 What's New in v1.8.17
+
+- **Clean Covers (Default Footer Removed)**: Removed default promotional attribution footer text (`DEFAULT_FOOTER_TEXT`) from cover pages. Front and back covers are now clean without default watermarks unless explicitly toggled on and customized.
+- **Full English Localization**: Translated all remaining Czech status and generation messages into English throughout the PDF generation pipeline and UI.
+- **Workbox Large Worker Asset Pre-cache**: Configured `maximumFileSizeToCacheInBytes: 6 * 1024 * 1024` in `vite.config.ts`, resolving Workbox build errors for `pdfWorker.js` (2.21 MiB).
+- **Resilient Server Port Resolution**: Enhanced `server.ts` to parse CLI `--port` flags and default to port 3000 in dev mode, preventing port collision with container environment variables.
+- **Lockfile & CI/CD Synchronization**: Updated dependencies and lockfiles for deterministic builds across GitHub Pages and Cloudflare Pages.
+
+---
+
+## 🌟 What's New in v1.8.16
+
+- **Kytario ZIP Song Ordering**: Preserves the original project song creation order rather than forcing alphabetical sorting when importing Kytario export ZIP files.
+- **Accurate Songbook Name Detection**: Automatically reads the true songbook name from `project.json` (e.g. `"PRO RADOST"` for the `bodg` token) inside `songbooks`, rather than using generic project names.
+- **Song Selection Sorting Options**: Added a sort dropdown in the Manage Songs dialog with support for Title, Artist, and Original Songbook Order.
+- **Responsive Floating Toolbar & Scroll-to-Top**: Multi-line button wrapping on mobile screens, collision-free "Scroll to Top" button positioning, and ToC jump menu aligned with the floating bar.
+- **Unified Dark Zinc Theme**: Sleek dark gray (zinc) palette across the floating toolbar, modals, backdrop blurs, and status notifications.
+- **Virtual Scrolling & Rendering Performance**: Enhanced layout speed with `content-visibility: auto` and React memoization on songbook pages.
+- **Unique Child Keys**: Fixed React duplicate key warnings for robust, flicker-free rendering.
+
+---
+
+## 🌟 What's New in v1.8.15
+
+- **Updating Preview Feedback & Toast**: Added an automatic "Updating preview..." spinner pill overlay and confirmation toast whenever song visibility selections are applied, providing immediate visual feedback during preview recalculation.
+
+---
+
+## 🌟 What's New in v1.8.14
+
+- **Debounced Transitions for Song Selection**: Integrated React `useTransition` and `useDeferredValue` for `selectedSongIds` state in `App.tsx` with a debounced updater, eliminating stutter and maintaining instant responsiveness during high-frequency toggling.
+
+---
+
+## 🌟 What's New in v1.8.13
+
+- **Control Buttons Overhaul & Zero Collisions**: Resolved all button overlap issues by integrating "Manage Songs" into the main action bar, clearly labeling "ToC", elevating the navigation popover with a dismiss backdrop, and structuring controls for mobile and desktop screens.
+
+---
+
+## 🌟 What's New in v1.8.12
+
+- **Instant Checkbox Toggling**: Completely eliminated UI freezing when selecting/unselecting songs by staging selections locally inside the modal, committing changes only on "Apply Selection" with non-blocking React transitions.
+
+---
+
+## 🌟 What's New in v1.8.11
+
+- **React 19 Stability Fix**: Resolved the "Expected static flag was missing" internal React error by ensuring strict Rules of Hooks compliance and clean conditional modal mounting.
+
+---
+
+## 🌟 What's New in v1.8.10
+
+- **Reliable Native Virtual Scroll**: Overhauled song visibility manager with a clean, high-performance virtual windowing list that guarantees all songs render instantly with zero lag and 100% visibility.
+
+---
+
+## 🌟 What's New in v1.8.9
+
+- **Manage Songs Visibility Fix**: Resolved an issue where songs were invisible in the Manage Songs modal by ensuring proper container height for the virtualized list component.
+
+---
+
+## 🌟 What's New in v1.8.8
+
+- **Song Manager List Virtualization**: Implemented `react-window` virtualization to render only visible songs in the Manage Songs modal, eliminating UI freezing for large songbooks.
+
+---
+
+## 🌟 What's New in v1.8.7
+
+- **Instant Song Manager Response**: Optimized `SongSelectionModal` with an early-exit guard and lightweight metadata extraction, eliminating any freezing or lag when opening the modal for large songbooks (250+ songs).
+
+---
+
+## 🌟 What's New in v1.8.6
+
+- **Song Manager Performance Optimization**: Fixed UI freezing issues when managing songs on large songbooks (250+ songs) by introducing high-performance pagination (50 items per page) and optimized filtering.
+
+---
+
+## 🌟 What's New in v1.8.5
+
+- **Song Visibility Manager**: Added a new "Manage Songs" modal allowing users to toggle the visibility of individual songs before final PDF generation, complete with batch selection and search filters.
+
+---
+
+## 🌟 What's New in v1.8.4
+
+- **Privacy Filtering in ZIP Import**: Added an "Import only public songs" checkbox in the project selection modal to automatically filter out private songs based on Kytario visibility metadata.
+
+---
+
+## 🌟 What's New in v1.8.3
+
+- **Import Freeze Elimination**: Fixed an issue where selecting a project from the multi-project modal could hide the progress overlay before the layout transition started, causing the UI to seem unresponsive.
+- **Button Loading Feedback**: Added immediate submission spinner feedback (`isSubmitting`) to the project selection dialog to prevent repeated clicks.
+- **Background IndexedDB Serialization**: Restricted synchronous `localStorage` updates to small collections, ensuring 2MB+ songbooks are saved entirely via asynchronous IndexedDB without freezing the main thread.
+
+---
+
+## 🌟 What's New in v1.8.2
+
+- **Import Freeze Elimination**: Fixed an issue where selecting a project from the multi-project modal could hide the progress overlay before the layout transition started, causing the UI to seem unresponsive.
+- **Button Loading Feedback**: Added immediate submission spinner feedback (`isSubmitting`) to the project selection dialog to prevent repeated clicks.
+- **Background IndexedDB Serialization**: Restricted synchronous `localStorage` updates to small collections, ensuring 2MB+ songbooks are saved entirely via asynchronous IndexedDB without freezing the main thread.
+
+---
+
+## 🌟 What's New in v1.8.1
+
+- **Interactive Multi-Project Selector for ZIP Exports**: When uploading a Kytario account export `.zip` containing multiple projects or songbooks, the app displays a project selection modal allowing users to choose which project to customize.
+- **Detailed Project Cards**: Displays each project's title, song count, slug, and description, highlighting the primary project.
+- **Merge / Combine All Projects Option**: Adds a 1-click option to combine all projects found within the ZIP archive into a single comprehensive songbook.
+
+---
+
+## 🌟 What's New in v1.8.0
+
+- **Kytario Export ZIP Archive Import**: Direct in-memory extraction (`jszip`) of full Kytario account export `.zip` archives. Automatically parses `projects/{project}/project.json` and all songs from `projects/{project}/songs/*.json`, accurately reconstituting ChordPro text and chords from AST tokens.
+- **Batch Multi-File JSON Upload**: Users can select and upload multiple song `.json` files at once; the app normalizes and bundles them into a unified songbook automatically.
+- **Multi-Project Detection**: Identifies all distinct projects inside a ZIP export archive, notifying the user and defaulting to the primary project with the most songs.
+- **Canonical Songbook Title Resolution**: The proxy sends a lightweight `HEAD` request to `/api/songbooks/{slug}/pdf` to parse the authentic UTF-8 songbook title from the `Content-Disposition` header (e.g. *PRO RADOST* instead of slug `bodg`).
+- **Accurate Artist vs. Author Attribution**: Differentiates between Kytario's `interpreter` (performing artist/band) and `author` (composer/lyricist), correctly mapping performers across front covers, headers, and the Table of Contents.
+- **Musical Metadata Capture**: Parses and preserves song musical key (`tonalKey`), capo fret position (`capo`), tempo, and release year.
+- **Single-Song URL Support**: Import individual song links (`/cs/skladba/{slug}-{id}`) directly, extracting lyrics and chords from Next.js App Router streaming payloads and Schema.org `MusicComposition` JSON-LD.
+- **Large Songbook Storage (IndexedDB Caching)**: Songbook caching now seamlessly utilizes IndexedDB alongside `localStorage`. Massive songbook collections (e.g. 250+ songs, 2.3+ MB) are cached safely without triggering browser `QuotaExceededError` crashes.
+- **React Key & Error Boundary Hardening**: Replaced brittle keys with composite unique identifiers across virtual pages, Table of Contents rows, and multi-column section blocks, eliminating React duplicate key warnings and strengthening error boundaries.
+
+---
 
 - **Dynamic Responsive Settings Sidebar**: Adaptive viewport height calculation that scales between 88% and 94% on mobile and laptops to maximize visible controls, while capping cleanly on large desktop monitors without dead white space.
 - **Scroll to Top Snapback & Lag Fix**: Removed `content-visibility: auto` DOM thrashing and enforced `overflow-anchor: none` on preview page containers, eliminating Chromium scroll-anchoring bounce-backs and main-thread layout freezes.
@@ -48,9 +178,11 @@ A modern, high-performance web application designed to transform Kytario songboo
 ## 🚀 Key Features
 
 ### 🌐 Direct Kytario Import & Title Enrichment
-- **Instant Online Import:** Paste any Kytario songbook link (e.g., `https://kytario.com/your-songbook` or `kytario.com/cs/your-songbook`) or code (`your-songbook`) to fetch songbook sections and songs directly.
-- **Metadata Auto-Resolution:** Automatically detects and applies the songbook's human-readable name and author across covers, headers, and PDF document metadata.
-- **JSON Drag & Drop:** Support for direct drag-and-drop of exported `.json` songbook files with multi-pass error correction.
+- **Kytario Export ZIP Import:** Direct in-memory parsing of full Kytario account/project `.zip` exports, automatically extracting project metadata and converting AST tokens into ChordPro notation.
+- **Batch Multi-File Selection:** Select and import multiple individual song `.json` files simultaneously into one consolidated collection.
+- **Instant Online Import:** Paste any Kytario songbook link (e.g., `https://kytario.com/your-songbook` or `kytario.com/cs/your-songbook`), single song link (`/cs/skladba/{slug}-{id}`), or code (`your-songbook`) to fetch songbook sections and songs directly.
+- **Canonical Metadata & Title Auto-Resolution:** Automatically fetches authentic UTF-8 songbook titles via PDF header inspection (`HEAD /api/songbooks/{slug}/pdf`) and preserves song musical keys, capo frets, tempo, and release year.
+- **JSON Drag & Drop:** Support for direct drag-and-drop of `.json` and `.zip` files with multi-pass error correction.
 
 ### 📄 Background Native PDF Generation
 - **Client-Side PDF Engine:** Generates crisp vector PDFs entirely in the browser using `pdf-lib` and `@pdf-lib/fontkit` inside a dedicated Web Worker.
@@ -87,10 +219,11 @@ A modern, high-performance web application designed to transform Kytario songboo
 | **React 19 + TypeScript** | Frontend UI framework & robust type safety |
 | **Tailwind CSS v4** | Modern utility-first styling engine |
 | **Vite 6** | High-performance build tool, dev server, and worker bundler |
+| **JSZip** | Client-side in-memory ZIP archive extraction and parsing |
 | **pdf-lib & @pdf-lib/fontkit** | Client-side vector PDF generation in Web Worker |
 | **vite-plugin-pwa** | Service worker registration, offline asset caching, and web manifest |
 | **Express (Development Proxy)** | Local CORS proxy for direct Kytario API and page title fetching |
-| **IndexedDB API** | Client-side PDF binary caching and draft settings persistence |
+| **IndexedDB API** | Client-side PDF binary caching and large songbook persistence |
 | **Lucide React** | Clean, accessible icon system |
 
 ---
@@ -143,7 +276,7 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 1. **Commit and push changes to `main`:**
    ```bash
    git add .
-   git commit -m "chore: release v1.4.9"
+   git commit -m "chore: release v1.8.17"
    git push origin main
    ```
 
@@ -152,11 +285,29 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
    - Under **Build and deployment** > **Source**, ensure **GitHub Actions** is selected.
    - The workflow will build the project and publish the `dist` artifact to GitHub Pages automatically.
 
+3. **Configure Optional Cloudflare Worker Proxy (for 1-click Kytario URL imports):**
+   - GitHub Pages is a purely static host with no Node.js backend. Because `kytario.com` does not send `Access-Control-Allow-Origin: *` headers, browser security (CORS) blocks direct client-side fetch requests to Kytario's API.
+   - To enable seamless 1-click URL imports on your GitHub Pages site, deploy the free, ready-made Cloudflare Worker script located in [`cloudflare-worker.js`](cloudflare-worker.js):
+     1. Log in to [Cloudflare Dashboard](https://dash.cloudflare.com) and go to **Workers & Pages** > **Create application** > **Create Worker**.
+     2. Name it (e.g. `kytario-proxy`) and click **Deploy**.
+     3. Click **Edit code**, copy and paste the contents of `cloudflare-worker.js`, and click **Deploy**.
+     4. Copy your worker URL (e.g., `https://kytario-proxy.<your-subdomain>.workers.dev`).
+     5. In your GitHub repository:
+        - Navigate to **Settings** > **Secrets and variables** > **Actions** > **Variables** tab.
+        - Click **New repository variable**.
+        - Name: `VITE_KYTARIO_PROXY_URL`
+        - Value: `https://kytario-proxy.<your-subdomain>.workers.dev`
+     6. Re-run or trigger the **Deploy to GitHub Pages** workflow.
+   - Alternatively, you can paste the proxy URL directly into the app UI under **Optional: Configure Cloudflare Worker Proxy** without needing to re-deploy!
+
 ---
 
 ## 📖 How to Use
 
-1. **Import Songbook:** Enter a Kytario songbook link (e.g., `https://kytario.com/your-songbook`) or drag and drop your exported `.json` file into the upload zone.
+1. **Import Songbook:**
+   - **Kytario URL:** Paste your songbook link (e.g., `https://kytario.com/cs/bodg`). On GitHub Pages, use your configured Cloudflare Worker or the quick 2-step JSON copy if CORS relays are unavailable.
+   - **ZIP Archive Export:** Drag and drop your Kytario `.zip` export file directly onto the upload zone. Preserves custom songbook order and authentic titles automatically!
+   - **JSON Upload / Paste:** Paste your songbook JSON payload or select exported `.json` files.
 2. **Configure Layout:** Use the sidebar to configure page size, orientation, columns, margins, font sizing, and double-sided book printing mode.
 3. **Customize Styling & Covers:** Set color schemes, font family, and cover page designs (custom titles, subtitles, uploaded images, QR code link).
 4. **Apply Changes:** Click **Apply Changes** in the sidebar to recompute the SmartFit layout and update the live preview.

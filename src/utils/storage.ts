@@ -173,3 +173,55 @@ export async function loadGeneratedPdfFromStorage(): Promise<{
   }
   return null;
 }
+
+/**
+ * Persist cached songbook data to IndexedDB and localStorage safely without quota crashes
+ */
+export async function saveCachedSongbookToStorage(songbook: any): Promise<void> {
+  if (!songbook) {
+    try { localStorage.removeItem('kytario-cached-songbook'); } catch {}
+    await idbDelete('cachedSongbook');
+    return;
+  }
+
+  // Always persist to IndexedDB asynchronously without blocking the main thread
+  await idbSet('cachedSongbook', songbook);
+
+  // Only store small/medium songbooks in synchronous localStorage (<= 40 songs)
+  // to avoid blocking the main thread or crashing with QuotaExceededError on massive JSON payloads
+  const songCount = (songbook.songs || songbook.items || []).length;
+  if (songCount > 0 && songCount <= 40) {
+    try {
+      localStorage.setItem('kytario-cached-songbook', JSON.stringify(songbook));
+    } catch {
+      try { localStorage.removeItem('kytario-cached-songbook'); } catch {}
+    }
+  } else {
+    // Large songbook: clean localStorage so IndexedDB is used cleanly
+    try { localStorage.removeItem('kytario-cached-songbook'); } catch {}
+  }
+}
+
+/**
+ * Load cached songbook data from localStorage or IndexedDB
+ */
+export async function loadCachedSongbookFromStorage(): Promise<any> {
+  try {
+    const saved = localStorage.getItem('kytario-cached-songbook');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && (parsed.songs || parsed.items || parsed.sections)) {
+        return parsed;
+      }
+    }
+  } catch {}
+
+  try {
+    const idbData = await idbGet<any>('cachedSongbook');
+    if (idbData && (idbData.songs || idbData.items || idbData.sections)) {
+      return idbData;
+    }
+  } catch {}
+
+  return null;
+}

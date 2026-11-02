@@ -1,5 +1,194 @@
 # Release Notes
 
+## v1.8.17 - 2026-10-30
+
+### Cover Footer Cleanup, Full English Localization & Production Build Fixes
+- **Clean Covers (Default Footer Removed)**: Completely removed default promotional attribution footer text (`DEFAULT_FOOTER_TEXT`) from front and back covers. Cover pages now default to a clean, watermark-free presentation unless explicitly toggled on and customized by the user.
+- **Complete English Localization**: Translated all remaining Czech status messages during PDF generation (such as "Generating cover page...", "Preparing songs...", "Generating table of contents...", and "Finalizing PDF...") for consistent language throughout the app.
+- **Workbox Pre-cache & Large Worker Fix**: Configured `maximumFileSizeToCacheInBytes: 6 * 1024 * 1024` in `vite.config.ts`, ensuring large assets like `pdfWorker.js` (2.21 MiB containing `pdf-lib` and fontkit) are pre-cached properly without throwing Workbox build limit errors.
+- **Resilient Server Port Resolution**: Updated `server.ts` to support CLI `--port` flags and default cleanly to port 3000 in development, preventing port collisions with container environment variables (`PORT=8080`).
+- **Build & Lockfile Synchronization**: Synchronized `package.json` and `package-lock.json` for reliable CI/CD deployment on GitHub Pages and Cloudflare Pages.
+
+---
+
+## v1.8.16 - 2026-10-21
+
+### Kytario ZIP Song Ordering & Real Songbook Name Extraction
+- **Original Project Song Ordering**: When importing from a Kytario export ZIP archive, the songs now strictly preserve their authentic chronological project creation order (based on song creation timestamps) instead of defaulting to alphabetical sorting.
+- **Real Songbook Name Detection**: Automatically extracts the true songbook name from `project.json` (such as `"PRO RADOST"` for the `bodg` token) inside the `songbooks` list, falling back gracefully to project name or slug only when necessary.
+- **Song Selection Sorting Options**: Added a versatile sorting dropdown inside the Manage Songs modal to sort tracks on-the-fly by **Title**, **Artist**, or **Original Songbook Order**.
+- **Responsive Floating Toolbar & Scroll-to-Top**: 
+  - Floating action bar now wraps responsively on mobile portrait viewports to ensure zero hidden or clipped buttons.
+  - Repositioned the floating "Scroll to Top" button to stay comfortably above the bottom controls, eliminating any overlap on all screen sizes.
+  - Aligned the Table of Contents jump popover flush with the right end of the toolbar.
+- **Sleek Dark Zinc Aesthetic**: Replaced the indigo accents with an elegant dark gray / zinc theme across the bottom toolbar, modals, backdrop blurs (`backdrop-blur-md`), and status toasts.
+- **Rendering Performance & Windowing**: Added `content-visibility: auto` to virtualized pages and applied `React.memo` / `useMemo` optimizations to song layout rendering for butter-smooth scrolling.
+- **Unique Child Keys**: Enforced guaranteed unique keys across all song list iterations to prevent React duplicate key warnings and maintain component identity.
+
+---
+
+## v1.8.15 - 2026-10-19
+
+### "Updating Preview..." Feedback Overlay & Deferred Transition Indicator
+- **Instant Preview Feedback Pill**: Automatically displays the floating black "Updating preview..." spinner pill overlay whenever selection changes are processing in the background.
+- **Immediate Toast Confirmation**: Triggers an informative toast message ("Updating preview with X visible songs...") the moment you click "Apply Selection" in the Manage Songs modal.
+- **Non-blocking Concurrent Rendering**: Leverages React `useDeferredValue` and transition hooks to ensure seamless updates without dropping frames.
+
+---
+
+## v1.8.14 - 2026-10-19
+
+### Concurrent React Transitions & Debounced Song Selection
+- **Transition Wrapper**: Wrapped all `selectedSongIds` state updates in React's `useTransition` hook (`startSongSelectionTransition`) to keep UI interactions at top priority.
+- **Debounced Updates**: Added a configurable debounced state updater to absorb high-frequency toggling without triggering redundant recalculations.
+- **Deferred Preview Rendering**: Decoupled the heavy songbook preview from selection changes via `useDeferredValue(selectedSongIds)`, ensuring the UI never lags or drops frames during rapid toggles.
+
+---
+
+## v1.8.13 - 2026-10-19
+
+### Control Buttons Optimization & Collision Elimination
+- **Integrated "Manage Songs" Button**: Removed the rogue floating button that previously collided with the zoom pod on mobile. "Manage Songs" is now a first-class button integrated directly inside the primary actions pod with active count badge.
+- **Enhanced ToC & Jump Navigator**: Upgraded the Table of Contents button in the bottom bar with clear "ToC" labeling. Positioned the jump popover cleanly above the bottom toolbar (`bottom-[135px] sm:bottom-[84px]`, `z-50`) with an outside-click backdrop so it never renders behind other buttons.
+- **Dedicated ToC Page Jump**: Added a prominent "Go to Table of Contents" banner button and real-time search within the Jump navigator.
+- **Non-Colliding Floating Layout**: Structured bottom controls into stacked tiers (`flex-col sm:flex-row`) ensuring no overlapping buttons across all device screen sizes.
+
+---
+
+## v1.8.12 - 2026-10-19
+
+### Instant 0ms Song Visibility Toggling (Zero Freezing)
+- **Staged Local Modal State**: Checkbox clicks in the Manage Songs modal now update local component state in <0.5ms without triggering expensive background songbook re-rendering.
+- **Batch Application & Concurrent Transitions**: Selection changes are committed in a single batch when clicking "Apply Selection", with React transitions (`startTransition`) to keep the user interface 100% fluid and responsive.
+- **Preview Data Memoization**: Wrapped preview data object generation in `useMemo` to eliminate unnecessary document reflows.
+
+---
+
+## v1.8.11 - 2026-10-19
+
+### Fix React 19 Internal Error ("Expected static flag was missing")
+- **Hook Rules Compliance**: Moved early return statements in `SongSelectionModal` after all React hooks, eliminating the React 19 internal error caused by conditional hook execution.
+- **Conditional Mounting**: Updated `App.tsx` to conditionally mount `SongSelectionModal` only when opened, ensuring clean lifecycle management and zero hook mismatch.
+
+---
+
+## v1.8.10 - 2026-10-19
+
+### Reliable Native Virtualization in Song Manager
+- **Zero-Dependency Virtual Scroll**: Replaced external virtual list packages with a rock-solid, zero-dependency virtual windowing component that guarantees songs are always visible, smooth, and instant to render.
+- **Robust ID Fallbacks**: Added index fallbacks for songs without explicit IDs and automatic synchronization on songbook load so songs are never omitted or hidden by default.
+- **Fixed CI/CD Missing File**: Fully committed `SongSelectionModal.tsx` and dependencies to git to resolve the GitHub Actions build error.
+
+---
+
+## v1.8.9 - 2026-10-19
+
+### Song Visibility Modal Container Fix
+- **AutoSizer Container Height**: Fixed a layout bug where the virtualized song list container had zero height inside the flex modal, causing songs to be invisible. Added a guaranteed minimum height (`min-h-[380px]`) and relative positioning to ensure proper AutoSizer measurements and song rendering.
+
+---
+
+## v1.8.8 - 2026-10-19
+
+### List Virtualization
+- **React Window Integration**: Integrated `react-window` and `react-virtualized-auto-sizer` to virtualize the song list in the Manage Songs modal.
+- **Improved Performance**: Resolved the UI freeze when opening the modal for large collections by rendering only the visible subset of songs, significantly reducing DOM nodes and memory overhead.
+
+---
+
+## v1.8.7 - 2026-10-17
+
+### Instant Song Manager Opening & Lightweight Memoization
+- **Early-Exit Guard**: Added an immediate `if (!isOpen) return null;` check at the top of `SongSelectionModal` to prevent unnecessary hook evaluation and filtering overhead when the modal is closed.
+- **Lightweight Song References**: Stripped out massive lyrics and section arrays during modal filtering, referencing only lightweight song metadata (`id`, `title`, `artist`) to achieve instant response times with zero lag or freezing on large songbooks (250+ songs).
+
+---
+
+## v1.8.6 - 2026-10-17
+
+### Performance Optimization for Manage Songs Modal
+- **Paginated Song List**: Resolved UI freeze issues when opening the song visibility manager for large songbooks (250+ songs) by implementing page-based virtualization (50 items per page).
+- **Smooth Search & Filtering**: Optimized live search and batch selection (`Select/Deselect Filtered`) to run instantly without blocking the main browser thread.
+
+---
+
+## v1.8.5 - 2026-10-17
+
+### Song Visibility Manager
+- **Interactive Song List**: Added a new "Manage Songs" modal accessible from the bottom right, listing all imported songs.
+- **Granular Toggle Control**: Users can now toggle the visibility of individual songs via checkboxes, allowing for custom selection before final PDF compilation.
+- **Batch Selection**: Includes "Select All" / "Deselect All" controls for rapid batch updates.
+- **Search & Filter**: Integrated real-time search functionality to quickly locate specific songs in large imported collections.
+
+---
+
+## v1.8.4 - 2026-10-17
+
+### Privacy Filtering in ZIP Import
+- **Public-Only Import Filter**: Added an "Import only public songs" checkbox in the project selection modal. When selected, the importer will filter out all songs marked as private in the Kytario export ZIP.
+- **Privacy Detection**: Enhanced `normalizeSingleSong` to detect private status (`isPrivate: true`) based on `isPrivate` or `visibility: 'private'` flags in raw Kytario JSON data.
+- **Robust ZIP Import Pipeline**: Updated import handling to properly pass filtering settings during project selection, ensuring user privacy settings are respected in generated PDF songbooks.
+
+---
+
+## v1.8.3 - 2026-10-17
+
+### Fix for Project Import Freeze & Responsiveness
+- **Deferred Heavy Processing**: Wrapped project import logic in a `setTimeout` to ensure the modal transitions and loading overlay are rendered before the heavy songbook parsing begins, preventing main-thread UI freezes.
+- **Optimized Storage Sync**: Refactored `saveCachedSongbookToStorage` to bypass synchronous `localStorage` writes for large songbooks (over 40 songs), relying exclusively on asynchronous IndexedDB to keep the UI snappy.
+- **Improved Loading Feedback**: Added `isSubmitting` spinners to the project selection dialog to prevent race conditions during import.
+
+---
+
+## v1.8.2 - 2026-10-17
+
+### Fix for Project Import Freeze & Responsiveness
+- **Smooth Loading State Hand-off**: Resolved a state synchronization bug where selecting a project from the multi-project modal could hide the progress overlay before the layout transition began, causing the UI to appear frozen.
+- **Button Debouncing & Loading Feedback**: Added active submission indicators (`isSubmitting`) with spinner state to the project selection dialog to prevent duplicate clicks and ensure instant user feedback.
+- **Yielded Layout Transition**: Yielded thread control before mounting large songbooks (e.g. 250+ songs) so the progress bar renders cleanly before intensive DOM operations occur.
+- **Storage Serialization Optimization**: Prevented 2MB+ synchronous string serializations in `localStorage` for large songbooks, exclusively utilizing background IndexedDB persistence.
+
+---
+
+## v1.8.1 - 2026-10-17
+
+### Multi-Project Selection Modal for Kytario Export ZIPs
+- **Interactive Project Picker**: When importing a Kytario account export `.zip` containing multiple projects or songbooks (e.g. `BODG` and `Zkouska`), the app now displays a sleek interactive selection modal.
+- **Project Inspection**: Each project card displays its display name, URL slug, description, and song count, with the primary project flagged automatically.
+- **Combined Import Option**: Added a 1-click option to "Combine All Projects" into a single master songbook, retaining all songs across all archives with sequential indexing.
+- **Instant Double-Click**: Allows double-clicking any project card to import and load immediately.
+- **Validation**: Tested against multi-project archives and single-project ZIPs.
+
+---
+
+## v1.8.0 - 2026-10-17
+
+### Kytario Export ZIP & Multi-File Import Support
+- **Full ZIP Export Parsing**: Directly drag and drop or browse Kytario account data export ZIP archives. Automatically extracts `projects/{project}/project.json` and all song JSON files (`projects/{project}/songs/*.json`) in-memory using `jszip`.
+- **Batch Multi-File Upload**: Users can select multiple song `.json` files simultaneously; the app automatically bundles and normalizes them into a unified songbook.
+- **Multi-Project Detection**: When an export archive contains multiple projects, the app identifies all detected projects and defaults to the primary project with the most songs.
+
+### Enhanced Kytario API Integration & Title Resolution
+- **Canonical Songbook Title via PDF Endpoint**: Proxy now queries `HEAD /api/songbooks/{slug}/pdf` to retrieve authentic songbook titles (e.g. "PRO RADOST") from the `Content-Disposition: filename*=UTF-8''...` header.
+- **Accurate Artist Attribution**: Differentiates between Kytario's `interpreter` (performing artist/band) and `author` (composer/lyricist), correctly mapping performers on covers, headers, and the Table of Contents.
+- **Musical Metadata Capture**: Extracts and preserves musical key (`tonalKey`), capo fret position (`capo`), tempo, and release year.
+- **Single Song URL Support**: Enhanced proxy and HTML parser to extract song data from individual song pages (`/cs/skladba/{slug}-{id}`) and JSON-LD structured data.
+
+### Large Songbook Reliability & React Stability
+- **IndexedDB Large Songbook Caching**: Large songbooks (e.g. 250+ songs, 2+ MB) are now saved safely in IndexedDB, preventing `QuotaExceededError` crashes in browser `localStorage`.
+- **React Key Hardening**: Eliminated duplicate key warnings by using unique compound keys for virtual pages, Table of Contents rows, and multi-column section blocks.
+- **Error Boundary Hardening**: Upgraded React error boundaries for reliable error capture and recovery.
+
+### Validation
+- `npm run lint` (`tsc --noEmit`)
+- `npm run build` (`vite build`)
+- Tested against full Kytario export archives (e.g. 256 songs) and live API endpoints.
+
+### Deployment
+Published as GitHub Release `v1.8.0` and deployed to GitHub Pages via `.github/workflows/deploy.yml`.
+
+---
+
 ## v1.7.1 - 2026-10-12
 
 ### Dynamic Responsive Settings Sidebar

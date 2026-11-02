@@ -6,7 +6,7 @@ import { MaterialToggle } from './MaterialToggle';
 import { LocalizedInput, LocalizedTextarea } from './LocalizedInput';
 import { scrollSectionIntoView } from '../../utils/scrollHelper';
 
-export const DEFAULT_FOOTER_TEXT = "Vytvořeno s ♥ pomocí kytario.com | Vytvoř si zpěvník, sdílej ho a hraj.\nPosouvejte text živě společně, transponuj do libovolné tóniny nebo exportuj do PDF - zdarma pro tebe i tvé přátele. :)";
+export const DEFAULT_FOOTER_TEXT = '';
 
 export interface CoverPageSectionProps {
   idSuffix: string;
@@ -227,7 +227,7 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                     Auto-generated Cover
                   </p>
                   <p className="text-blue-700/80 leading-relaxed text-[10px]">
-                    Automatically renders songbook title, short link, centered QR code, standard German notation guide, and Kytario footer. Switch to <strong>Custom Page</strong> to override texts, add custom artwork, or customize the layout.
+                    Automatically renders songbook title, short link, centered QR code, and standard German notation guide. Switch to <strong>Custom Page</strong> to override texts, add custom artwork, or customize the layout.
                   </p>
                 </div>
               ) : (
@@ -523,7 +523,7 @@ export const CoverPageSection = React.memo(function CoverPageSection({
                       id={`backCoverTitle-${idSuffix}`}
                       value={draftSettings.backCoverTitle ?? ''}
                       onChange={(val) => onSettingChange('backCoverTitle', val)}
-                      placeholder="Defaults to ZADNÍ STRANA"
+                      placeholder="Defaults to songbook title"
                       className="w-full text-xs px-2.5 py-1.5 rounded-md bg-zinc-50 border border-black/10 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
                     />
                   </div>

@@ -11,8 +11,12 @@ export interface Song {
   chords?: string;
   rating?: number;
   key?: string;
+  tonalKey?: string;
   capo?: number | string;
   tempo?: number | string;
+  releaseYear?: number | string;
+  isPrivate?: boolean;
+  createdAt?: string;
 }
 
 export interface SongbookData {

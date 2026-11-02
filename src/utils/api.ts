@@ -208,21 +208,62 @@ export function extractEmbeddedJsonFromHtml(html: string): any | null {
     }
   }
 
-  // 2. JSON-LD structured data script tags
+  // 2. JSON-LD structured data script tags (includes single song MusicComposition)
   const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
   for (const m of ldMatches) {
     try {
       const parsed = JSON.parse(m[1]);
-      const obj = Array.isArray(parsed) ? parsed[0] : parsed;
-      if (obj && (hasSongsPayload(obj) || (Array.isArray(obj.track) && obj.track.length > 0))) {
-        return obj;
+      const items = Array.isArray(parsed) 
+        ? parsed 
+        : (Array.isArray(parsed?.['@graph']) ? parsed['@graph'] : [parsed]);
+
+      for (const item of items) {
+        if (!item) continue;
+        if (item['@type'] === 'MusicComposition' || item['@type'] === 'MusicRecording') {
+          const songName = item.name || item.headline || 'Song';
+          const lyricsText = item.lyrics?.text || item.text || '';
+          const artistName = item.composer?.name || item.byArtist?.name || item.author?.name || '';
+          return {
+            title: songName,
+            name: songName,
+            songs: [{
+              title: songName,
+              name: songName,
+              content: lyricsText,
+              lyrics: lyricsText,
+              artist: artistName,
+              key: item.musicalKey,
+              tonalKey: item.musicalKey,
+              genre: item.genre,
+            }],
+          };
+        }
+        if (hasSongsPayload(item) || (Array.isArray(item.track) && item.track.length > 0)) {
+          return item;
+        }
       }
     } catch {
       // Continue
     }
   }
 
-  // 3. Any application/json script tag containing songs or sections
+  // 3. Next.js App Router RSC Stream search for song or songbook JSON
+  const rscSongRegex = /"song"\s*:\s*(\{(?:(?!<script)[\s\S])*?"sections"\s*:\s*\[[\s\S]*?\]\s*\})/g;
+  let rscMatch;
+  while ((rscMatch = rscSongRegex.exec(html)) !== null) {
+    try {
+      const songData = JSON.parse(rscMatch[1]);
+      if (songData && (songData.name || songData.title)) {
+        return {
+          title: songData.name || songData.title,
+          name: songData.name || songData.title,
+          songs: [songData],
+        };
+      }
+    } catch {}
+  }
+
+  // 4. Any application/json script tag containing songs or sections
   const jsonScriptMatches = html.matchAll(/<script[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi);
   for (const m of jsonScriptMatches) {
     try {
@@ -480,6 +521,30 @@ export async function checkSongbookExists(tokenOrUrl: string): Promise<{ exists:
   }
 }
 
+/**
+ * Retrieves the currently configured Kytario proxy URL, either from local storage or build-time environment.
+ */
+export function getStoredProxyUrl(): string {
+  if (typeof window !== 'undefined') {
+    const local = localStorage.getItem('kytario_proxy_url')?.trim();
+    if (local) return local;
+  }
+  return import.meta.env.VITE_KYTARIO_PROXY_URL?.trim() || '';
+}
+
+/**
+ * Stores or clears a custom Kytario proxy URL in local storage.
+ */
+export function setStoredProxyUrl(url: string): void {
+  if (typeof window === 'undefined') return;
+  const clean = url.trim();
+  if (clean) {
+    localStorage.setItem('kytario_proxy_url', clean);
+  } else {
+    localStorage.removeItem('kytario_proxy_url');
+  }
+}
+
 export async function fetchSongbookFromKytario(url: string): Promise<any> {
   let cleanUrl = cleanKytarioUrl(url);
   let token = extractKytarioSlug(cleanUrl);
@@ -530,13 +595,20 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
   );
 
   const targetParam = token || cleanUrl;
-  const configuredProxyUrl = import.meta.env.VITE_KYTARIO_PROXY_URL?.trim();
+  const configuredProxyUrl = getStoredProxyUrl();
 
   // Prefer a configured hosted proxy on static hosts, otherwise use the local backend.
   if (configuredProxyUrl || !isStaticHost) {
     try {
       const proxyBase = configuredProxyUrl || '/api/proxy/kytario';
-      const proxyUrl = `${proxyBase.replace(/\/+$/, '')}/${encodeURIComponent(targetParam)}?url=${encodeURIComponent(cleanUrl)}&token=${encodeURIComponent(token || '')}`;
+      let proxyUrl = '';
+      if (proxyBase.endsWith('?') || proxyBase.includes('?url=')) {
+        const targetApi = `https://kytario.com/api/songbooks/${encodeURIComponent(token || targetParam)}/sections`;
+        proxyUrl = `${proxyBase}${encodeURIComponent(targetApi)}`;
+      } else {
+        proxyUrl = `${proxyBase.replace(/\/+$/, '')}/${encodeURIComponent(targetParam)}?url=${encodeURIComponent(cleanUrl)}&token=${encodeURIComponent(token || '')}`;
+      }
+
       const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(25000) });
       if (response.ok) {
         const data = await response.json();
