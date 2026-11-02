@@ -47,12 +47,18 @@ import {
   FileArchive,
   ListFilter,
 } from 'lucide-react';
-import { safeParseSongbookJson, normalizeSongbookData, normalizeSingleSong } from './utils';
+import {
+  safeParseSongbookJson,
+  normalizeSongbookData,
+  normalizeSingleSong,
+  formatCoverDisplayUrl,
+} from './utils';
 import { isZipFile, parseKytarioZip, ZipParseResult } from './utils/zipParser';
 import { readFileAsText } from './utils/fileIO';
 import {
   fetchSongbookFromKytario,
   cleanKytarioUrl,
+  extractKytarioSlug,
   KytarioErrorDetails,
   getStoredProxyUrl,
   setStoredProxyUrl,
@@ -959,7 +965,8 @@ export default function App() {
       return;
     }
 
-    if (cleanUrl !== kytarioUrl) {
+    const hasPlaylist = /[?&]playlist=/i.test(kytarioUrl);
+    if (!hasPlaylist && cleanUrl !== kytarioUrl) {
       setKytarioUrl(cleanUrl);
     }
 
@@ -969,10 +976,12 @@ export default function App() {
     setWarningMessage(null);
     setIsLoadingJson(true);
 
+    const targetUrl = kytarioUrl.trim() || cleanUrl;
+
     // Initial Stage 1: Connecting
     setLoadingStatus({
       title: 'Connecting to Kytario...',
-      subtitle: cleanUrl,
+      subtitle: targetUrl,
       progress: 8,
     });
 
@@ -981,7 +990,7 @@ export default function App() {
     const fetchProgressInterval = setInterval(() => {
       currentFetchProgress = Math.min(34, currentFetchProgress + 3);
       let stageTitle = 'Connecting to Kytario...';
-      let stageSubtitle = cleanUrl;
+      let stageSubtitle = targetUrl;
 
       if (currentFetchProgress >= 14 && currentFetchProgress < 22) {
         stageTitle = 'Fetching songbook payload...';
@@ -1002,8 +1011,22 @@ export default function App() {
     }, 280);
 
     try {
-      const rawData = await fetchSongbookFromKytario(cleanUrl);
+      const rawData = await fetchSongbookFromKytario(targetUrl);
       clearInterval(fetchProgressInterval);
+
+      // Guarantee that rawData carries the exact requested songbook/playlist URL, slug, and display shortUrl
+      const resolvedSlug = extractKytarioSlug(targetUrl) || extractKytarioSlug(cleanUrl);
+      if (resolvedSlug) {
+        rawData.urlToken = resolvedSlug;
+        rawData.slug = resolvedSlug;
+      }
+      if (cleanUrl && /^https?:\/\//i.test(cleanUrl)) {
+        rawData.url = cleanUrl;
+        rawData.shortUrl = formatCoverDisplayUrl(cleanUrl);
+      } else if (resolvedSlug) {
+        rawData.url = rawData.url || `https://kytario.com/${resolvedSlug}`;
+        rawData.shortUrl = rawData.shortUrl || formatCoverDisplayUrl(rawData.url);
+      }
 
       const data = normalizeSongbookData(rawData);
       setKytarioFetchDetails(null);

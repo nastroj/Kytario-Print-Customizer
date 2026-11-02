@@ -17,6 +17,7 @@ export interface Song {
   releaseYear?: number | string;
   isPrivate?: boolean;
   createdAt?: string;
+  transposition?: number;
 }
 
 export interface SongbookData {

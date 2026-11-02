@@ -92,6 +92,7 @@ export function normalizeSingleSong(input: RawSongLike | Song, idx = 0): Song {
     releaseYear: rawScalar(s, 'releaseYear'),
     isPrivate: rawBoolean(s, 'isPrivate') || rawString(s, 'visibility') === 'private',
     createdAt: rawString(s, 'createdAt') || undefined,
+    transposition: rawNumber(s, 'transposition'),
   };
 }
 
@@ -115,6 +116,9 @@ export function extractSongsFromAny(data: JsonValue | unknown, seen = new Set<ob
       const wrapped = asRecord(item) ?? undefined;
       const s = (wrapped && (asRecord(wrapped.song) || asRecord(wrapped.item))) || wrapped;
       if (s) {
+        if (wrapped && wrapped.transposition !== undefined && (s as any).transposition === undefined) {
+          (s as any).transposition = wrapped.transposition;
+        }
         const nested = extractSongsFromAny(s, seen);
         songs.push(...nested);
       }

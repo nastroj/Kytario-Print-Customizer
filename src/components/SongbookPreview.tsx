@@ -902,6 +902,8 @@ const songbookPreviewComparator = (
 
 interface QuickSongNavigatorProps {
   songs: Song[];
+  settings: PrintSettings;
+  tocPages: TocPage[];
   isSongNavOpen: boolean;
   onScrollTo: (id: string) => void;
   onClose?: () => void;
@@ -910,12 +912,70 @@ interface QuickSongNavigatorProps {
 
 const QuickSongNavigator = memo(function QuickSongNavigator({
   songs,
+  settings,
+  tocPages,
   isSongNavOpen,
   onScrollTo,
   onClose,
   onOpenManageSongs,
 }: QuickSongNavigatorProps) {
   const [search, setSearch] = useState('');
+  const [pageInput, setPageInput] = useState('1');
+
+  const totalPages = useMemo(() => {
+    let count = 0;
+    if (settings.showFrontCover !== false && songs.length > 0) count++;
+    if (settings.showTableOfContents !== false) count += tocPages.length;
+    count += songs.length;
+    if (settings.showBackCover !== false && songs.length > 0) count++;
+    return Math.max(1, count);
+  }, [settings, songs.length, tocPages.length]);
+
+  const handleGoToPage = () => {
+    const p = parseInt(pageInput, 10);
+    if (isNaN(p) || p < 1 || p > totalPages) return;
+
+    let currentCounter = 1;
+
+    if (settings.showFrontCover !== false && songs.length > 0) {
+      if (p === currentCounter) {
+        onScrollTo('front-cover-page');
+        onClose?.();
+        return;
+      }
+      currentCounter++;
+    }
+
+    if (settings.showTableOfContents !== false) {
+      for (const tocPage of tocPages) {
+        if (p === currentCounter) {
+          const targetId = tocPage.isFirstPage ? 'toc-page' : `toc-page-${tocPage.pageIndex}`;
+          onScrollTo(targetId);
+          onClose?.();
+          return;
+        }
+        currentCounter++;
+      }
+    }
+
+    for (let i = 0; i < songs.length; i++) {
+      if (p === currentCounter) {
+        onScrollTo(`song-${i}`);
+        onClose?.();
+        return;
+      }
+      currentCounter++;
+    }
+
+    if (settings.showBackCover !== false && songs.length > 0) {
+      if (p === currentCounter) {
+        onScrollTo('back-cover-page');
+        onClose?.();
+        return;
+      }
+      currentCounter++;
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -982,6 +1042,36 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
             View ToC
           </span>
         </button>
+
+        {/* Go to Page Input Box */}
+        <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200/90 rounded-xl px-2.5 py-1.5">
+          <span className="font-semibold text-zinc-700 flex items-center gap-1.5">
+            <span>Go to page (1–{totalPages}):</span>
+          </span>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={pageInput}
+              onChange={(e) => setPageInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleGoToPage();
+                }
+              }}
+              className="w-14 bg-white border border-zinc-300 rounded-lg px-2 py-1 text-center font-mono text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              title={`Enter page number (1 to ${totalPages})`}
+            />
+            <button
+              type="button"
+              onClick={handleGoToPage}
+              className="bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-950 text-white px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer"
+            >
+              Go
+            </button>
+          </div>
+        </div>
 
         {/* Manage Songs shortcut */}
         {onOpenManageSongs && (
@@ -2099,6 +2189,8 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       {/* Quick Song Navigator Popover */}
       <QuickSongNavigator
         songs={songs}
+        settings={settings}
+        tocPages={tocPages}
         isSongNavOpen={isSongNavOpen}
         onScrollTo={handleScrollTo}
         onClose={() => setIsSongNavOpen?.(false)}

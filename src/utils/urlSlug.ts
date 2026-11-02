@@ -104,13 +104,6 @@ export function extractSongbookUrlAndSlug(
         if (innerSongbook) candidates.push(innerSongbook);
       }
     }
-    const songbookSongs = root.songbookSongs;
-    if (Array.isArray(songbookSongs)) {
-      const first = asRecord(songbookSongs[0]);
-      const song = first && asRecord(first.song);
-      const project = song && asRecord(song.project);
-      if (project) candidates.push(project);
-    }
   }
 
   /** Reads the first non-empty trimmed string value for any of the keys. */
@@ -187,7 +180,12 @@ export function extractSongbookUrlAndSlug(
     (foundUrl && /^(?:https?:\/\/)?(?:www\.)?kytario\.com\/?$/i.test(foundUrl) && !foundSlug)
   ) {
     if (rawJsonText) {
-      const slugMatch = rawJsonText.match(
+      // Strip songs/songbookSongs array bodies and "project" objects to avoid extracting inner song or author project tokens
+      let textToScan = rawJsonText
+        .replace(/"(?:songbookSongs|songs)"\s*:\s*\[[\s\S]*?\](?=,\s*"|\s*\})/g, '"songs":[]')
+        .replace(/"project"\s*:\s*\{[\s\S]*?\}/g, '');
+
+      const slugMatch = textToScan.match(
         /"(?:urlToken|url_token|slugToken|slug_token|slug|songbookSlug|songbook_slug|zpevnikSlug|zpevnik_slug|code|shareCode|share_code|songbookCode|songbook_code)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i,
       );
       if (slugMatch && slugMatch[1]) {
@@ -199,7 +197,7 @@ export function extractSongbookUrlAndSlug(
       }
 
       if (!foundUrl) {
-        const urlMatch = rawJsonText.match(
+        const urlMatch = textToScan.match(
           /"(?:shortUrl|short_url|shortURL|url|songbookUrl|songbook_url|shareUrl|share_url|shareLink|share_link|link|path)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i,
         );
         if (urlMatch && urlMatch[1]) {
@@ -256,9 +254,66 @@ export function formatCoverQrUrl(
 }
 
 /**
+ * Validates whether a songbook URL or slug is non-empty, well-formed, and points to a real songbook/playlist path
+ * rather than a generic root domain, reserved system route, or invalid metadata.
+ */
+export function isValidSongbookUrlOrSlug(val?: string | null): boolean {
+  if (!val || typeof val !== 'string') return false;
+  const trimmed = val.trim();
+  if (!trimmed || trimmed === '/' || trimmed === 'https://' || trimmed === 'http://') return false;
+  if (/undefined|null|\[object/i.test(trimmed)) return false;
+
+  const noProto = trimmed.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+  if (!noProto || noProto.toLowerCase() === 'kytario.com' || noProto.toLowerCase() === 'kytario.com/') {
+    // Just root domain without slug is not a specific songbook URL
+    return false;
+  }
+
+  // Extract path/slug portion
+  const pathPart = noProto.includes('kytario.com')
+    ? noProto.split('kytario.com')[1] || ''
+    : noProto;
+  const cleanPath = pathPart.replace(/^\/+|\/+$/g, '');
+  const slug = cleanPath.split('?')[0].split('#')[0];
+  if (!slug) return false;
+
+  const reserved = new Set([
+    'api',
+    'v1',
+    'v2',
+    'cs',
+    'en',
+    'sk',
+    'de',
+    'report-content',
+    'sign-in',
+    'sign-up',
+    'terms',
+    'privacy',
+    'about-kytario',
+    'about-us',
+    'news',
+    'docs',
+    'site.webmanifest',
+    'sitemap.xml',
+    'login',
+    'logout',
+    'register',
+    'admin',
+    'auth',
+    '404',
+    'error',
+    'download',
+  ]);
+  if (reserved.has(slug.toLowerCase())) return false;
+
+  return true;
+}
+
+/**
  * Unified resolver for cover page display URL and QR code target URL.
  * Ensures that auto-generated covers always display the full songbook link (e.g. kytario.com/your-songbook)
- * and that custom covers can optionally override them.
+ * and that custom covers can optionally override them. Validates that the URL points to a specific songbook.
  */
 export function resolveCoverUrl(options: {
   isCustom?: boolean;
@@ -267,7 +322,7 @@ export function resolveCoverUrl(options: {
   songbookUrl?: string;
   songbookShortUrl?: string;
   songbookSlug?: string;
-}): { displayUrl: string; qrTarget: string } {
+}): { displayUrl: string; qrTarget: string; isValid: boolean } {
   const {
     isCustom = false,
     customUrl,
@@ -279,19 +334,32 @@ export function resolveCoverUrl(options: {
 
   // Custom cover with user-specified URL
   if (isCustom && customUrl && customUrl.trim()) {
+    const valid = isValidSongbookUrlOrSlug(customUrl.trim());
     const displayUrl = formatCoverDisplayUrl(customUrl.trim());
     const qrTarget =
       customQrUrl && customQrUrl.trim() ? customQrUrl.trim() : formatCoverQrUrl(customUrl.trim());
-    return { displayUrl, qrTarget };
+    return { displayUrl, qrTarget, isValid: valid };
   }
 
   // Auto-generated cover (or custom cover using songbook defaults):
   const candidate = songbookShortUrl || songbookUrl || songbookSlug || '';
-  const displayUrl = formatCoverDisplayUrl(candidate);
+  if (!candidate || !candidate.trim()) {
+    const displayUrl = formatCoverDisplayUrl();
+    const qrTarget =
+      isCustom && customQrUrl && customQrUrl.trim()
+        ? customQrUrl.trim()
+        : formatCoverQrUrl();
+    return { displayUrl, qrTarget, isValid: true };
+  }
+
+  const valid = isValidSongbookUrlOrSlug(candidate);
+  const displayUrl = valid ? formatCoverDisplayUrl(candidate) : '';
   const qrTarget =
     isCustom && customQrUrl && customQrUrl.trim()
       ? customQrUrl.trim()
-      : formatCoverQrUrl(candidate);
+      : valid
+        ? formatCoverQrUrl(candidate)
+        : '';
 
-  return { displayUrl, qrTarget };
+  return { displayUrl, qrTarget, isValid: valid };
 }

@@ -65,6 +65,71 @@ async function createServer() {
     return str;
   }
 
+  function extractPlaylistToken(input: string): string | null {
+    if (!input) return null;
+    const match = input.match(/[?&]playlist=([^&#]+)/i);
+    if (match && match[1]) {
+      return decodeURIComponent(match[1]).trim();
+    }
+    const plPathMatch = input.match(/\/playlists\/([^\/\?#]+)/i);
+    if (plPathMatch && plPathMatch[1]) {
+      return decodeURIComponent(plPathMatch[1]).trim();
+    }
+    return null;
+  }
+
+  function extractPlaylistsFromHtml(html: string): any[] {
+    if (!html || typeof html !== 'string') return [];
+
+    let idx = html.indexOf('"playlists":[');
+    let isEscaped = false;
+    if (idx === -1) {
+      idx = html.indexOf('\\"playlists\\":[');
+      isEscaped = true;
+    }
+    if (idx === -1) return [];
+
+    const prefix = isEscaped ? '\\"playlists\\":' : '"playlists":';
+    let pos = idx + prefix.length;
+    let depth = 0;
+    let inString = false;
+    let escapeNext = false;
+    const startPos = pos;
+
+    while (pos < html.length) {
+      const ch = html[pos];
+      if (escapeNext) {
+        escapeNext = false;
+      } else if (ch === '\\') {
+        escapeNext = true;
+      } else if (ch === '"') {
+        inString = !inString;
+      } else if (!inString) {
+        if (ch === '[') depth++;
+        else if (ch === ']') {
+          depth--;
+          if (depth === 0) {
+            pos++;
+            break;
+          }
+        }
+      }
+      pos++;
+    }
+
+    let slice = html.slice(startPos, pos);
+    if (isEscaped) {
+      slice = slice.replace(/\\\\\"/g, '"').replace(/\\\"/g, '"').replace(/\\\\/g, '\\');
+    }
+
+    try {
+      const parsed = JSON.parse(slice);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
   function extractKytarioSlug(input: string): string {
     if (!input) return '';
     let str = cleanKytarioUrl(input);
@@ -291,12 +356,15 @@ async function createServer() {
 
   function hasSongsPayload(data: any): boolean {
     if (!data) return false;
-    if (Array.isArray(data) && data.length > 0) return true;
-    if (Array.isArray(data.songs) && data.songs.length > 0) return true;
     if (Array.isArray(data.songbookSongs) && data.songbookSongs.length > 0) return true;
+    if (Array.isArray(data.songs) && data.songs.length > 0) return true;
     if (Array.isArray(data.sections) && data.sections.length > 0) return true;
-    if (Array.isArray(data.tracks) && data.tracks.length > 0) return true;
-    if (Array.isArray(data.track) && data.track.length > 0) return true;
+    if (
+      Array.isArray(data) &&
+      data.length > 0 &&
+      data.some((s: any) => s && (s.content || s.lyrics || s.sections || s.text || s.song))
+    )
+      return true;
     return false;
   }
 
@@ -312,6 +380,68 @@ async function createServer() {
         const parsed = JSON.parse(nextDataMatch[1]);
         const pageProps = parsed?.props?.pageProps;
         if (pageProps) {
+          // Handle Playlist if present in pageProps
+          const playlistData =
+            pageProps.playlist || pageProps.playlistData || pageProps.activePlaylist;
+          const songbookData =
+            pageProps.songbook ||
+            pageProps.sections ||
+            pageProps.data ||
+            pageProps.project ||
+            pageProps;
+
+          if (playlistData) {
+            const plSongs =
+              playlistData.songs ||
+              playlistData.items ||
+              playlistData.playlistSongs ||
+              playlistData.tracks;
+            if (Array.isArray(plSongs) && plSongs.length > 0) {
+              const allSongs =
+                songbookData?.songs ||
+                songbookData?.sections ||
+                songbookData?.songbookSongs?.map((i: any) => i.song) ||
+                songbookData ||
+                [];
+
+              const resolvedSongs = plSongs
+                .map((item: any) => {
+                  if (item && (item.content || item.lyrics || item.sections || item.text)) {
+                    return item;
+                  }
+                  const songId = item.id || item.songId || item.slug || item.urlToken;
+                  const found = Array.isArray(allSongs)
+                    ? allSongs.find(
+                        (s: any) =>
+                          s.id === songId ||
+                          s.slug === songId ||
+                          s.urlToken === songId ||
+                          s.title === item.title,
+                      )
+                    : null;
+                  return found || item;
+                })
+                .filter(
+                  (s: any) => s && (s.content || s.lyrics || s.sections || s.text || s.title),
+                );
+
+              if (resolvedSongs.length > 0) {
+                const playlistTitle = playlistData.name || playlistData.title;
+                const baseTitle = songbookData.title || songbookData.name || 'Songbook';
+                const combinedTitle = playlistTitle ? `${baseTitle} - ${playlistTitle}` : baseTitle;
+                return {
+                  ...songbookData,
+                  title: combinedTitle,
+                  name: combinedTitle,
+                  songbookTitle: combinedTitle,
+                  songs: resolvedSongs,
+                  sections: undefined,
+                  songbookSongs: undefined,
+                };
+              }
+            }
+          }
+
           const candidate =
             pageProps.songbook || pageProps.sections || pageProps.data || pageProps.project;
           if (candidate && hasSongsPayload(candidate)) {
@@ -346,24 +476,26 @@ async function createServer() {
             const lyricsText = item.lyrics?.text || item.text || '';
             const artistName =
               item.composer?.name || item.byArtist?.name || item.author?.name || '';
-            return {
-              title: songName,
-              name: songName,
-              songs: [
-                {
-                  title: songName,
-                  name: songName,
-                  content: lyricsText,
-                  lyrics: lyricsText,
-                  artist: artistName,
-                  key: item.musicalKey,
-                  tonalKey: item.musicalKey,
-                  genre: item.genre,
-                },
-              ],
-            };
+            if (lyricsText) {
+              return {
+                title: songName,
+                name: songName,
+                songs: [
+                  {
+                    title: songName,
+                    name: songName,
+                    content: lyricsText,
+                    lyrics: lyricsText,
+                    artist: artistName,
+                    key: item.musicalKey,
+                    tonalKey: item.musicalKey,
+                    genre: item.genre,
+                  },
+                ],
+              };
+            }
           }
-          if (hasSongsPayload(item) || (Array.isArray(item.track) && item.track.length > 0)) {
+          if (hasSongsPayload(item)) {
             return item;
           }
         }
@@ -554,9 +686,204 @@ async function createServer() {
       (req.params as any).token ||
       (req.params as any)[0] ||
       '';
+    let playlistToken =
+      (req.query.playlist as string) ||
+      extractPlaylistToken(rawInput) ||
+      '';
+    const originalInput = rawInput;
     rawInput = cleanKytarioUrl(rawInput);
     let token = extractKytarioSlug(rawInput);
-    console.log(`[Proxy] Fetching songbook for input: "${rawInput}", resolved token: "${token}"`);
+    console.log(
+      `[Proxy] Fetching songbook for input: "${rawInput}", resolved token: "${token}", playlist: "${playlistToken}"`,
+    );
+
+    // If this is a playlist request, execute the dedicated playlist extraction & merging pipeline
+    if (playlistToken) {
+      console.log(`[Proxy] Processing playlist request: token="${token}", playlist="${playlistToken}"`);
+      // If token is missing or 'playlists', try resolving from /playlists listing
+      if (!token || token.toLowerCase() === 'playlists') {
+        try {
+          const plRes = await axios.get('https://kytario.com/playlists', {
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            },
+            timeout: 6000,
+          });
+          if (plRes.data && typeof plRes.data === 'string') {
+            const regex = /href="\/([^\/\?"]+)(?:\/index(?:-\d+)?)?\?playlist=([^"&]+)"/gi;
+            let m;
+            while ((m = regex.exec(plRes.data)) !== null) {
+              if (m[2].toLowerCase() === playlistToken.toLowerCase()) {
+                token = m[1];
+                playlistToken = m[2];
+                console.log(`[Proxy] Resolved playlist "${playlistToken}" to songbook "${token}"`);
+                break;
+              }
+            }
+          }
+        } catch (e: any) {
+          console.warn('[Proxy] Failed to resolve playlist listing:', e?.message);
+        }
+      }
+
+      if (token && token.toLowerCase() !== 'playlists') {
+        // 1. Fetch playlist metadata from webpage HTML (try original input first, then reader URLs)
+        const playlistWebUrls = [
+          originalInput && /^https?:\/\//i.test(originalInput) ? originalInput : '',
+          `https://kytario.com/${token}/index-1?playlist=${encodeURIComponent(playlistToken)}`,
+          `https://kytario.com/cs/${token}/index-1?playlist=${encodeURIComponent(playlistToken)}`,
+          `https://kytario.com/${token}?playlist=${encodeURIComponent(playlistToken)}`,
+          `https://kytario.com/cs/${token}?playlist=${encodeURIComponent(playlistToken)}`,
+        ].filter(Boolean);
+
+        let playlists: any[] = [];
+        let pageHtml = '';
+
+        for (const pUrl of playlistWebUrls) {
+          try {
+            const pageRes = await axios.get(pUrl, {
+              headers: {
+                Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              },
+              timeout: 10000,
+            });
+            if (pageRes.data && typeof pageRes.data === 'string') {
+              playlists = extractPlaylistsFromHtml(pageRes.data);
+              if (playlists.length > 0) {
+                pageHtml = pageRes.data;
+                break;
+              }
+            }
+          } catch {}
+        }
+
+        const matchedPlaylist =
+          playlists.find(
+            (p: any) =>
+              (p.urlToken && p.urlToken.toLowerCase() === playlistToken.toLowerCase()) ||
+              String(p.id) === playlistToken ||
+              (p.name && p.name.toLowerCase() === playlistToken.toLowerCase()),
+          ) || (playlists.length > 0 ? playlists[0] : null);
+
+        // 2. Fetch full songbook sections with lyrics & chords
+        const sectionTokens = Array.from(
+          new Set([token, token.toLowerCase(), token.toUpperCase()].filter(Boolean)),
+        );
+        let sectionsData: any = null;
+
+        for (const sTok of sectionTokens) {
+          try {
+            const secRes = await axios.get(
+              `https://kytario.com/api/songbooks/${encodeURIComponent(sTok)}/sections`,
+              {
+                headers: {
+                  Accept: 'application/json, text/plain, */*',
+                  'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                },
+                timeout: 15000,
+              },
+            );
+            if (secRes.data && Array.isArray(secRes.data.songbookSongs)) {
+              sectionsData = secRes.data;
+              break;
+            }
+          } catch {}
+        }
+
+        if (matchedPlaylist && sectionsData) {
+          const allSongbookSongs = sectionsData.songbookSongs || sectionsData.songs || [];
+          const songMap = new Map<string, any>();
+          for (const item of allSongbookSongs) {
+            const s = item.song || item;
+            if (s) {
+              if (s.id !== undefined && s.id !== null) songMap.set(String(s.id), s);
+              if (s.urlToken) songMap.set(String(s.urlToken), s);
+              if (s.name) songMap.set(String(s.name).toLowerCase(), s);
+              if (s.title) songMap.set(String(s.title).toLowerCase(), s);
+            }
+          }
+
+          const plSongs = [...(matchedPlaylist.songs || [])].sort(
+            (a: any, b: any) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0),
+          );
+
+          const resolvedSongs = plSongs.map((plItem: any, idx: number) => {
+            const plSong = plItem.song || plItem;
+            const songId = String(plSong.id || plSong.songId || plSong.urlToken || '');
+            const fullSong =
+              songMap.get(songId) ||
+              (plSong.urlToken ? songMap.get(String(plSong.urlToken)) : null) ||
+              (plSong.name ? songMap.get(String(plSong.name).toLowerCase()) : null) ||
+              plSong;
+
+            const transposition =
+              plItem.transposition !== undefined
+                ? plItem.transposition
+                : fullSong.transposition !== undefined
+                  ? fullSong.transposition
+                  : plSong.transposition;
+
+            return {
+              ...fullSong,
+              id: fullSong.id || plSong.id || `pl-song-${idx + 1}`,
+              name: fullSong.name || plSong.name,
+              title: fullSong.title || plSong.name || fullSong.name,
+              author: fullSong.author || plSong.author,
+              interpreter: fullSong.interpreter || plSong.interpreter,
+              capo:
+                plItem.capo !== undefined
+                  ? plItem.capo
+                  : fullSong.capo !== undefined
+                    ? fullSong.capo
+                    : plSong.capo,
+              transposition,
+              orderIndex: plItem.orderIndex !== undefined ? plItem.orderIndex : idx,
+            };
+          });
+
+          let webTitle = extractTitleFromHtml(pageHtml, token);
+          if (!webTitle) {
+            try {
+              webTitle = await fetchKytarioWebpageTitle(token, originalInput);
+            } catch {}
+          }
+          const rawBaseTitle = webTitle || sectionsData.title || sectionsData.name || 'Songbook';
+          const baseTitle = cleanSongbookTitle(rawBaseTitle);
+          const plName = matchedPlaylist.name || matchedPlaylist.title || playlistToken;
+          const combinedTitle =
+            plName && !baseTitle.toLowerCase().includes(plName.toLowerCase())
+              ? `${baseTitle} - ${plName}`
+              : plName || baseTitle;
+
+          console.log(
+            `[Proxy] Successfully extracted playlist "${combinedTitle}" with ${resolvedSongs.length} songs`,
+          );
+
+          const songbookUrl =
+            originalInput && /^https?:\/\//i.test(originalInput)
+              ? originalInput
+              : `https://kytario.com/${token}/index-1?playlist=${encodeURIComponent(playlistToken)}`;
+
+          return res.json({
+            id: matchedPlaylist.id || sectionsData.id,
+            title: combinedTitle,
+            name: combinedTitle,
+            songbookTitle: combinedTitle,
+            playlistName: plName,
+            urlToken: token,
+            playlistUrlToken: matchedPlaylist.urlToken || playlistToken,
+            url: songbookUrl,
+            shortUrl: songbookUrl.replace(/^https?:\/\//i, '').replace(/^www\./i, ''),
+            slug: token,
+            songs: resolvedSongs,
+          });
+        }
+      }
+    }
 
     const candidateTokens = Array.from(
       new Set([token, token.toLowerCase(), token.toUpperCase()].filter(Boolean)),
@@ -605,23 +932,21 @@ async function createServer() {
     // If input is an absolute URL to a sections or api endpoint, try it directly first
     if (/^https?:\/\//i.test(rawInput.trim())) {
       const urlCandidate = rawInput.trim().split('#')[0];
-      // Only add if it doesn't end with an ignored keyword like /cs or /en
       if (token || !/(?:\/|^)(?:cs|en|sk|de|api|songbooks?|zpevniky?)\/?$/i.test(urlCandidate)) {
-        candidateUrls.push(urlCandidate);
-        if (urlCandidate.toLowerCase() !== urlCandidate) {
-          candidateUrls.push(urlCandidate.toLowerCase());
+        if (urlCandidate.includes('/sections') || urlCandidate.includes('/api/')) {
+          candidateUrls.push(urlCandidate);
         }
       }
     }
 
     for (const tok of candidateTokens) {
       candidateUrls.push(`https://kytario.com/api/songbooks/${tok}/sections`);
+      candidateUrls.push(`https://kytario.com/api/v1/songbooks/${tok}/sections`);
       candidateUrls.push(`https://kytario.com/cs/${tok}`);
       candidateUrls.push(`https://kytario.com/sk/${tok}`);
       candidateUrls.push(`https://kytario.com/en/${tok}`);
       candidateUrls.push(`https://kytario.com/${tok}`);
       candidateUrls.push(`https://kytario.com/zpevnik/${tok}`);
-      candidateUrls.push(`https://kytario.com/api/v1/songbooks/${tok}/sections`);
       candidateUrls.push(`https://kytario.com/api/songbooks/${tok}`);
       candidateUrls.push(`https://kytario.com/api/v1/songbooks/${tok}`);
       candidateUrls.push(`https://kytario.com/api/songbooks/slug/${tok}`);
@@ -671,11 +996,13 @@ async function createServer() {
           // If the payload has songs or songbookSongs or sections, return immediately
           const hasSongs =
             (data && Array.isArray(data.songbookSongs) && data.songbookSongs.length > 0) ||
-            (Array.isArray(data) && data.length > 0) ||
+            (Array.isArray(data) &&
+              data.length > 0 &&
+              data.some(
+                (s: any) => s && (s.content || s.lyrics || s.sections || s.text || s.song),
+              )) ||
             (data && Array.isArray(data.songs) && data.songs.length > 0) ||
-            (data && Array.isArray(data.sections) && data.sections.length > 0) ||
-            (data && Array.isArray(data.tracks) && data.tracks.length > 0) ||
-            (data && Array.isArray(data.track) && data.track.length > 0);
+            (data && Array.isArray(data.sections) && data.sections.length > 0);
 
           if (hasSongs) {
             console.log(`[Proxy] Successfully retrieved songbook payload from: ${targetUrl}`);
@@ -683,7 +1010,7 @@ async function createServer() {
             // Fetch human-readable songbook name from Kytario public webpage if token or rawInput exists
             if (token || rawInput) {
               try {
-                const webTitle = await fetchKytarioWebpageTitle(token, rawInput);
+                const webTitle = await fetchKytarioWebpageTitle(token, originalInput || rawInput);
                 if (webTitle) {
                   console.log(`[Proxy] Enriched songbook title from Kytario page: "${webTitle}"`);
                   data.title = webTitle;
@@ -693,6 +1020,17 @@ async function createServer() {
               } catch (e) {
                 // Ignore title enrichment failure
               }
+            }
+
+            if (token) {
+              data.urlToken = token;
+              data.slug = token;
+              const songbookUrl =
+                originalInput && /^https?:\/\//i.test(originalInput)
+                  ? originalInput
+                  : `https://kytario.com/${token}`;
+              data.url = songbookUrl;
+              data.shortUrl = songbookUrl.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
             }
 
             return res.json(data);

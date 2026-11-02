@@ -79,10 +79,6 @@ export function normalizeSongbookData(raw: RawSongbookLike, rawJsonText?: string
 
   const songs = extractSongsFromAny(raw);
   const urlInfo = extractSongbookUrlAndSlug(raw, rawJsonText);
-  const songbookSongsValue = rawPath(raw, 'songbookSongs');
-  const firstProject = Array.isArray(songbookSongsValue)
-    ? asRecord(asRecord(asRecord(songbookSongsValue[0])?.song)?.project)
-    : undefined;
   const urlToken = isRecord(raw)
     ? firstRawString(raw, [
         'urlToken',
@@ -90,9 +86,7 @@ export function normalizeSongbookData(raw: RawSongbookLike, rawJsonText?: string
         'slugToken',
         'slug_token',
         'slug',
-      ]) ||
-      (firstProject ? firstRawString(firstProject, ['urlToken']) : '') ||
-      urlInfo.slug
+      ]) || urlInfo.slug
     : urlInfo.slug;
 
   let title = '';
