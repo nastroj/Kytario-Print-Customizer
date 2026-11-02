@@ -3,11 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap"
+      rel="stylesheet"
+    />
     <title>Kytario Print Customizer</title>
-    <meta name="description" content="Transform your Kytario songbook into print-ready PDF pages with automatic Table of Contents and clean formatting." />
+    <meta
+      name="description"
+      content="Transform your Kytario songbook into print-ready PDF pages with automatic Table of Contents and clean formatting."
+    />
     <meta name="theme-color" content="#18181b" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -21,7 +27,10 @@
     <link rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%apple-touch-icon.png" />
     <link rel="apple-touch-icon-precomposed" href="%BASE_URL%apple-touch-icon.png" />
     <meta property="og:title" content="Kytario Print Customizer" />
-    <meta property="og:description" content="Transform your Kytario songbook into print-ready PDF pages with automatic Table of Contents and clean formatting." />
+    <meta
+      property="og:description"
+      content="Transform your Kytario songbook into print-ready PDF pages with automatic Table of Contents and clean formatting."
+    />
     <meta property="og:image" content="%BASE_URL%pwa-512x512.png" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -37,22 +46,34 @@
       }
     </script>
     <script>
-      (function() {
+      (function () {
         // Ignore benign Vite HMR WebSocket errors in AI Studio iframe (as specified in environment constraints)
         var originalError = console.error;
-        console.error = function() {
+        console.error = function () {
           var msg = arguments[0];
-          if (typeof msg === 'string' && (msg.indexOf('[vite]') !== -1 || msg.indexOf('websocket') !== -1 || msg.indexOf('WebSocket') !== -1)) {
+          if (
+            typeof msg === 'string' &&
+            (msg.indexOf('[vite]') !== -1 ||
+              msg.indexOf('websocket') !== -1 ||
+              msg.indexOf('WebSocket') !== -1)
+          ) {
             return;
           }
-          if (msg && typeof msg.message === 'string' && (msg.message.indexOf('[vite]') !== -1 || msg.message.indexOf('WebSocket') !== -1)) {
+          if (
+            msg &&
+            typeof msg.message === 'string' &&
+            (msg.message.indexOf('[vite]') !== -1 || msg.message.indexOf('WebSocket') !== -1)
+          ) {
             return;
           }
           return originalError.apply(console, arguments);
         };
         try {
           var saved = localStorage.getItem('kytario-dark-mode');
-          var isDark = saved !== null ? JSON.parse(saved) : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var isDark =
+            saved !== null
+              ? JSON.parse(saved)
+              : window.matchMedia('(prefers-color-scheme: dark)').matches;
           if (isDark) {
             document.documentElement.classList.add('dark');
           } else {
@@ -98,4 +119,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

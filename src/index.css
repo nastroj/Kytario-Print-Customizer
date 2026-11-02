@@ -1,9 +1,11 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Inter", "inter Fallback", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans:
+    'Inter', 'inter Fallback', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --breakpoint-xs: 400px;
 }
 
@@ -290,14 +292,14 @@
 }
 
 /* Settings Bottom Sheet Control Scaling for High Touch Comfort */
-div[class*="rounded-t-3xl"] select,
-div[class*="rounded-t-3xl"] input[type="text"]:not(.bg-transparent),
-div[class*="rounded-t-3xl"] textarea {
+div[class*='rounded-t-3xl'] select,
+div[class*='rounded-t-3xl'] input[type='text']:not(.bg-transparent),
+div[class*='rounded-t-3xl'] textarea {
   font-size: 0.875rem !important; /* text-sm (14px) */
   line-height: 1.25rem !important;
 }
 
-div[class*="rounded-t-3xl"] select {
+div[class*='rounded-t-3xl'] select {
   padding-top: 0.5rem !important; /* py-2 */
   padding-bottom: 0.5rem !important;
   padding-left: 0.75rem !important; /* px-3 */
@@ -312,8 +314,8 @@ div[class*="rounded-t-3xl"] select {
   width: 11.5rem !important; /* 184px (wider to fit larger font cleanly) */
 }
 
-div[class*="rounded-t-3xl"] input[type="text"]:not(.bg-transparent),
-div[class*="rounded-t-3xl"] textarea {
+div[class*='rounded-t-3xl'] input[type='text']:not(.bg-transparent),
+div[class*='rounded-t-3xl'] textarea {
   padding-top: 0.5rem !important;
   padding-bottom: 0.5rem !important;
   padding-left: 0.75rem !important;
@@ -325,5 +327,3 @@ div[class*="rounded-t-3xl"] textarea {
 .song-page-outer-wrapper {
   overflow-anchor: none !important;
 }
-
-

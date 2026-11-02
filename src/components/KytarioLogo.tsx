@@ -18,11 +18,7 @@ export const KytarioLogo: React.FC<KytarioLogoProps> = ({
       role="img"
       aria-label="Kytario Logo"
     >
-      <svg
-        viewBox="0 0 512 512"
-        className="w-full h-full block"
-        xmlns="http://www.w3.org/2000/svg"
-      >
+      <svg viewBox="0 0 512 512" className="w-full h-full block" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="kytarioBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#18181b" />
@@ -35,7 +31,13 @@ export const KytarioLogo: React.FC<KytarioLogoProps> = ({
             <stop offset="100%" stopColor="#d97706" />
           </linearGradient>
           <filter id="kytarioShadow" x="-10%" y="-10%" width="120%" height="120%">
-            <feDropShadow dx="0" dy="8" stdDeviation="12" floodColor="#000000" floodOpacity="0.45" />
+            <feDropShadow
+              dx="0"
+              dy="8"
+              stdDeviation="12"
+              floodColor="#000000"
+              floodOpacity="0.45"
+            />
           </filter>
         </defs>
 
@@ -83,8 +85,23 @@ export const KytarioLogo: React.FC<KytarioLogoProps> = ({
           />
 
           {/* Acoustic Guitar Soundhole & Strings */}
-          <circle cx="256" cy="245" r="54" fill="#09090b" stroke="url(#kytarioAccentGrad)" strokeWidth="5" />
-          <circle cx="256" cy="245" r="44" fill="#18181b" stroke="#52525b" strokeWidth="2" strokeDasharray="4 3" />
+          <circle
+            cx="256"
+            cy="245"
+            r="54"
+            fill="#09090b"
+            stroke="url(#kytarioAccentGrad)"
+            strokeWidth="5"
+          />
+          <circle
+            cx="256"
+            cy="245"
+            r="44"
+            fill="#18181b"
+            stroke="#52525b"
+            strokeWidth="2"
+            strokeDasharray="4 3"
+          />
           <circle cx="256" cy="245" r="32" fill="#09090b" />
 
           {/* Guitar Neck extending upwards */}
@@ -96,11 +113,51 @@ export const KytarioLogo: React.FC<KytarioLogoProps> = ({
           <line x1="242" y1="192" x2="270" y2="192" stroke="#71717a" strokeWidth="2" />
 
           {/* Guitar Strings */}
-          <line x1="247" y1="104" x2="247" y2="350" stroke="#e4e4e7" strokeWidth="2" opacity="0.85" />
-          <line x1="251" y1="104" x2="251" y2="350" stroke="#e4e4e7" strokeWidth="1.8" opacity="0.85" />
-          <line x1="255" y1="104" x2="255" y2="350" stroke="#e4e4e7" strokeWidth="1.8" opacity="0.85" />
-          <line x1="259" y1="104" x2="259" y2="350" stroke="#e4e4e7" strokeWidth="1.8" opacity="0.85" />
-          <line x1="263" y1="104" x2="263" y2="350" stroke="#e4e4e7" strokeWidth="2" opacity="0.85" />
+          <line
+            x1="247"
+            y1="104"
+            x2="247"
+            y2="350"
+            stroke="#e4e4e7"
+            strokeWidth="2"
+            opacity="0.85"
+          />
+          <line
+            x1="251"
+            y1="104"
+            x2="251"
+            y2="350"
+            stroke="#e4e4e7"
+            strokeWidth="1.8"
+            opacity="0.85"
+          />
+          <line
+            x1="255"
+            y1="104"
+            x2="255"
+            y2="350"
+            stroke="#e4e4e7"
+            strokeWidth="1.8"
+            opacity="0.85"
+          />
+          <line
+            x1="259"
+            y1="104"
+            x2="259"
+            y2="350"
+            stroke="#e4e4e7"
+            strokeWidth="1.8"
+            opacity="0.85"
+          />
+          <line
+            x1="263"
+            y1="104"
+            x2="263"
+            y2="350"
+            stroke="#e4e4e7"
+            strokeWidth="2"
+            opacity="0.85"
+          />
 
           {/* Guitar Bridge */}
           <rect x="230" y="344" width="52" height="14" rx="5" fill="url(#kytarioAccentGrad)" />
@@ -135,8 +192,12 @@ export const KytarioLogo: React.FC<KytarioLogoProps> = ({
           textAnchor="middle"
           letterSpacing="1"
         >
-          <text x="185" y="325" fill="#f59e0b">C</text>
-          <text x="327" y="325" fill="#f59e0b">G</text>
+          <text x="185" y="325" fill="#f59e0b">
+            C
+          </text>
+          <text x="327" y="325" fill="#f59e0b">
+            G
+          </text>
         </g>
       </svg>
     </div>

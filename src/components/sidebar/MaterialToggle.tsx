@@ -58,16 +58,12 @@ export const MaterialToggle = React.memo(function MaterialToggle({
               ? 'h-4.5 w-4.5 translate-x-5 bg-white'
               : 'h-3.5 w-3.5 translate-x-1 bg-zinc-400'
             : checked
-            ? 'h-5.5 w-5.5 translate-x-6.5 bg-white'
-            : 'h-4.5 w-4.5 translate-x-1.25 bg-zinc-400'
+              ? 'h-5.5 w-5.5 translate-x-6.5 bg-white'
+              : 'h-4.5 w-4.5 translate-x-1.25 bg-zinc-400'
         }`}
       >
         {checked && (
-          <span
-            className={`rounded-full bg-zinc-900 ${
-              isSm ? 'w-1.5 h-1.5' : 'w-2 h-2'
-            }`}
-          />
+          <span className={`rounded-full bg-zinc-900 ${isSm ? 'w-1.5 h-1.5' : 'w-2 h-2'}`} />
         )}
       </span>
     </button>

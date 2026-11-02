@@ -12,20 +12,15 @@ interface BackCoverPageProps {
   settings: PrintSettings;
 }
 
-export function BackCoverPage({
-  title,
-  url,
-  shortUrl,
-  slug,
-  settings,
-}: BackCoverPageProps) {
+export function BackCoverPage({ title, url, shortUrl, slug, settings }: BackCoverPageProps) {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
 
   const isCustom = settings.backCoverType === 'custom';
 
-  const displayTitle = (isCustom && settings.backCoverTitle?.trim())
-    ? settings.backCoverTitle.trim()
-    : (settings.backCoverTitle?.trim() || title || 'SONGBOOK');
+  const displayTitle =
+    isCustom && settings.backCoverTitle?.trim()
+      ? settings.backCoverTitle.trim()
+      : settings.backCoverTitle?.trim() || title || 'SONGBOOK';
 
   const { displayUrl, qrTarget } = resolveCoverUrl({
     isCustom,
@@ -41,9 +36,10 @@ export function BackCoverPage({
   const showQr = settings.backCoverShowQr !== false;
 
   const showFooter = Boolean(settings.backCoverShowFooter);
-  const footerText = isCustom && settings.backCoverFooterText !== undefined
-    ? settings.backCoverFooterText
-    : (settings.backCoverFooterText || '');
+  const footerText =
+    isCustom && settings.backCoverFooterText !== undefined
+      ? settings.backCoverFooterText
+      : settings.backCoverFooterText || '';
 
   const customImage = settings.backCoverCustomImage;
   const imagePosition = settings.backCoverImagePosition || 'replace-qr';
@@ -70,7 +66,6 @@ export function BackCoverPage({
       });
   }, [qrTarget, showQr]);
 
-
   const qrSizeClass = isLandscape
     ? 'w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40'
     : 'w-44 h-44 sm:w-52 sm:h-52 md:w-60 md:h-60';
@@ -87,8 +82,9 @@ export function BackCoverPage({
         fontFamily: settings.fontFamily || 'Inter, sans-serif',
       }}
     >
-      <div className={`flex-1 flex flex-col justify-center ${alignment === 'center' ? 'items-center' : 'items-start'} ${isLandscape ? 'space-y-4 md:space-y-6' : 'space-y-6 md:space-y-8'} my-auto`}>
-        
+      <div
+        className={`flex-1 flex flex-col justify-center ${alignment === 'center' ? 'items-center' : 'items-start'} ${isLandscape ? 'space-y-4 md:space-y-6' : 'space-y-6 md:space-y-8'} my-auto`}
+      >
         {customImage && imagePosition === 'above-title' && (
           <div className="max-w-xs max-h-28 sm:max-h-36 mb-2 overflow-hidden rounded-xl shadow-xs">
             <img
@@ -120,7 +116,9 @@ export function BackCoverPage({
           )}
 
           {displayUrl && (
-            <div className={`flex items-center gap-2 ${alignment === 'center' ? 'justify-center' : 'justify-start'} text-sm sm:text-base font-medium opacity-80 mt-2.5`}>
+            <div
+              className={`flex items-center gap-2 ${alignment === 'center' ? 'justify-center' : 'justify-start'} text-sm sm:text-base font-medium opacity-80 mt-2.5`}
+            >
               <Book className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 opacity-80" />
               <span className="tracking-wide">{displayUrl}</span>
             </div>
@@ -137,7 +135,8 @@ export function BackCoverPage({
               />
             </div>
           ) : (
-            showQr && qrCodeDataUrl && (
+            showQr &&
+            qrCodeDataUrl && (
               <div className="p-3 sm:p-4 bg-white rounded-2xl shadow-sm border border-black/5 print:border-none print:shadow-none print:bg-transparent transition-transform hover:scale-[1.02]">
                 <img
                   src={qrCodeDataUrl}
@@ -162,7 +161,9 @@ export function BackCoverPage({
       </div>
 
       {showFooter && footerText && (
-        <div className={`w-full max-w-3xl ${alignment === 'center' ? 'mx-auto text-center' : 'text-left'} space-y-3 pt-4 shrink-0`}>
+        <div
+          className={`w-full max-w-3xl ${alignment === 'center' ? 'mx-auto text-center' : 'text-left'} space-y-3 pt-4 shrink-0`}
+        >
           <div
             className="h-px w-full bg-current opacity-20 my-2"
             style={{

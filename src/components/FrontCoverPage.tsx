@@ -14,21 +14,16 @@ interface FrontCoverPageProps {
 
 export const DEFAULT_FOOTER_TEXT = '';
 
-export function FrontCoverPage({
-  title,
-  url,
-  shortUrl,
-  slug,
-  settings,
-}: FrontCoverPageProps) {
+export function FrontCoverPage({ title, url, shortUrl, slug, settings }: FrontCoverPageProps) {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
 
   const isCustom = settings.frontCoverType === 'custom';
-  
+
   // Resolve effective values based on auto/custom mode
-  const displayTitle = (isCustom && settings.frontCoverTitle?.trim())
-    ? settings.frontCoverTitle.trim()
-    : (settings.frontCoverTitle?.trim() || title || 'SONGBOOK');
+  const displayTitle =
+    isCustom && settings.frontCoverTitle?.trim()
+      ? settings.frontCoverTitle.trim()
+      : settings.frontCoverTitle?.trim() || title || 'SONGBOOK';
 
   const { displayUrl, qrTarget } = resolveCoverUrl({
     isCustom,
@@ -43,9 +38,10 @@ export function FrontCoverPage({
   const showQr = settings.frontCoverShowQr !== false;
 
   const showFooter = Boolean(settings.frontCoverShowFooter);
-  const footerText = isCustom && settings.frontCoverFooterText !== undefined
-    ? settings.frontCoverFooterText
-    : (settings.frontCoverFooterText || '');
+  const footerText =
+    isCustom && settings.frontCoverFooterText !== undefined
+      ? settings.frontCoverFooterText
+      : settings.frontCoverFooterText || '';
 
   const customImage = settings.frontCoverCustomImage;
   const imagePosition = settings.frontCoverImagePosition || 'replace-qr';
@@ -72,7 +68,6 @@ export function FrontCoverPage({
       });
   }, [qrTarget, showQr]);
 
-
   // Responsive sizes based on orientation
   const qrSizeClass = isLandscape
     ? 'w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40'
@@ -91,8 +86,9 @@ export function FrontCoverPage({
       }}
     >
       {/* Top / Center Section */}
-      <div className={`flex-1 flex flex-col justify-center ${alignment === 'center' ? 'items-center' : 'items-start'} ${isLandscape ? 'space-y-4 md:space-y-6' : 'space-y-6 md:space-y-8'} my-auto`}>
-        
+      <div
+        className={`flex-1 flex flex-col justify-center ${alignment === 'center' ? 'items-center' : 'items-start'} ${isLandscape ? 'space-y-4 md:space-y-6' : 'space-y-6 md:space-y-8'} my-auto`}
+      >
         {/* Custom Artwork Banner / Logo Above Title */}
         {customImage && imagePosition === 'above-title' && (
           <div className="max-w-xs max-h-28 sm:max-h-36 mb-2 overflow-hidden rounded-xl shadow-xs">
@@ -129,7 +125,9 @@ export function FrontCoverPage({
 
           {/* URL with Icon */}
           {displayUrl && (
-            <div className={`flex items-center gap-2 ${alignment === 'center' ? 'justify-center' : 'justify-start'} text-sm sm:text-base font-medium opacity-80 mt-2.5`}>
+            <div
+              className={`flex items-center gap-2 ${alignment === 'center' ? 'justify-center' : 'justify-start'} text-sm sm:text-base font-medium opacity-80 mt-2.5`}
+            >
               <Book className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 opacity-80" />
               <span className="tracking-wide">{displayUrl}</span>
             </div>
@@ -148,7 +146,8 @@ export function FrontCoverPage({
               />
             </div>
           ) : (
-            showQr && qrCodeDataUrl && (
+            showQr &&
+            qrCodeDataUrl && (
               <div className="p-3 sm:p-4 bg-white rounded-2xl shadow-sm border border-black/5 print:border-none print:shadow-none print:bg-transparent transition-transform hover:scale-[1.02]">
                 <img
                   src={qrCodeDataUrl}
@@ -175,7 +174,9 @@ export function FrontCoverPage({
 
       {/* Lower / Footer Section */}
       {showFooter && footerText && (
-        <div className={`w-full max-w-3xl ${alignment === 'center' ? 'mx-auto text-center' : 'text-left'} space-y-3 pt-4 shrink-0`}>
+        <div
+          className={`w-full max-w-3xl ${alignment === 'center' ? 'mx-auto text-center' : 'text-left'} space-y-3 pt-4 shrink-0`}
+        >
           <div
             className="h-px w-full bg-current opacity-20 my-2"
             style={{

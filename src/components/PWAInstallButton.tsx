@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { Download, Share2, PlusSquare, X, Smartphone } from 'lucide-react';
 
 interface PWAInstallButtonProps {
@@ -13,6 +14,13 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
 }) => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const iosGuideRef = useRef<HTMLDivElement>(null);
+
+  // Trap focus in the iOS install sheet while it is open; Escape closes it.
+  useFocusTrap(iosGuideRef, {
+    active: showIOSGuide,
+    onEscape: () => setShowIOSGuide(false),
+  });
 
   // Suppress completely if already installed as standalone PWA
   if (isInstalled) {
@@ -95,6 +103,10 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
         >
           <div
             id="pwa-ios-modal-content"
+            ref={iosGuideRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pwa-ios-modal-title"
             className="w-full max-w-sm rounded-2xl bg-white border border-black/10 p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
@@ -104,12 +116,10 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                   <Smartphone className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-zinc-900">
+                  <h3 id="pwa-ios-modal-title" className="text-sm font-semibold text-zinc-900">
                     Install Kytario
                   </h3>
-                  <p className="text-[11px] text-zinc-500">
-                    Add to iPhone or iPad Home Screen
-                  </p>
+                  <p className="text-[11px] text-zinc-600">Add to iPhone or iPad Home Screen</p>
                 </div>
               </div>
               <button
@@ -128,7 +138,11 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                   1
                 </span>
                 <span className="leading-relaxed">
-                  Tap the <strong className="text-zinc-900 inline-flex items-center gap-1"><Share2 className="w-3.5 h-3.5 inline text-blue-500" /> Share</strong> button in Safari's navigation bar.
+                  Tap the{' '}
+                  <strong className="text-zinc-900 inline-flex items-center gap-1">
+                    <Share2 className="w-3.5 h-3.5 inline text-blue-500" /> Share
+                  </strong>{' '}
+                  button in Safari's navigation bar.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
@@ -136,7 +150,11 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                   2
                 </span>
                 <span className="leading-relaxed">
-                  Scroll down the menu and tap <strong className="text-zinc-900 inline-flex items-center gap-1"><PlusSquare className="w-3.5 h-3.5 inline text-zinc-700" /> Add to Home Screen</strong>.
+                  Scroll down the menu and tap{' '}
+                  <strong className="text-zinc-900 inline-flex items-center gap-1">
+                    <PlusSquare className="w-3.5 h-3.5 inline text-zinc-700" /> Add to Home Screen
+                  </strong>
+                  .
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
@@ -144,7 +162,8 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                   3
                 </span>
                 <span className="leading-relaxed">
-                  Tap <strong className="text-zinc-900">Add</strong> in the top right to launch Kytario with full-screen offline access.
+                  Tap <strong className="text-zinc-900">Add</strong> in the top right to launch
+                  Kytario with full-screen offline access.
                 </span>
               </li>
             </ol>

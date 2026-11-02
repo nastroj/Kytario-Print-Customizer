@@ -1,6 +1,18 @@
 import React, { useCallback, useEffect, useRef, useMemo, memo, useState } from 'react';
 import { Song, PrintSettings, ColumnBalancePlan } from '../types';
-import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, computeSmartSectionFilling, partitionSectionsIntoColumns, computeSmartFitLineMargin, MIN_READABLE_LYRICS_FONT_SIZE, SongSection, ParsedLine, getPageMargins, getOptimalColumnCount } from '../utils';
+import {
+  parseSongContent,
+  computeSmartFitScale,
+  computeSmartColumnBalance,
+  computeSmartSectionFilling,
+  partitionSectionsIntoColumns,
+  computeSmartFitLineMargin,
+  MIN_READABLE_LYRICS_FONT_SIZE,
+  SongSection,
+  ParsedLine,
+  getPageMargins,
+  getOptimalColumnCount,
+} from '../utils';
 import { getFontFamilyStack } from '../fonts';
 
 interface UseSmartFitParams {
@@ -66,7 +78,6 @@ export function useSmartFit({
     hasArtist,
   ]);
 
-
   // Compute available column height for smart balancing
   const availColH = useMemo(() => {
     const isLand = settings.orientation === 'landscape';
@@ -87,7 +98,8 @@ export function useSmartFit({
     const paddingY = (margins.top + margins.bottom) * mmToPx;
     const titleSize = Number(settings.titleFontSize) || 16;
     const artistSize = Number(settings.artistFontSize) || 16;
-    const titleBlockH = (hasTitle ? titleSize * 1.25 : 0) + (hasArtist ? artistSize * 1.25 : 0) + 18;
+    const titleBlockH =
+      (hasTitle ? titleSize * 1.25 : 0) + (hasArtist ? artistSize * 1.25 : 0) + 18;
     return Math.max(100, totalPxHeight - paddingY - titleBlockH - 24);
   }, [
     settings.orientation,
@@ -111,7 +123,6 @@ export function useSmartFit({
   const columnPlan = useMemo(() => {
     return computeSmartColumnBalance(sections, settings, availColH, scale);
   }, [sections, settings, availColH, scale]);
-
 
   const baseLyricsSize = Number(settings.lyricsFontSize) || 12;
   const baseChordsSize = Number(settings.chordsFontSize) || 12;
@@ -137,7 +148,13 @@ interface SongDisplayProps {
   isDebugMode?: boolean;
 }
 
-export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex, settings, isDebugMode = false }: SongDisplayProps) {
+export const SongDisplay = memo(function SongDisplay({
+  song,
+  index,
+  docPageIndex,
+  settings,
+  isDebugMode = false,
+}: SongDisplayProps) {
   const title = song.title || song.name || 'Unknown Title';
   const artist = song.artist || song.author || song.interpreter || '';
   const text = song.text || song.content || song.lyrics || '';
@@ -147,7 +164,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
 
   const handleRefClick = useCallback((targetIndex: number) => {
     setHighlightedSectionIndex(targetIndex);
-    
+
     const element = containerRef.current?.querySelector(`[data-section-index="${targetIndex}"]`);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -162,7 +179,12 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
 
   // Hook handles vertical height calculation, line/chord/buffer summing, upscale for short songs,
   // min readability constraint, & smart column balancing with orphan prevention
-  const { scale: computedScale, chosenLyricsFontSize, columnPlan, availColH } = useSmartFit({
+  const {
+    scale: computedScale,
+    chosenLyricsFontSize,
+    columnPlan,
+    availColH,
+  } = useSmartFit({
     sections,
     settings,
     hasTitle: Boolean(title),
@@ -216,7 +238,13 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
   const defaultRefrainLineCol = '#2563eb';
 
   const lineMargin = useMemo(() => {
-    return computeSmartFitLineMargin(sections, settings, Boolean(title), Boolean(artist), computedScale);
+    return computeSmartFitLineMargin(
+      sections,
+      settings,
+      Boolean(title),
+      Boolean(artist),
+      computedScale,
+    );
   }, [sections, settings, computedScale, title, artist]);
 
   const dynamicStyles = {
@@ -226,7 +254,8 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
     '--chords-color': settings.chordsColor,
     '--marker-color': settings.markerColor,
     '--section-line-color': settings.sectionLineColor || defaultLineCol,
-    '--refrain-line-color': settings.refrainLineColor || settings.chordsColor || defaultRefrainLineCol,
+    '--refrain-line-color':
+      settings.refrainLineColor || settings.chordsColor || defaultRefrainLineCol,
     '--songbook-font-family': getFontFamilyStack(settings.fontFamily),
     '--title-size': `${settings.titleFontSize}px`,
     '--artist-size': `${settings.artistFontSize}px`,
@@ -238,142 +267,194 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
     '--marker-width': markerColWidth,
     '--line-margin': `${lineMargin}px`,
     '--section-padding-left': '0.20rem',
-    '--section-separator-color': settings.sectionSeparatorColor || settings.separatorLineColor || '#e4e4e7',
+    '--section-separator-color':
+      settings.sectionSeparatorColor || settings.separatorLineColor || '#e4e4e7',
     fontFamily: 'var(--songbook-font-family)',
   } as React.CSSProperties;
 
-  const renderSongLine = useCallback((lineData: ParsedLine, i: number, firstNonEmptyIndex: number, secMarker: string) => {
-    if (lineData.isEmpty) return <div key={i} className="h-3"></div>;
+  const renderSongLine = useCallback(
+    (lineData: ParsedLine, i: number, firstNonEmptyIndex: number, secMarker: string) => {
+      if (lineData.isEmpty) return <div key={i} className="h-3"></div>;
 
-    const isFirstNonEmpty = i === firstNonEmptyIndex;
-    const { chunks, hasChords } = lineData;
-    const isRep = lineData.isRepetitionLine;
-    const isChordsOnly = isRep || (!chunks || !chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef));
+      const isFirstNonEmpty = i === firstNonEmptyIndex;
+      const { chunks, hasChords } = lineData;
+      const isRep = lineData.isRepetitionLine;
+      const isChordsOnly =
+        isRep ||
+        !chunks ||
+        !chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef);
 
-    const lineStyle = {
-      gridTemplateColumns: hasAnyMarkers ? 'var(--marker-width) 1fr' : '1fr',
-      fontSize: 'calc(var(--song-scale, 1) * var(--lyrics-size))',
-      minHeight: isRep 
-        ? 'calc(var(--song-scale, 1) * (var(--chords-size) + 4px))'
-        : (hasChords && settings.showChords 
-            ? 'calc(var(--song-scale, 1) * (var(--chords-size) + var(--lyrics-size) + 4px))' 
-            : 'calc(var(--song-scale, 1) * (var(--lyrics-size) + 4px))')
-    } as React.CSSProperties;
+      const lineStyle = {
+        gridTemplateColumns: hasAnyMarkers ? 'var(--marker-width) 1fr' : '1fr',
+        fontSize: 'calc(var(--song-scale, 1) * var(--lyrics-size))',
+        minHeight: isRep
+          ? 'calc(var(--song-scale, 1) * (var(--chords-size) + 4px))'
+          : hasChords && settings.showChords
+            ? 'calc(var(--song-scale, 1) * (var(--chords-size) + var(--lyrics-size) + 4px))'
+            : 'calc(var(--song-scale, 1) * (var(--lyrics-size) + 4px))',
+      } as React.CSSProperties;
 
-    return (
-      <div key={i} className={`relative song-line grid items-end ${isChordsOnly ? 'mb-0' : 'mb-[var(--line-margin)]'}`} style={lineStyle}>
-        <div className="flex items-baseline justify-end pr-1">
-          {isFirstNonEmpty && secMarker && (
-            <>
-              <div className="leading-none song-marker select-none">
-                {secMarker.replace(/^\[(.*)\]$/, '$1')}
-              </div>
-              <div className="leading-none song-lyric w-0 overflow-hidden opacity-0 select-none">X</div>
-            </>
-          )}
-        </div>
+      return (
+        <div
+          key={i}
+          className={`relative song-line grid items-end ${isChordsOnly ? 'mb-0' : 'mb-[var(--line-margin)]'}`}
+          style={lineStyle}
+        >
+          <div className="flex items-baseline justify-end pr-1">
+            {isFirstNonEmpty && secMarker && (
+              <>
+                <div className="leading-none song-marker select-none">
+                  {secMarker.replace(/^\[(.*)\]$/, '$1')}
+                </div>
+                <div className="leading-none song-lyric w-0 overflow-hidden opacity-0 select-none">
+                  X
+                </div>
+              </>
+            )}
+          </div>
 
-        <div className={`flex flex-wrap ${isRep ? 'items-baseline gap-x-2 py-0.5' : 'items-end'}`}>
-          {chunks.map((chunk, j) => {
-            const isSectionRef = chunk.isSectionRef;
-            const hasChord = Boolean(chunk.chord && settings.showChords);
-            const isLast = j === chunks.length - 1;
-            const hasText = Boolean(chunk.text && (isRep ? chunk.text.trim() : true));
-            // In chorded lines, if a chunk has a chord, it MUST have a lyric slot so the chord aligns on the top track
-            const shouldRenderLyric = isRep ? hasText : (hasText || hasChord || isSectionRef);
+          <div
+            className={`flex flex-wrap ${isRep ? 'items-baseline gap-x-2 py-0.5' : 'items-end'}`}
+          >
+            {chunks.map((chunk, j) => {
+              const isSectionRef = chunk.isSectionRef;
+              const hasChord = Boolean(chunk.chord && settings.showChords);
+              const isLast = j === chunks.length - 1;
+              const hasText = Boolean(chunk.text && (isRep ? chunk.text.trim() : true));
+              // In chorded lines, if a chunk has a chord, it MUST have a lyric slot so the chord aligns on the top track
+              const shouldRenderLyric = isRep ? hasText : hasText || hasChord || isSectionRef;
 
-            const hasActualText = Boolean(chunk.text && chunk.text.length > 0);
-            const isWhitespaceOnly = hasActualText && chunk.text.trim().length === 0;
+              const hasActualText = Boolean(chunk.text && chunk.text.length > 0);
+              const isWhitespaceOnly = hasActualText && chunk.text.trim().length === 0;
 
-            return (
-              <div key={j} className={isRep ? 'contents' : `inline-flex flex-col ${hasChord || isSectionRef ? 'shrink-0' : 'min-w-0 max-w-full'}`}>
-                {hasChord && (
-                  <div 
-                    className={`font-bold leading-none song-chord select-text ${isRep ? '' : 'mb-0'} ${isLast ? 'pr-0' : 'pr-1.5'}`}
-                    style={{ 
-                      color: 'var(--chords-color)', 
-                      fontSize: 'calc(var(--song-scale, 1) * var(--chords-size))',
-                      fontStyle: 'var(--chords-font-style)',
-                      lineHeight: 1,
-                      ...(isRep ? {} : { minHeight: 'calc(var(--song-scale, 1) * var(--chords-size))' })
-                    }}
-                  >
-                    {chunk.chord}
-                  </div>
-                )}
-                {shouldRenderLyric && (
-                  <div 
-                    className={`select-text ${isSectionRef ? 'song-marker font-semibold' : `leading-none song-lyric ${isRep ? 'font-semibold' : ''}`}`}
-                    style={{
-                      color: isSectionRef ? 'var(--marker-color)' : undefined,
-                      fontStyle: !isSectionRef && !isRep ? 'var(--lyrics-font-style)' : 'normal',
-                      minHeight: isRep ? undefined : 'calc(var(--song-scale, 1) * var(--lyrics-size))',
-                      lineHeight: 1,
-                    }}
-                  >
-                    {isSectionRef ? (
-                      <span 
-                        className={`inline-block px-1 rounded-sm transition-all duration-300 ${chunk.targetSectionIndex !== undefined ? 'cursor-pointer hover:bg-blue-100 text-blue-600 font-bold' : 'opacity-80'}`}
-                        onClick={(e) => {
-                          if (chunk.targetSectionIndex !== undefined) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleRefClick(chunk.targetSectionIndex);
+              return (
+                <div
+                  key={j}
+                  className={
+                    isRep
+                      ? 'contents'
+                      : `inline-flex flex-col ${hasChord || isSectionRef ? 'shrink-0' : 'min-w-0 max-w-full'}`
+                  }
+                >
+                  {hasChord && (
+                    <div
+                      className={`font-bold leading-none song-chord select-text ${isRep ? '' : 'mb-0'} ${isLast ? 'pr-0' : 'pr-1.5'}`}
+                      style={{
+                        color: 'var(--chords-color)',
+                        fontSize: 'calc(var(--song-scale, 1) * var(--chords-size))',
+                        fontStyle: 'var(--chords-font-style)',
+                        lineHeight: 1,
+                        ...(isRep
+                          ? {}
+                          : { minHeight: 'calc(var(--song-scale, 1) * var(--chords-size))' }),
+                      }}
+                    >
+                      {chunk.chord}
+                    </div>
+                  )}
+                  {shouldRenderLyric && (
+                    <div
+                      className={`select-text ${isSectionRef ? 'song-marker font-semibold' : `leading-none song-lyric ${isRep ? 'font-semibold' : ''}`}`}
+                      style={{
+                        color: isSectionRef ? 'var(--marker-color)' : undefined,
+                        fontStyle: !isSectionRef && !isRep ? 'var(--lyrics-font-style)' : 'normal',
+                        minHeight: isRep
+                          ? undefined
+                          : 'calc(var(--song-scale, 1) * var(--lyrics-size))',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {isSectionRef ? (
+                        <span
+                          className={`inline-block px-1 rounded-sm transition-all duration-300 ${chunk.targetSectionIndex !== undefined ? 'cursor-pointer hover:bg-blue-100 text-blue-600 font-bold' : 'opacity-80'}`}
+                          onClick={(e) => {
+                            if (chunk.targetSectionIndex !== undefined) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleRefClick(chunk.targetSectionIndex);
+                            }
+                          }}
+                          title={
+                            chunk.targetSectionIndex !== undefined
+                              ? `Jump to section ${chunk.text.replace(/^\[(.*)\]$/, '$1')}`
+                              : undefined
                           }
-                        }}
-                        title={chunk.targetSectionIndex !== undefined ? `Jump to section ${chunk.text.replace(/^\[(.*)\]$/, '$1')}` : undefined}
-                      >
-                        {`[${chunk.text.replace(/^\[(.*)\]$/, '$1').trim()}]`}
-                      </span>
-                    ) : hasActualText && !isWhitespaceOnly ? (
-                      chunk.text
-                    ) : isWhitespaceOnly ? (
-                      <>
-                        {chunk.text.replace(/ /g, '\u00A0')}
-                        <span className="invisible select-none inline-block overflow-hidden" style={{ width: 0, height: 0 }} aria-hidden="true">
+                        >
+                          {`[${chunk.text.replace(/^\[(.*)\]$/, '$1').trim()}]`}
+                        </span>
+                      ) : hasActualText && !isWhitespaceOnly ? (
+                        chunk.text
+                      ) : isWhitespaceOnly ? (
+                        <>
+                          {chunk.text.replace(/ /g, '\u00A0')}
+                          <span
+                            className="invisible select-none inline-block overflow-hidden"
+                            style={{ width: 0, height: 0 }}
+                            aria-hidden="true"
+                          >
+                            Ág
+                          </span>
+                        </>
+                      ) : (
+                        // Empty lyric under chord (e.g. chord at the end of a line) with strut for exact baseline/line-height in Firefox
+                        <span
+                          className="invisible select-none inline-block overflow-hidden"
+                          style={{ width: 0, height: 0 }}
+                          aria-hidden="true"
+                        >
                           Ág
                         </span>
-                      </>
-                    ) : (
-                      // Empty lyric under chord (e.g. chord at the end of a line) with strut for exact baseline/line-height in Firefox
-                      <span className="invisible select-none inline-block overflow-hidden" style={{ width: 0, height: 0 }} aria-hidden="true">
-                        Ág
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
-    );
-  }, [settings, computedScale, hasAnyMarkers, markerColWidth, lineMargin]);
+      );
+    },
+    [settings, computedScale, hasAnyMarkers, markerColWidth, lineMargin],
+  );
 
   // Determine physical page index in document to accurately position outer page numbers on facing pages
-  const effectiveDocPageIndex = docPageIndex !== undefined
-    ? docPageIndex
-    : (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? 1 : 0) + index;
+  const effectiveDocPageIndex =
+    docPageIndex !== undefined
+      ? docPageIndex
+      : (settings.showFrontCover !== false ? 1 : 0) +
+        (settings.showTableOfContents !== false ? 1 : 0) +
+        index;
   // Page 1 (index 0, odd / recto) is Right; Page 2 (index 1, even / verso) is Left; Page 3 is Right
   const isRightSpread = effectiveDocPageIndex % 2 === 0;
   const isOuterRight = settings.bookMode ? isRightSpread : true;
 
-  const badgePositionClass = settings.pageNumberPosition === 'left'
-    ? 'left-0 print:!left-0 print:!right-auto'
-    : settings.pageNumberPosition === 'right'
-      ? 'right-0 print:!right-0 print:!left-auto'
-      : (isOuterRight ? 'right-0 print:!right-0 print:!left-auto' : 'left-0 print:!left-0 print:!right-auto');
+  const badgePositionClass =
+    settings.pageNumberPosition === 'left'
+      ? 'left-0 print:!left-0 print:!right-auto'
+      : settings.pageNumberPosition === 'right'
+        ? 'right-0 print:!right-0 print:!left-auto'
+        : isOuterRight
+          ? 'right-0 print:!right-0 print:!left-auto'
+          : 'left-0 print:!left-0 print:!right-auto';
 
   return (
-    <div ref={containerRef} style={dynamicStyles} className="relative flex-1 flex flex-col h-full song-display-root">
+    <div
+      ref={containerRef}
+      style={dynamicStyles}
+      className="relative flex-1 flex flex-col h-full song-display-root"
+    >
       {/* Page / Song Number Badge on top */}
       {settings.pageNumberPosition !== 'none' && (
-        <div 
+        <div
           className={`song-page-number-badge absolute top-0 ${badgePositionClass} bg-zinc-800 text-white font-bold rounded-[5px] flex items-center justify-center select-none z-10 print:border print:border-black`}
           style={{ width: '26px', height: '26px', fontSize: '12px' }}
         >
           {/* Solid SVG background ensuring the dark badge is 100% rendered on generated PDFs even if browser strips CSS background-color */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none rounded-[5px]" viewBox="0 0 26 26" aria-hidden="true">
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none rounded-[5px]"
+            viewBox="0 0 26 26"
+            aria-hidden="true"
+          >
             <rect width="26" height="26" rx="5" fill="#27272a" />
           </svg>
           <span className="relative z-10 text-white font-bold text-xs leading-none select-none">
@@ -383,7 +464,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
       )}
 
       {isDebugMode && debugStats && (
-        <div 
+        <div
           className="absolute bottom-0 right-0 bg-amber-500/10 text-amber-700 border border-amber-500/30 rounded px-2 py-0.5 text-[11px] font-mono select-none print:hidden flex items-center gap-1.5 z-10"
           title={`Total Lines: ${debugStats.totalLines} (raw: ${debugStats.rawLines}), Font: ${debugStats.chosenSize}px (Scale: ${debugStats.scale}x)`}
         >
@@ -395,18 +476,24 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
       )}
 
       <div className="text-center mb-5 sm:mb-6 px-8 shrink-0 song-title-block">
-        <h2 
-          className="font-bold leading-tight song-title-text" 
+        <h2
+          className="font-bold leading-tight song-title-text"
           style={{ color: 'var(--title-color)', fontSize: 'var(--title-size)' }}
         >
-          {title} 
+          {title}
           {artist && (
-            <span className="font-bold song-artist-text" style={{ color: 'var(--artist-color)', fontSize: 'var(--artist-size)' }}> - {artist}</span>
+            <span
+              className="font-bold song-artist-text"
+              style={{ color: 'var(--artist-color)', fontSize: 'var(--artist-size)' }}
+            >
+              {' '}
+              - {artist}
+            </span>
           )}
         </h2>
       </div>
 
-      <div 
+      <div
         className="whitespace-pre-wrap flex-1 min-h-0 flex song-columns-container"
         style={{
           fontFamily: 'var(--songbook-font-family)',
@@ -416,15 +503,19 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
         {columns.map((col, colIdx) => {
           const colFill = sectionFillingPlan?.columns?.[colIdx];
           const colLineMargin = colFill?.lineMargin ?? lineMargin;
-          const colSectionGap = colFill?.sectionGap ?? Math.max(12, Math.round(Number(settings.lyricsFontSize || 12) * computedScale));
+          const colSectionGap =
+            colFill?.sectionGap ??
+            Math.max(12, Math.round(Number(settings.lyricsFontSize || 12) * computedScale));
 
           return (
-            <div 
-              key={colIdx} 
+            <div
+              key={colIdx}
               className="flex-1 min-w-0 flex flex-col song-column"
-              style={{
-                '--line-margin': `${colLineMargin}px`,
-              } as React.CSSProperties}
+              style={
+                {
+                  '--line-margin': `${colLineMargin}px`,
+                } as React.CSSProperties
+              }
             >
               {col.columnSections.map((sec, sIdxInCol) => {
                 const globalSecIndex = col.startIndex + sIdxInCol;
@@ -434,7 +525,10 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
 
                 const orphanProtection = plan?.orphanProtection;
                 const hasOrphanGuards = Boolean(
-                  orphanProtection && orphanProtection.hasHeadGroup && orphanProtection.hasTailGroup && orphanProtection.tailGroupStartIndex > 0
+                  orphanProtection &&
+                  orphanProtection.hasHeadGroup &&
+                  orphanProtection.hasTailGroup &&
+                  orphanProtection.tailGroupStartIndex > 0,
                 );
 
                 const headLines: { line: ParsedLine; index: number }[] = [];
@@ -444,7 +538,7 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
                 if (hasOrphanGuards && orphanProtection) {
                   const nonEmptyIndices = sec.parsedLines
                     .map((l, idx) => ({ isEmpty: l.isEmpty, idx }))
-                    .filter(l => !l.isEmpty);
+                    .filter((l) => !l.isEmpty);
 
                   const headEndIdx = nonEmptyIndices.length >= 2 ? nonEmptyIndices[1].idx : 0;
                   const tailStartIdx = orphanProtection.tailGroupStartIndex;
@@ -464,74 +558,85 @@ export const SongDisplay = memo(function SongDisplay({ song, index, docPageIndex
 
                 const showSectionLines = settings.showSectionLines !== false;
                 const currentLineColor = sec.isRefrain
-                  ? (settings.refrainLineColor || settings.chordsColor || defaultRefrainLineCol)
-                  : (settings.sectionLineColor || defaultLineCol);
+                  ? settings.refrainLineColor || settings.chordsColor || defaultRefrainLineCol
+                  : settings.sectionLineColor || defaultLineCol;
 
                 return (
-                  <div 
+                  <div
                     key={`col-${colIdx}-sec-${sIdxInCol}-${globalSecIndex}`}
                     className="song-section-block"
                   >
                     {!isFirstInColumn && (
-                      <div 
+                      <div
                         className="song-section-gap w-full select-none pointer-events-none"
                         style={{ height: `${colSectionGap}px` }}
                       />
                     )}
-                  <div 
-                    className={`relative mb-1.5 sm:mb-2 song-section ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''} transition-all duration-500 ${highlightedSectionIndex === globalSecIndex ? 'ring-2 ring-blue-500 ring-offset-2 ring-opacity-100 bg-blue-500/10 rounded-sm' : ''}`}
-                    data-section-index={globalSecIndex}
-                    style={{ 
-                      ...(showSectionLines ? {
-                        borderLeft: `0.22em solid ${currentLineColor}`,
-                        paddingLeft: 'var(--section-padding-left)',
-                        WebkitBoxDecorationBreak: 'clone' as any,
-                        boxDecorationBreak: 'clone' as any,
-                      } : {}),
-                    }}
-                  >
-                    {sec.marker && firstNonEmptyIndex === -1 && (
-                      <div 
-                        className="relative song-line grid items-end mb-[5px]"
-                        style={{
-                          gridTemplateColumns: hasAnyMarkers ? `${markerColWidth} 1fr` : '1fr',
-                          fontSize: 'calc(var(--song-scale, 1) * var(--lyrics-size))',
-                          minHeight: 'calc(var(--song-scale, 1) * (var(--lyrics-size) + 4px))'
-                        }}
-                      >
-                        <div className="flex items-baseline justify-end pr-1">
-                          <div className="leading-none song-marker select-none">
-                            {sec.marker.replace(/^\[(.*)\]$/, '$1')}
+                    <div
+                      className={`relative mb-1.5 sm:mb-2 song-section ${showSectionLines ? 'song-section-with-line' : ''} ${showSectionLines && sec.isRefrain ? 'song-section-refrain' : ''} transition-all duration-500 ${highlightedSectionIndex === globalSecIndex ? 'ring-2 ring-blue-500 ring-offset-2 ring-opacity-100 bg-blue-500/10 rounded-sm' : ''}`}
+                      data-section-index={globalSecIndex}
+                      style={{
+                        ...(showSectionLines
+                          ? {
+                              borderLeft: `0.22em solid ${currentLineColor}`,
+                              paddingLeft: 'var(--section-padding-left)',
+                              WebkitBoxDecorationBreak: 'clone' as any,
+                              boxDecorationBreak: 'clone' as any,
+                            }
+                          : {}),
+                      }}
+                    >
+                      {sec.marker && firstNonEmptyIndex === -1 && (
+                        <div
+                          className="relative song-line grid items-end mb-[5px]"
+                          style={{
+                            gridTemplateColumns: hasAnyMarkers ? `${markerColWidth} 1fr` : '1fr',
+                            fontSize: 'calc(var(--song-scale, 1) * var(--lyrics-size))',
+                            minHeight: 'calc(var(--song-scale, 1) * (var(--lyrics-size) + 4px))',
+                          }}
+                        >
+                          <div className="flex items-baseline justify-end pr-1">
+                            <div className="leading-none song-marker select-none">
+                              {sec.marker.replace(/^\[(.*)\]$/, '$1')}
+                            </div>
+                            {/* Typographic strut to align baseline perfectly with lyrics */}
+                            <div className="leading-none song-lyric w-0 overflow-hidden opacity-0 select-none">
+                              X
+                            </div>
                           </div>
-                          {/* Typographic strut to align baseline perfectly with lyrics */}
-                          <div className="leading-none song-lyric w-0 overflow-hidden opacity-0 select-none">X</div>
+                          <div />
                         </div>
-                        <div />
-                      </div>
-                    )}
+                      )}
 
-                    {hasOrphanGuards && headLines.length > 0 && tailLines.length > 0 ? (
-                      <>
-                        <div className="song-orphan-guard-head">
-                          {headLines.map(({ line, index }) => renderSongLine(line, index, firstNonEmptyIndex, sec.marker))}
-                        </div>
-                        {middleLines.map(({ line, index }) => renderSongLine(line, index, firstNonEmptyIndex, sec.marker))}
-                        <div className="song-orphan-guard-tail">
-                          {tailLines.map(({ line, index }) => renderSongLine(line, index, firstNonEmptyIndex, sec.marker))}
-                        </div>
-                      </>
-                    ) : (
-                      sec.parsedLines.map((lineData, i) => renderSongLine(lineData, i, firstNonEmptyIndex, sec.marker))
-                    )}
+                      {hasOrphanGuards && headLines.length > 0 && tailLines.length > 0 ? (
+                        <>
+                          <div className="song-orphan-guard-head">
+                            {headLines.map(({ line, index }) =>
+                              renderSongLine(line, index, firstNonEmptyIndex, sec.marker),
+                            )}
+                          </div>
+                          {middleLines.map(({ line, index }) =>
+                            renderSongLine(line, index, firstNonEmptyIndex, sec.marker),
+                          )}
+                          <div className="song-orphan-guard-tail">
+                            {tailLines.map(({ line, index }) =>
+                              renderSongLine(line, index, firstNonEmptyIndex, sec.marker),
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        sec.parsedLines.map((lineData, i) =>
+                          renderSongLine(lineData, i, firstNonEmptyIndex, sec.marker),
+                        )
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      })}
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 });
-

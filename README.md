@@ -133,7 +133,7 @@ A modern, high-performance web application designed to transform Kytario songboo
 - **Kytario Export ZIP Archive Import**: Direct in-memory extraction (`jszip`) of full Kytario account export `.zip` archives. Automatically parses `projects/{project}/project.json` and all songs from `projects/{project}/songs/*.json`, accurately reconstituting ChordPro text and chords from AST tokens.
 - **Batch Multi-File JSON Upload**: Users can select and upload multiple song `.json` files at once; the app normalizes and bundles them into a unified songbook automatically.
 - **Multi-Project Detection**: Identifies all distinct projects inside a ZIP export archive, notifying the user and defaulting to the primary project with the most songs.
-- **Canonical Songbook Title Resolution**: The proxy sends a lightweight `HEAD` request to `/api/songbooks/{slug}/pdf` to parse the authentic UTF-8 songbook title from the `Content-Disposition` header (e.g. *PRO RADOST* instead of slug `bodg`).
+- **Canonical Songbook Title Resolution**: The proxy sends a lightweight `HEAD` request to `/api/songbooks/{slug}/pdf` to parse the authentic UTF-8 songbook title from the `Content-Disposition` header (e.g. _PRO RADOST_ instead of slug `bodg`).
 - **Accurate Artist vs. Author Attribution**: Differentiates between Kytario's `interpreter` (performing artist/band) and `author` (composer/lyricist), correctly mapping performers across front covers, headers, and the Table of Contents.
 - **Musical Metadata Capture**: Parses and preserves song musical key (`tonalKey`), capo fret position (`capo`), tempo, and release year.
 - **Single-Song URL Support**: Import individual song links (`/cs/skladba/{slug}-{id}`) directly, extracting lyrics and chords from Next.js App Router streaming payloads and Schema.org `MusicComposition` JSON-LD.
@@ -178,6 +178,7 @@ A modern, high-performance web application designed to transform Kytario songboo
 ## 🚀 Key Features
 
 ### 🌐 Direct Kytario Import & Title Enrichment
+
 - **Kytario Export ZIP Import:** Direct in-memory parsing of full Kytario account/project `.zip` exports, automatically extracting project metadata and converting AST tokens into ChordPro notation.
 - **Batch Multi-File Selection:** Select and import multiple individual song `.json` files simultaneously into one consolidated collection.
 - **Instant Online Import:** Paste any Kytario songbook link (e.g., `https://kytario.com/your-songbook` or `kytario.com/cs/your-songbook`), single song link (`/cs/skladba/{slug}-{id}`), or code (`your-songbook`) to fetch songbook sections and songs directly.
@@ -185,28 +186,33 @@ A modern, high-performance web application designed to transform Kytario songboo
 - **JSON Drag & Drop:** Support for direct drag-and-drop of `.json` and `.zip` files with multi-pass error correction.
 
 ### 📄 Background Native PDF Generation
+
 - **Client-Side PDF Engine:** Generates crisp vector PDFs entirely in the browser using `pdf-lib` and `@pdf-lib/fontkit` inside a dedicated Web Worker.
 - **Zero-Copy High-Performance Architecture:** Uses binary `ArrayBuffer` transfer to prevent main-thread freezing even when rendering massive collections (250+ songs).
 - **Embedded Unicode Typography:** Automatically embeds optimized `.ttf` font files with complete diacritics support (Czech, Slovak, etc.).
 - **Smart Caching:** Generated PDFs are cached in memory and IndexedDB for instant re-downloads until settings or songs change.
 
 ### 📐 SmartFit Auto-Scaling & Layout Balancing
+
 - **Per-Song Dynamic Scaling:** Automatically balances font sizes and line heights so each song fits comfortably on a single page without awkward page breaks.
 - **Multi-Column Formatting:** Flexible 1 to 4 column arrangements with intelligent stanza breaking that prevents lone lyric lines or orphaned chord headers.
 - **Double-Sided Book Printing:** Injects precise `@page :left` and `@page :right` rules with alternating inner/outer gutter margins and page numbers for bound songbooks.
 - **Print Formats:** Supports **A4**, **A5**, and **US Letter** in both **Portrait** and **Landscape** orientations with customizable physical margins (mm).
 
 ### 📑 Dynamic Table of Contents (ToC)
+
 - **Alphabetical Grouping:** Automatically groups songs by letter with optional section dividers.
 - **Smart Column Balancing:** 2-column or 3-column directory layout with automatic top-of-column divider suppression to prevent awkward leading lines.
 - **Interactive Navigation:** Click any song in the Table of Contents on-screen to smoothly scroll directly to that song in preview.
 
 ### 🎨 Custom Covers & Theme Profiles
+
 - **Front & Back Cover Pages:** Configurable title, subtitle, dedication, notation guide, and custom artwork or logo uploads with in-browser image optimization.
 - **Dynamic QR Codes:** Automatically generates vector QR codes linking directly to the online digital songbook for mobile play-along.
 - **Customized Styling:** Fine-tuned controls for typography, colors, and layout balancing.
 
 ### 📱 Offline Progressive Web App (PWA)
+
 - **Fully Installable:** Install as a native-like standalone app on macOS, Windows, Linux, iOS, and Android.
 - **Offline Capable:** Full offline caching via Workbox and `vite-plugin-pwa`.
 
@@ -214,43 +220,48 @@ A modern, high-performance web application designed to transform Kytario songboo
 
 ## 🛠 Tech Stack
 
-| Technology | Purpose |
-| :--- | :--- |
-| **React 19 + TypeScript** | Frontend UI framework & robust type safety |
-| **Tailwind CSS v4** | Modern utility-first styling engine |
-| **Vite 6** | High-performance build tool, dev server, and worker bundler |
-| **JSZip** | Client-side in-memory ZIP archive extraction and parsing |
-| **pdf-lib & @pdf-lib/fontkit** | Client-side vector PDF generation in Web Worker |
-| **vite-plugin-pwa** | Service worker registration, offline asset caching, and web manifest |
-| **Express (Development Proxy)** | Local CORS proxy for direct Kytario API and page title fetching |
-| **IndexedDB API** | Client-side PDF binary caching and large songbook persistence |
-| **Lucide React** | Clean, accessible icon system |
+| Technology                      | Purpose                                                              |
+| :------------------------------ | :------------------------------------------------------------------- |
+| **React 19 + TypeScript**       | Frontend UI framework & robust type safety                           |
+| **Tailwind CSS v4**             | Modern utility-first styling engine                                  |
+| **Vite 6**                      | High-performance build tool, dev server, and worker bundler          |
+| **JSZip**                       | Client-side in-memory ZIP archive extraction and parsing             |
+| **pdf-lib & @pdf-lib/fontkit**  | Client-side vector PDF generation in Web Worker                      |
+| **vite-plugin-pwa**             | Service worker registration, offline asset caching, and web manifest |
+| **Express (Development Proxy)** | Local CORS proxy for direct Kytario API and page title fetching      |
+| **IndexedDB API**               | Client-side PDF binary caching and large songbook persistence        |
+| **Lucide React**                | Clean, accessible icon system                                        |
 
 ---
 
 ## 💻 Getting Started
 
 ### Prerequisites
+
 - Node.js (v18 or higher, v22 recommended)
 - npm or yarn
 
 ### Installation & Local Development
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/nastroj/Kytario-Print-Customizer.git
    cd Kytario-Print-Customizer
    ```
 
 2. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 3. **Start the local development server:**
+
    ```bash
    npm run dev
    ```
+
    The application will be running at [http://localhost:3000](http://localhost:3000).
 
 4. **Run TypeScript check & production build:**
@@ -274,6 +285,7 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 ### Deployment Steps
 
 1. **Commit and push changes to `main`:**
+
    ```bash
    git add .
    git commit -m "chore: release v1.8.17"
@@ -318,6 +330,7 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 ## 📝 Release History
 
 ### v1.6.0 (2026-10-05)
+
 - Removed dark mode for a unified light-theme print-accurate experience.
 - Redesigned sidebar header with prominent app name and refined branding.
 - Moved Table of Contents (Nav) button to the floating action bar for better accessibility.
@@ -325,52 +338,62 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 - Fixed Nav menu toggle bug and improved import progress feedback.
 
 ### v1.5.0 (2026-10-04)
+
 - **Local Settings Persistence**: Introduced Save Settings and Reset Defaults buttons in the sidebar footer.
 - **Fine-Grained ToC Colors**: Added specialized controls for ToC Authors and Page Numbers.
 - **Smart Auto-scale Refinements**: Introduced Max. Line Height and Section Margin Cap controls.
 
 ### v1.4.9 (2026-10-01)
+
 - Removed unreliable PDF import and its `pdfjs-dist` dependency.
 - Reordered import tabs to Kytario URL, Paste JSON, then JSON File; Kytario URL is selected by default.
 
 ### v1.4.8 (2026-09-29)
-- **Authentic Songbook Name Extraction**: Automatically fetches real songbook names (e.g., *"PRO RADOST"*) from public Kytario page metadata (JSON-LD `MusicAlbum`, `<title>`, and OpenGraph).
+
+- **Authentic Songbook Name Extraction**: Automatically fetches real songbook names (e.g., _"PRO RADOST"_) from public Kytario page metadata (JSON-LD `MusicAlbum`, `<title>`, and OpenGraph).
 - **Hardened URL & Language Prefix Handling**: Handled edge cases with `/cs` language prefixes, query strings, and anchors.
 - **Redundant Asset & Artifact Audit**: Pruned 1.08 MB `pdf.worker.min.js`, unreferenced `Roboto-*.ttf` font binaries, leftover `bun.lock`, and unused `src/lib/utils.ts`.
 - **GitHub Pages SPA Routing Support**: Automated generation of `dist/404.html` on build.
 - **PWA Precache Optimization**: Reduced precache bundle size by >30% for faster load times.
 
 ### v1.4.7 (2026-09-26)
+
 - **Double-Sided Book Printing Registration**: Enhanced dynamic `@page` print setup with `:left` and `:right` pseudo-classes for alternating inner/outer gutter margins.
 - **Smart Section Separators**: Added section divider lines with automatic top-of-column suppression.
 - **High-Performance Worker Serialization**: Zero-Copy `ArrayBuffer` transfer for non-blocking exports of massive songbooks.
 - **Direct Import**: Added Kytario URL import proxy.
 
 ### v1.4.4 (2026-09-26)
+
 - **Print Optimization**: Enforced `@page` registration mark suppression (`marks: none`, `bleed: 0mm`) and exact color preservation (`color-adjust: exact`).
 - **Back Cover Synchronization**: Aligned PDF back cover colors and title with live web preview.
 - **Consolidated Print CSS**: Refactored print container styles into `.print-page-base` utility classes.
 - **Project-Wide Audit**: Removed legacy assets and unreferenced dependencies (`motion`, `@google/genai`).
 
 ### v1.4.3 (2026-09-26)
+
 - **Resilient Page Badges**: Migrated top page number badges to inline vector SVG shapes to survive browser print background stripping.
 - **Document Page Index Synchronization**: Synchronized cover and ToC page offset counting for accurate alternating book margins.
 - **Dynamic Base Path Support**: Added `%BASE_URL%` interpolation and dynamic base path support for GitHub Pages.
 - **Build Optimization**: Added Rollup vendor chunking (`react-vendor`, `icons-vendor`).
 
 ### v1.4.2 (2026-09-24)
+
 - **Title Block Spacing**: Reduced title block spacing from 24px to 16px to optimize page vertical space.
 - **SmartFit Height Sync**: Synchronized preview and Web Worker height estimations.
 
 ### v1.4.0 (2026-09-23)
+
 - Aligned release metadata and refreshed default print customizer layout.
 - Verified TypeScript checks and production build pipeline for GitHub Pages deployment.
 
 ### v1.2.0 (2026-09-20)
+
 - Fixed Table of Contents (ToC) bottom margin overflow using column height calculations.
 - Synchronized Web Worker PDF generation with on-screen DOM metrics.
 
 ### v1.1.0 (2026-09-18)
+
 - Added background native vector PDF engine using `pdf-lib` and `@pdf-lib/fontkit`.
 - Added persistent settings profiles for layout and typography.
 

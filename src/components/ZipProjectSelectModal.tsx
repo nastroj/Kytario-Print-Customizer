@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Archive, Music, Check, Layers, ChevronRight, X, Loader2 } from 'lucide-react';
 import { ExtractedProject } from '../utils/zipParser';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ZipProjectSelectModalProps {
   isOpen: boolean;
@@ -25,6 +26,16 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [importOnlyPublic, setImportOnlyPublic] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Trap focus inside the modal while it is open; Escape cancels unless a
+  // project import is already in flight.
+  useFocusTrap(modalRef, {
+    active: isOpen,
+    onEscape: () => {
+      if (!isSubmitting) onCancel();
+    },
+  });
 
   // Sync selected slug whenever new projects are passed in or modal opens
   useEffect(() => {
@@ -36,7 +47,7 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentSelectedProject = projects.find(p => p.slug === selectedSlug);
+  const currentSelectedProject = projects.find((p) => p.slug === selectedSlug);
   const isAllSelected = selectedSlug === 'all';
 
   const handleConfirm = (slugToUse?: string | 'all') => {
@@ -47,14 +58,14 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 print:hidden"
       role="dialog"
       aria-modal="true"
       aria-labelledby="zip-project-modal-title"
     >
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
         onClick={() => {
           if (!isSubmitting) onCancel();
@@ -62,7 +73,8 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
       />
 
       {/* Modal Dialog Card */}
-      <div 
+      <div
+        ref={modalRef}
         className="relative bg-white rounded-2xl shadow-2xl border border-black/10 max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-10"
         onClick={(e) => e.stopPropagation()}
       >
@@ -81,7 +93,7 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
                   {projects.length} found
                 </span>
               </div>
-              <p className="text-xs text-zinc-500 mt-0.5">
+              <p className="text-xs text-zinc-600 mt-0.5">
                 <span className="font-medium text-zinc-700 truncate inline-block max-w-[240px] sm:max-w-xs align-bottom">
                   {fileName}
                 </span>{' '}
@@ -120,28 +132,32 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                    isSelected ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200'
-                  }`}>
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      isSelected
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200'
+                    }`}
+                  >
                     <Music className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-zinc-900 truncate">
-                        {proj.name}
-                      </span>
+                      <span className="text-sm font-bold text-zinc-900 truncate">{proj.name}</span>
                       {idx === 0 && (
                         <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
                           Primary
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
+                    <div className="flex items-center gap-2 text-xs text-zinc-600 mt-0.5">
                       <span className="font-mono text-[11px] text-zinc-400">/{proj.slug}</span>
                       {proj.description && (
                         <>
                           <span>•</span>
-                          <span className="truncate max-w-[180px] sm:max-w-xs">{proj.description}</span>
+                          <span className="truncate max-w-[180px] sm:max-w-xs">
+                            {proj.description}
+                          </span>
                         </>
                       )}
                     </div>
@@ -149,18 +165,20 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2.5 shrink-0">
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    isSelected 
-                      ? 'bg-zinc-900 text-white' 
-                      : 'bg-zinc-100 text-zinc-700'
-                  }`}>
+                  <span
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                      isSelected ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'
+                    }`}
+                  >
                     {proj.songCount} {proj.songCount === 1 ? 'song' : 'songs'}
                   </span>
-                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
-                    isSelected 
-                      ? 'border-zinc-900 bg-zinc-900 text-white' 
-                      : 'border-zinc-300 bg-white'
-                  }`}>
+                  <div
+                    className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                      isSelected
+                        ? 'border-zinc-900 bg-zinc-900 text-white'
+                        : 'border-zinc-300 bg-white'
+                    }`}
+                  >
                     {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                   </div>
                 </div>
@@ -184,39 +202,41 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
               }`}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                  isAllSelected ? 'bg-zinc-900 text-white' : 'bg-zinc-200 text-zinc-700'
-                }`}>
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                    isAllSelected ? 'bg-zinc-900 text-white' : 'bg-zinc-200 text-zinc-700'
+                  }`}
+                >
                   <Layers className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-zinc-900">
-                      Combine All Projects
-                    </span>
+                    <span className="text-sm font-bold text-zinc-900">Combine All Projects</span>
                     <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
                       Merged
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-500 mt-0.5">
+                  <p className="text-xs text-zinc-600 mt-0.5">
                     Merge all {projects.length} songbooks into a single combined collection
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2.5 shrink-0">
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  isAllSelected 
-                    ? 'bg-zinc-900 text-white' 
-                    : 'bg-zinc-100 text-zinc-700'
-                }`}>
+                <span
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    isAllSelected ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'
+                  }`}
+                >
                   {totalSongs} songs
                 </span>
-                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
-                  isAllSelected 
-                    ? 'border-zinc-900 bg-zinc-900 text-white' 
-                    : 'border-zinc-300 bg-white'
-                }`}>
+                <div
+                  className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                    isAllSelected
+                      ? 'border-zinc-900 bg-zinc-900 text-white'
+                      : 'border-zinc-300 bg-white'
+                  }`}
+                >
                   {isAllSelected && <Check className="w-3 h-3 stroke-[3]" />}
                 </div>
               </div>
@@ -227,8 +247,8 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
         {/* Footer */}
         <div className="p-4 sm:p-5 border-t border-zinc-100 bg-zinc-50/50 space-y-4">
           <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-zinc-700">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               checked={importOnlyPublic}
               onChange={(e) => setImportOnlyPublic(e.target.checked)}
               className="w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
@@ -262,7 +282,7 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
                 ) : (
                   <>
                     <span>
-                      {isAllSelected 
+                      {isAllSelected
                         ? `Import All (${totalSongs} songs)`
                         : `Import "${currentSelectedProject?.name || 'Selected'}" (${currentSelectedProject?.songCount || 0} songs)`}
                     </span>

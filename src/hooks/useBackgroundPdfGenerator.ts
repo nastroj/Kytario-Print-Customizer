@@ -89,7 +89,11 @@ export function useBackgroundPdfGenerator() {
   }, []);
 
   const generatePdf = useCallback(
-    async (songbookData: SongbookData, settings: PrintSettings, fingerprint: string = ''): Promise<void> => {
+    async (
+      songbookData: SongbookData,
+      settings: PrintSettings,
+      fingerprint: string = '',
+    ): Promise<void> => {
       // Abort any existing generation
       if (workerRef.current) {
         workerRef.current.terminate();
@@ -124,10 +128,9 @@ export function useBackgroundPdfGenerator() {
           const fontBoldItalicUrl = getAbsoluteUrl('fonts/Inter-BoldItalic.ttf');
 
           // Instantiate Vite web worker
-          const worker = new Worker(
-            new URL('../workers/pdfWorker.ts', import.meta.url),
-            { type: 'module' }
-          );
+          const worker = new Worker(new URL('../workers/pdfWorker.ts', import.meta.url), {
+            type: 'module',
+          });
           workerRef.current = worker;
 
           worker.onmessage = (event: MessageEvent<WorkerOutMessage>) => {
@@ -140,9 +143,10 @@ export function useBackgroundPdfGenerator() {
 
               // Format size nicely
               const sizeInKb = sizeBytes / 1024;
-              const sizeFormatted = sizeInKb > 1024
-                ? `${(sizeInKb / 1024).toFixed(1)} MB`
-                : `${Math.round(sizeInKb)} KB`;
+              const sizeFormatted =
+                sizeInKb > 1024
+                  ? `${(sizeInKb / 1024).toFixed(1)} MB`
+                  : `${Math.round(sizeInKb)} KB`;
 
               // Download file directly
               const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -235,7 +239,7 @@ export function useBackgroundPdfGenerator() {
         }
       });
     },
-    []
+    [],
   );
 
   return {

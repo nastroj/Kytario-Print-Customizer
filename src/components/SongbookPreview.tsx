@@ -1,4 +1,12 @@
-import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, memo, useCallback } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  memo,
+  useCallback,
+} from 'react';
 import { SongbookData, PrintSettings, Song, ZoomMode } from '../types';
 import { SongDisplay } from './SongDisplay';
 import { FrontCoverPage } from './FrontCoverPage';
@@ -7,16 +15,16 @@ import { SongbookSkeleton } from './SongbookSkeleton';
 import { SongFitDebugHud } from './SongFitDebugHud';
 import { getDisplayColor, computeSongFitDebug, getPageMargins } from '../utils';
 import { isDebugHudConfigured } from '../config';
-import { 
-  Minus, 
-  Plus, 
-  Maximize2, 
-  RotateCcw, 
-  BookOpen, 
-  ChevronUp, 
+import {
+  Minus,
+  Plus,
+  Maximize2,
+  RotateCcw,
+  BookOpen,
+  ChevronUp,
   ChevronLeft,
   ChevronRight,
-  Check, 
+  Check,
   Loader2,
   Music,
   FileText,
@@ -84,7 +92,7 @@ function balanceColumns<T extends { groupLetter?: string }>(items: T[], numCols:
       }
       const lastItemIndex = colStartIndex + counts[c] - 1;
       const lastItem = items[lastItemIndex];
-      
+
       if (lastItem && lastItem.groupLetter && lastItemIndex + 1 < items.length) {
         counts[c]--;
         counts[c + 1]++;
@@ -108,7 +116,7 @@ function getColumnHeight<T extends { groupLetter?: string }>(
   colItems: T[],
   showDividers: boolean,
   singleItemHeight: number,
-  dividerTotalHeight: number
+  dividerTotalHeight: number,
 ): number {
   let h = 0;
   for (let i = 0; i < colItems.length; i++) {
@@ -122,27 +130,27 @@ function getColumnHeight<T extends { groupLetter?: string }>(
 }
 
 // On-Screen Print Margin Guides & Physical Sheet Crop Marks Overlay
-const VirtualPage = memo(function VirtualPage({ 
-  children, 
+const VirtualPage = memo(function VirtualPage({
+  children,
   isScaled,
   scaledWidth,
   scaledHeight,
   defaultWidth,
   defaultHeight,
   id,
-  shouldCenter = true
-}: { 
-  children: React.ReactNode, 
-  isScaled: boolean,
-  scaledWidth: number,
-  scaledHeight: number,
-  defaultWidth: string,
-  defaultHeight: string,
-  id?: string,
-  shouldCenter?: boolean
+  shouldCenter = true,
+}: {
+  children: React.ReactNode;
+  isScaled: boolean;
+  scaledWidth: number;
+  scaledHeight: number;
+  defaultWidth: string;
+  defaultHeight: string;
+  id?: string;
+  shouldCenter?: boolean;
 }) {
   return (
-    <div 
+    <div
       id={id}
       className={`${shouldCenter ? 'mx-auto' : 'ml-0 mr-auto'} mb-6 sm:mb-10 print:mb-0 print:mx-0 shrink-0 song-page-outer-wrapper`}
       style={{
@@ -214,7 +222,10 @@ const SongPage = memo(function SongPage({
   effectiveScale,
   tocPagesLength,
 }: SongPageProps) {
-  const songDocPageIndex = (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? tocPagesLength : 0) + i;
+  const songDocPageIndex =
+    (settings.showFrontCover !== false ? 1 : 0) +
+    (settings.showTableOfContents !== false ? tocPagesLength : 0) +
+    i;
   const m = getPageMargins(settings, songDocPageIndex);
 
   return (
@@ -228,10 +239,10 @@ const SongPage = memo(function SongPage({
       defaultHeight={cssHeight}
       shouldCenter={shouldCenter}
     >
-      <div 
+      <div
         className={`${pageContainerClass} print-page-container flex flex-col overflow-hidden origin-top-left`}
-        style={{ 
-          width: cssWidth, 
+        style={{
+          width: cssWidth,
           height: cssHeight,
           padding: `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`,
           transform: isScaled ? `scale(${effectiveScale})` : 'none',
@@ -241,12 +252,12 @@ const SongPage = memo(function SongPage({
           left: 0,
         }}
       >
-        <SongDisplay 
-          song={song} 
-          index={i} 
+        <SongDisplay
+          song={song}
+          index={i}
           docPageIndex={songDocPageIndex}
-          settings={settings} 
-          isDebugMode={isDebugMode} 
+          settings={settings}
+          isDebugMode={isDebugMode}
         />
       </div>
     </VirtualPage>
@@ -277,16 +288,23 @@ const SongPagesList = memo(function SongPagesList({
     return '1.5em';
   }, [songs.length]);
 
-  const hasLetterGrouping = settings.indexSortOrder === 'alphabetical' && !!settings.tocAlphabeticalGrouping;
-  const showDividers = hasLetterGrouping && (settings.tocGroupDividers !== false);
+  const hasLetterGrouping =
+    settings.indexSortOrder === 'alphabetical' && !!settings.tocAlphabeticalGrouping;
+  const showDividers = hasLetterGrouping && settings.tocGroupDividers !== false;
   const letterColWidth = hasLetterGrouping ? '1.85em' : '0em';
 
   const marginMmX = settings.pageMarginLeftRight ?? settings.pageMargin ?? 5;
-  const marginMmY = settings.pageMarginTopBottom ?? (settings.pageMargin ? Math.round(settings.pageMargin * 1.2) : 6);
+  const marginMmY =
+    settings.pageMarginTopBottom ??
+    (settings.pageMargin ? Math.round(settings.pageMargin * 1.2) : 6);
   const tocMarginMmX = settings.pageMarginLeftRight ?? settings.pageMargin ?? 8;
-  const tocMarginMmYTop = settings.pageMarginTopBottom ?? (settings.pageMargin ? Math.round(settings.pageMargin * 1.2) : 8);
-  const tocMarginMmYBottom = settings.pageMarginTopBottom ?? (settings.pageMargin ? Math.round(settings.pageMargin * 1.2) : 8);
-  const safeTocSize = Number(settings.tocFontSize) || (Number(settings.lyricsFontSize) * 0.95) || 12;
+  const tocMarginMmYTop =
+    settings.pageMarginTopBottom ??
+    (settings.pageMargin ? Math.round(settings.pageMargin * 1.2) : 8);
+  const tocMarginMmYBottom =
+    settings.pageMarginTopBottom ??
+    (settings.pageMargin ? Math.round(settings.pageMargin * 1.2) : 8);
+  const safeTocSize = Number(settings.tocFontSize) || Number(settings.lyricsFontSize) * 0.95 || 12;
   const safeTitleSize = Number(settings.titleFontSize) || 16;
 
   // Exact row metrics matching pagination algorithm
@@ -295,51 +313,54 @@ const SongPagesList = memo(function SongPagesList({
   const rowPaddingYPx = 1.5;
   const rowMarginBottomPx = 1;
 
-  const pageContainerClass = 'bg-white text-zinc-900 shadow-md print:shadow-none border border-black/5';
+  const pageContainerClass =
+    'bg-white text-zinc-900 shadow-md print:shadow-none border border-black/5';
 
   return (
     <>
       {/* FRONT COVER / TITLE PAGE (PAGE 1) */}
-      {settings.showFrontCover !== false && songs.length > 0 && (() => {
-        const m = getPageMargins(settings, 0);
-        return (
-          <VirtualPage
-            key="front-cover-page"
-            id="front-cover-page"
-            isScaled={isScaled}
-            scaledWidth={scaledWidth}
-            scaledHeight={scaledHeight}
-            defaultWidth={cssWidth}
-            defaultHeight={cssHeight}
-            shouldCenter={shouldCenter}
-          >
-            <div 
-              className={`${pageContainerClass} print-cover-container flex flex-col overflow-hidden origin-top-left relative`}
-              style={{ 
-                width: cssWidth, 
-                height: cssHeight,
-                minHeight: cssHeight,
-                maxHeight: cssHeight,
-                boxSizing: 'border-box',
-                padding: `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`,
-                transform: isScaled ? `scale(${effectiveScale})` : 'none',
-                transformOrigin: 'top left',
-                position: isScaled ? 'absolute' : 'relative',
-                top: 0,
-                left: 0,
-              }}
+      {settings.showFrontCover !== false &&
+        songs.length > 0 &&
+        (() => {
+          const m = getPageMargins(settings, 0);
+          return (
+            <VirtualPage
+              key="front-cover-page"
+              id="front-cover-page"
+              isScaled={isScaled}
+              scaledWidth={scaledWidth}
+              scaledHeight={scaledHeight}
+              defaultWidth={cssWidth}
+              defaultHeight={cssHeight}
+              shouldCenter={shouldCenter}
             >
-              <FrontCoverPage
-                title={title}
-                url={url}
-                shortUrl={shortUrl}
-                slug={slug}
-                settings={settings}
-              />
-            </div>
-          </VirtualPage>
-        );
-      })()}
+              <div
+                className={`${pageContainerClass} print-cover-container flex flex-col overflow-hidden origin-top-left relative`}
+                style={{
+                  width: cssWidth,
+                  height: cssHeight,
+                  minHeight: cssHeight,
+                  maxHeight: cssHeight,
+                  boxSizing: 'border-box',
+                  padding: `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`,
+                  transform: isScaled ? `scale(${effectiveScale})` : 'none',
+                  transformOrigin: 'top left',
+                  position: isScaled ? 'absolute' : 'relative',
+                  top: 0,
+                  left: 0,
+                }}
+              >
+                <FrontCoverPage
+                  title={title}
+                  url={url}
+                  shortUrl={shortUrl}
+                  slug={slug}
+                  settings={settings}
+                />
+              </div>
+            </VirtualPage>
+          );
+        })()}
 
       {/* INDEX / TABLE OF CONTENTS PAGES (PAGINATED) */}
       {tocPages.map((tocPage) => {
@@ -349,7 +370,7 @@ const SongPagesList = memo(function SongPagesList({
         return (
           <VirtualPage
             key={`toc-page-${tocPage.pageIndex}`}
-            id={tocPage.isFirstPage ? "toc-page" : `toc-page-${tocPage.pageIndex}`}
+            id={tocPage.isFirstPage ? 'toc-page' : `toc-page-${tocPage.pageIndex}`}
             isScaled={isScaled}
             scaledWidth={scaledWidth}
             scaledHeight={scaledHeight}
@@ -357,10 +378,10 @@ const SongPagesList = memo(function SongPagesList({
             defaultHeight={cssHeight}
             shouldCenter={shouldCenter}
           >
-            <div 
+            <div
               className={`${pageContainerClass} print-index-container flex flex-col overflow-hidden origin-top-left`}
-              style={{ 
-                width: cssWidth, 
+              style={{
+                width: cssWidth,
                 height: cssHeight,
                 minHeight: cssHeight,
                 maxHeight: cssHeight,
@@ -376,57 +397,79 @@ const SongPagesList = memo(function SongPagesList({
               {/* Page Header */}
               {tocPage.isFirstPage ? (
                 <div className="text-center shrink-0" style={{ marginBottom: '12px' }}>
-                  <h1 
+                  <h1
                     className="font-bold uppercase tracking-tight toc-title-header truncate px-2"
-                    style={{ 
-                      color: getDisplayColor(settings.titleColor), 
+                    style={{
+                      color: getDisplayColor(settings.titleColor),
                       fontSize: `${Math.round(safeTitleSize * 1.15)}px`,
-                      lineHeight: 1.2
+                      lineHeight: 1.2,
                     }}
                   >
                     {title}
                   </h1>
-                  <p 
+                  <p
                     className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
-                    style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a') }}
+                    style={{
+                      marginTop: '2px',
+                      lineHeight: '16px',
+                      color: getDisplayColor(settings.tocPageColor || '#71717a'),
+                    }}
                   >
-                    <span>Table of Contents{tocPages.length > 1 ? ` • Page 1 of ${tocPages.length}` : ''}</span>
-                    <span className="print:hidden normal-case font-normal text-[11px]" style={{ opacity: 0.8 }}>
+                    <span>
+                      Table of Contents
+                      {tocPages.length > 1 ? ` • Page 1 of ${tocPages.length}` : ''}
+                    </span>
+                    <span
+                      className="print:hidden normal-case font-normal text-[11px]"
+                      style={{ opacity: 0.8 }}
+                    >
                       • tap to jump
                     </span>
                   </p>
                 </div>
               ) : (
-                <div 
+                <div
                   className="text-center border-b border-black/5 shrink-0"
                   style={{ marginBottom: '10px', paddingBottom: '4px' }}
                 >
-                  <h2 
+                  <h2
                     className="font-bold uppercase tracking-tight toc-title-header truncate px-2"
-                    style={{ 
-                      color: getDisplayColor(settings.titleColor), 
+                    style={{
+                      color: getDisplayColor(settings.titleColor),
                       fontSize: `${Math.round(safeTitleSize * 0.85)}px`,
-                      lineHeight: 1.2
+                      lineHeight: 1.2,
                     }}
                   >
-                    {title} <span className="text-zinc-400 font-normal text-xs normal-case">(continued)</span>
+                    {title}{' '}
+                    <span className="text-zinc-400 font-normal text-xs normal-case">
+                      (continued)
+                    </span>
                   </h2>
-                  <p 
+                  <p
                     className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
-                    style={{ marginTop: '2px', lineHeight: '16px', color: getDisplayColor(settings.tocPageColor || '#71717a') }}
+                    style={{
+                      marginTop: '2px',
+                      lineHeight: '16px',
+                      color: getDisplayColor(settings.tocPageColor || '#71717a'),
+                    }}
                   >
-                    <span>Table of Contents • Page {tocPage.pageIndex} of {tocPages.length}</span>
-                    <span className="print:hidden normal-case font-normal text-[11px]" style={{ opacity: 0.8 }}>
+                    <span>
+                      Table of Contents • Page {tocPage.pageIndex} of {tocPages.length}
+                    </span>
+                    <span
+                      className="print:hidden normal-case font-normal text-[11px]"
+                      style={{ opacity: 0.8 }}
+                    >
                       • tap to jump
                     </span>
                   </p>
                 </div>
               )}
-              
+
               {/* Columns of Song Titles (CSS Grid for balanced, unclipped columns) */}
-              <div 
+              <div
                 className="flex-1 min-h-0 grid toc-columns-body overflow-hidden"
-                style={{ 
+                style={{
                   gridTemplateColumns: `repeat(${tocPage.columns}, minmax(0, 1fr))`,
                   columnGap: tocPage.columns >= 3 ? '1.75rem' : '2.25rem',
                   color: getDisplayColor(settings.tocColor || settings.lyricsColor),
@@ -435,36 +478,35 @@ const SongPagesList = memo(function SongPagesList({
                 }}
               >
                 {columnsData.map((colItems, colIdx) => (
-                  <div 
-                    key={colIdx} 
-                    className="min-w-0 flex flex-col"
-                  >
+                  <div key={colIdx} className="min-w-0 flex flex-col">
                     {colItems.map((item, itemIdx) => {
                       const fullTitle = `${item.originalIndex! + 1}. ${item.title}${item.artist ? ` - ${item.artist}` : ''}`;
                       return (
-                        <div 
-                          key={`toc-col-${colIdx}-item-${item.originalIndex ?? itemIdx}-${itemIdx}`} 
+                        <div
+                          key={`toc-col-${colIdx}-item-${item.originalIndex ?? itemIdx}-${itemIdx}`}
                           className="shrink-0 max-w-full"
-                          style={{ 
+                          style={{
                             marginBottom: `${rowMarginBottomPx}px`,
-                            boxSizing: 'border-box'
+                            boxSizing: 'border-box',
                           }}
                         >
                           {showDividers && item.groupLetter && itemIdx > 0 && (
-                            <div 
+                            <div
                               className="border-t w-full select-none"
-                              style={{ 
+                              style={{
                                 height: '1px',
                                 marginTop: '3px',
                                 marginBottom: '3px',
-                                borderColor: getDisplayColor(settings.sectionLineColor || '#a1a1aa'),
+                                borderColor: getDisplayColor(
+                                  settings.sectionLineColor || '#a1a1aa',
+                                ),
                                 opacity: 0.35,
-                                boxSizing: 'border-box'
-                              }} 
+                                boxSizing: 'border-box',
+                              }}
                             />
                           )}
-                          <a 
-                            href={`#song-${item.originalIndex}`} 
+                          <a
+                            href={`#song-${item.originalIndex}`}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -472,8 +514,8 @@ const SongPagesList = memo(function SongPagesList({
                             }}
                             title={fullTitle}
                             className="flex items-center w-full max-w-full group cursor-pointer transition-colors hover:opacity-85 touch-manipulation active:opacity-60 overflow-hidden"
-                            style={{ 
-                              color: 'inherit', 
+                            style={{
+                              color: 'inherit',
                               textDecoration: 'none',
                               height: `${rowLineHeightPx + rowPaddingYPx * 2}px`,
                               paddingTop: `${rowPaddingYPx}px`,
@@ -483,38 +525,42 @@ const SongPagesList = memo(function SongPagesList({
                             }}
                           >
                             {hasLetterGrouping && (
-                              <span 
+                              <span
                                 className="shrink-0 font-bold select-none text-left toc-group-letter"
-                                style={{ 
+                                style={{
                                   width: letterColWidth,
                                   minWidth: letterColWidth,
                                   color: getDisplayColor(settings.titleColor),
                                   opacity: 0.9,
-                                  fontSize: '1.05em'
+                                  fontSize: '1.05em',
                                 }}
                               >
                                 {item.groupLetter || ''}
                               </span>
                             )}
-                            <span 
+                            <span
                               className="shrink-0 text-right tabular-nums font-semibold pr-2 select-none toc-song-number"
-                              style={{ 
+                              style={{
                                 width: numColWidth,
                                 color: getDisplayColor(settings.titleColor),
-                                opacity: 0.8
+                                opacity: 0.8,
                               }}
                             >
                               {item.originalIndex! + 1}.
                             </span>
                             <span className="truncate flex-1 min-w-0">
-                              <span className="font-medium group-hover:underline toc-song-title">{item.title}</span>
+                              <span className="font-medium group-hover:underline toc-song-title">
+                                {item.title}
+                              </span>
                               {item.artist && (
-                                <span 
+                                <span
                                   className="font-normal ml-1.5 toc-song-artist"
-                                  style={{ 
-                                    color: getDisplayColor(settings.tocArtistColor || settings.artistColor || '#52525b'),
+                                  style={{
+                                    color: getDisplayColor(
+                                      settings.tocArtistColor || settings.artistColor || '#52525b',
+                                    ),
                                     opacity: 0.85,
-                                    fontSize: '0.92em'
+                                    fontSize: '0.92em',
                                   }}
                                 >
                                   - {item.artist}
@@ -554,65 +600,69 @@ const SongPagesList = memo(function SongPagesList({
       ))}
 
       {/* Back Cover Page */}
-      {settings.showBackCover !== false && songs.length > 0 && (() => {
-        const backCoverDocPageIndex = (settings.showFrontCover !== false ? 1 : 0) + (settings.showTableOfContents !== false ? tocPages.length : 0) + songs.length;
-        const m = getPageMargins(settings, backCoverDocPageIndex);
-        return (
-          <VirtualPage
-            key="back-cover"
-            id="back-cover-page"
-            width={cssWidth}
-            height={cssHeight}
-            isScaled={isScaled}
-            scaledWidth={scaledWidth}
-            scaledHeight={scaledHeight}
-            defaultWidth={cssWidth}
-            defaultHeight={cssHeight}
-            shouldCenter={shouldCenter}
-          >
-            <div 
-              className={`${pageContainerClass} print-cover-container flex flex-col overflow-hidden origin-top-left relative shadow-md ring-1 ring-black/5 print:shadow-none print:ring-0`}
-              style={{ 
-                width: cssWidth, 
-                height: cssHeight,
-                minHeight: cssHeight,
-                maxHeight: cssHeight,
-                boxSizing: 'border-box',
-                padding: `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`,
-                transform: isScaled ? `scale(${effectiveScale})` : 'none',
-                transformOrigin: 'top left',
-                position: isScaled ? 'absolute' : 'relative',
-                top: 0,
-                left: 0,
-              }}
+      {settings.showBackCover !== false &&
+        songs.length > 0 &&
+        (() => {
+          const backCoverDocPageIndex =
+            (settings.showFrontCover !== false ? 1 : 0) +
+            (settings.showTableOfContents !== false ? tocPages.length : 0) +
+            songs.length;
+          const m = getPageMargins(settings, backCoverDocPageIndex);
+          return (
+            <VirtualPage
+              key="back-cover"
+              id="back-cover-page"
+              width={cssWidth}
+              height={cssHeight}
+              isScaled={isScaled}
+              scaledWidth={scaledWidth}
+              scaledHeight={scaledHeight}
+              defaultWidth={cssWidth}
+              defaultHeight={cssHeight}
+              shouldCenter={shouldCenter}
             >
-              <BackCoverPage 
-                title={title} 
-                url={url} 
-                shortUrl={shortUrl} 
-                slug={slug}
-                settings={settings} 
-              />
-            </div>
-          </VirtualPage>
-        );
-      })()}
+              <div
+                className={`${pageContainerClass} print-cover-container flex flex-col overflow-hidden origin-top-left relative shadow-md ring-1 ring-black/5 print:shadow-none print:ring-0`}
+                style={{
+                  width: cssWidth,
+                  height: cssHeight,
+                  minHeight: cssHeight,
+                  maxHeight: cssHeight,
+                  boxSizing: 'border-box',
+                  padding: `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`,
+                  transform: isScaled ? `scale(${effectiveScale})` : 'none',
+                  transformOrigin: 'top left',
+                  position: isScaled ? 'absolute' : 'relative',
+                  top: 0,
+                  left: 0,
+                }}
+              >
+                <BackCoverPage
+                  title={title}
+                  url={url}
+                  shortUrl={shortUrl}
+                  slug={slug}
+                  settings={settings}
+                />
+              </div>
+            </VirtualPage>
+          );
+        })()}
 
       {songs.length === 0 && (
-
-        <div 
+        <div
           className="mx-auto flex justify-center shrink-0 mb-6 sm:mb-10 print:hidden"
-          style={{ 
+          style={{
             width: isScaled ? `${scaledWidth}px` : 'fit-content',
             height: isScaled ? `${scaledHeight}px` : 'auto',
             minHeight: isScaled ? `${scaledHeight}px` : undefined,
             position: 'relative',
           }}
         >
-          <div 
+          <div
             className="bg-zinc-50 border-2 border-dashed border-black/10 shadow-sm mx-auto px-[5mm] py-[6mm] flex flex-col items-center justify-center overflow-hidden origin-top-left"
-            style={{ 
-              width: cssWidth, 
+            style={{
+              width: cssWidth,
               height: cssHeight,
               minHeight: cssHeight,
               transform: isScaled ? `scale(${effectiveScale})` : 'none',
@@ -624,44 +674,113 @@ const SongPagesList = memo(function SongPagesList({
           >
             <div className="flex flex-col items-center max-w-md text-center">
               <div className="w-full max-w-[180px] mb-8 text-zinc-300 mx-auto animate-in fade-in zoom-in-95 duration-700">
-                <svg viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto drop-shadow-sm">
+                <svg
+                  viewBox="0 0 200 160"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-full h-auto drop-shadow-sm"
+                >
                   {/* Abstract Background Elements */}
                   <circle cx="100" cy="80" r="60" fill="currentColor" className="opacity-10" />
                   <circle cx="130" cy="60" r="30" fill="currentColor" className="opacity-10" />
-                  
+
                   {/* Book Base */}
-                  <path d="M100 130C100 130 80 135 50 120C40 115 35 110 35 100V50C35 45 40 40 50 45C80 60 100 70 100 70" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M100 130C100 130 120 135 150 120C160 115 165 110 165 100V50C165 45 160 40 150 45C120 60 100 70 100 70" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M100 70V130" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
-                  
+                  <path
+                    d="M100 130C100 130 80 135 50 120C40 115 35 110 35 100V50C35 45 40 40 50 45C80 60 100 70 100 70"
+                    stroke="currentColor"
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M100 130C100 130 120 135 150 120C160 115 165 110 165 100V50C165 45 160 40 150 45C120 60 100 70 100 70"
+                    stroke="currentColor"
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M100 70V130"
+                    stroke="currentColor"
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
                   {/* Left Page Lines */}
-                  <path d="M55 70C70 77 85 82 90 84" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-40" />
-                  <path d="M55 85C70 92 85 97 90 99" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-40" />
-                  <path d="M55 100C70 107 85 112 90 114" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-40" />
-                  
+                  <path
+                    d="M55 70C70 77 85 82 90 84"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    className="opacity-40"
+                  />
+                  <path
+                    d="M55 85C70 92 85 97 90 99"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    className="opacity-40"
+                  />
+                  <path
+                    d="M55 100C70 107 85 112 90 114"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    className="opacity-40"
+                  />
+
                   {/* Right Page Lines */}
-                  <path d="M145 70C130 77 115 82 110 84" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-40" />
-                  <path d="M145 85C130 92 115 97 110 99" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-40" />
-                  
+                  <path
+                    d="M145 70C130 77 115 82 110 84"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    className="opacity-40"
+                  />
+                  <path
+                    d="M145 85C130 92 115 97 110 99"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    className="opacity-40"
+                  />
+
                   {/* Floating Music Notes */}
-                  <path d="M125 40V20C125 18 127 16 129 16.5L145 20.5C147 21 148 23 148 25V42" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M125 40V20C125 18 127 16 129 16.5L145 20.5C147 21 148 23 148 25V42"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                   <circle cx="120" cy="40" r="5" fill="currentColor" />
                   <circle cx="143" cy="43" r="5" fill="currentColor" />
-                  
-                  <path d="M65 30V15C65 13 67 11 69 11.5L80 14" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="opacity-60" />
+
+                  <path
+                    d="M65 30V15C65 13 67 11 69 11.5L80 14"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="opacity-60"
+                  />
                   <circle cx="60" cy="30" r="5" fill="currentColor" className="opacity-60" />
                 </svg>
               </div>
               <h3 className="text-2xl font-bold text-zinc-700 mb-3">No Songs Loaded</h3>
               <p className="text-zinc-500 mb-10 text-lg max-w-sm">
-                Your songbook is currently empty. Open the sidebar to upload a file or add songs to generate your printable book.
+                Your songbook is currently empty. Open the sidebar to upload a file or add songs to
+                generate your printable book.
               </p>
-              
+
               <div className="grid grid-cols-2 gap-6 w-full px-4">
                 <div className="bg-white border border-black/5 rounded-lg p-5 flex flex-col items-center text-center shadow-sm">
                   <FileText className="w-8 h-8 text-amber-500 mb-3" />
                   <span className="font-semibold text-zinc-700 mb-1">Auto-formatted</span>
-                  <span className="text-sm text-zinc-500">Chords and lyrics automatically aligned</span>
+                  <span className="text-sm text-zinc-500">
+                    Chords and lyrics automatically aligned
+                  </span>
                 </div>
                 <div className="bg-white border border-black/5 rounded-lg p-5 flex flex-col items-center text-center shadow-sm">
                   <BookOpen className="w-8 h-8 text-blue-500 mb-3" />
@@ -752,7 +871,7 @@ const areSongbookDataEquivalent = (prev: SongbookData, next: SongbookData): bool
 
 const songbookPreviewComparator = (
   prevProps: SongbookPreviewProps,
-  nextProps: SongbookPreviewProps
+  nextProps: SongbookPreviewProps,
 ): boolean => {
   // If update progress state changes, re-render immediately
   if (Boolean(prevProps.isUpdatingLayout) !== Boolean(nextProps.isUpdatingLayout)) {
@@ -789,9 +908,9 @@ interface QuickSongNavigatorProps {
   onOpenManageSongs?: () => void;
 }
 
-const QuickSongNavigator = memo(function QuickSongNavigator({ 
-  songs, 
-  isSongNavOpen, 
+const QuickSongNavigator = memo(function QuickSongNavigator({
+  songs,
+  isSongNavOpen,
   onScrollTo,
   onClose,
   onOpenManageSongs,
@@ -814,13 +933,13 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
   return (
     <>
       {/* Click outside backdrop for easy closing */}
-      <div 
+      <div
         className="fixed inset-0 z-40 bg-black/25 backdrop-blur-2xs print:hidden"
         onClick={onClose}
       />
-      
+
       {/* Floating Navigator Card */}
-      <div 
+      <div
         id="song-nav-modal"
         onClick={(e) => e.stopPropagation()}
         className="fixed bottom-[4.5rem] sm:bottom-[5rem] right-[max(1rem,calc(50%-15rem))] sm:right-[max(1rem,calc(50%-18rem))] w-[92vw] max-w-sm sm:w-80 bg-white/95 backdrop-blur-xl border border-zinc-200/90 text-zinc-800 rounded-2xl shadow-2xl p-3 space-y-2 z-50 text-xs animate-in fade-in slide-in-from-bottom-2 duration-150 print:hidden"
@@ -835,7 +954,7 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
             </span>
           </div>
           {onClose && (
-            <button 
+            <button
               type="button"
               onClick={onClose}
               className="text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 p-1 rounded-lg transition-colors cursor-pointer"
@@ -847,7 +966,7 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
         </div>
 
         {/* Big, Clear Table of Contents (ToC) Jump Button */}
-        <button 
+        <button
           type="button"
           onClick={() => {
             onScrollTo('toc-page');
@@ -930,9 +1049,7 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
                   <div className="min-w-0 flex-1 truncate">
                     <span className="font-medium truncate block text-xs">{sTitle}</span>
                     {s.artist && (
-                      <span className="text-[10px] text-zinc-400 truncate block">
-                        {s.artist}
-                      </span>
+                      <span className="text-[10px] text-zinc-400 truncate block">{s.artist}</span>
                     )}
                   </div>
                 </button>
@@ -945,10 +1062,10 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
   );
 });
 
-const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({ 
-  data, 
-  settings, 
-  isUpdatingLayout = false, 
+const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
+  data,
+  settings,
+  isUpdatingLayout = false,
   onOpenSettings,
   onDownloadStatusChange,
   zoomMode: propsZoomMode,
@@ -976,9 +1093,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   const printTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const printSafetyTimerRef = useRef<NodeJS.Timeout | null>(null);
   const originalTitleRef = useRef<string>(typeof document !== 'undefined' ? document.title : '');
-  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ 
-    width: typeof window !== 'undefined' ? window.innerWidth : 1000, 
-    height: typeof window !== 'undefined' ? window.innerHeight : 900 
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1000,
+    height: typeof window !== 'undefined' ? window.innerHeight : 900,
   });
 
   const [internalZoomMode, setInternalZoomMode] = useState<ZoomMode>('fit-width');
@@ -987,11 +1104,13 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   const zoomMode = propsZoomMode !== undefined ? propsZoomMode : internalZoomMode;
   const setZoomMode = propsSetZoomMode !== undefined ? propsSetZoomMode : setInternalZoomMode;
   const customZoom = propsCustomZoom !== undefined ? propsCustomZoom : internalCustomZoom;
-  const setCustomZoom = propsSetCustomZoom !== undefined ? propsSetCustomZoom : setInternalCustomZoom;
+  const setCustomZoom =
+    propsSetCustomZoom !== undefined ? propsSetCustomZoom : setInternalCustomZoom;
 
   const [internalSongNavOpen, setInternalSongNavOpen] = useState(false);
   const isSongNavOpen = propsIsSongNavOpen !== undefined ? propsIsSongNavOpen : internalSongNavOpen;
-  const setIsSongNavOpen = propsSetSongNavOpen !== undefined ? propsSetSongNavOpen : setInternalSongNavOpen;
+  const setIsSongNavOpen =
+    propsSetSongNavOpen !== undefined ? propsSetSongNavOpen : setInternalSongNavOpen;
 
   const [isBottomZoomMenuOpen, setIsBottomZoomMenuOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -1017,7 +1136,11 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       if (!containerRef.current) return;
       const w = containerRef.current.clientWidth;
       const h = containerRef.current.clientHeight;
-      setContainerSize(prev => (Math.abs(prev.width - w) < 2 && Math.abs(prev.height - h) < 2 ? prev : { width: w, height: h }));
+      setContainerSize((prev) =>
+        Math.abs(prev.width - w) < 2 && Math.abs(prev.height - h) < 2
+          ? prev
+          : { width: w, height: h },
+      );
     };
 
     const scheduleMeasure = () => {
@@ -1049,7 +1172,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     const handleDocumentClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (
-        !target.closest('#zoom-controls-toolbar') && 
+        !target.closest('#zoom-controls-toolbar') &&
         !target.closest('#song-nav-modal') &&
         !target.closest('#floating-nav-btn')
       ) {
@@ -1063,25 +1186,55 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   }, []);
 
   // Page Physical Dimensions in CSS and Pixels (96 DPI)
-  const { width: cssWidth, height: cssHeight, basePxWidth, basePxHeight } = useMemo(() => {
+  const {
+    width: cssWidth,
+    height: cssHeight,
+    basePxWidth,
+    basePxHeight,
+  } = useMemo(() => {
     const isLand = settings.orientation === 'landscape';
     const mmToPx = 3.779528; // Standard CSS pixels per mm
 
     switch (settings.pageFormat) {
       case 'A4':
-        return isLand 
-          ? { width: '297mm', height: '210mm', basePxWidth: 297 * mmToPx, basePxHeight: 210 * mmToPx } 
-          : { width: '210mm', height: '297mm', basePxWidth: 210 * mmToPx, basePxHeight: 297 * mmToPx };
+        return isLand
+          ? {
+              width: '297mm',
+              height: '210mm',
+              basePxWidth: 297 * mmToPx,
+              basePxHeight: 210 * mmToPx,
+            }
+          : {
+              width: '210mm',
+              height: '297mm',
+              basePxWidth: 210 * mmToPx,
+              basePxHeight: 297 * mmToPx,
+            };
       case 'A5':
-        return isLand 
-          ? { width: '210mm', height: '148mm', basePxWidth: 210 * mmToPx, basePxHeight: 148 * mmToPx } 
-          : { width: '148mm', height: '210mm', basePxWidth: 148 * mmToPx, basePxHeight: 210 * mmToPx };
+        return isLand
+          ? {
+              width: '210mm',
+              height: '148mm',
+              basePxWidth: 210 * mmToPx,
+              basePxHeight: 148 * mmToPx,
+            }
+          : {
+              width: '148mm',
+              height: '210mm',
+              basePxWidth: 148 * mmToPx,
+              basePxHeight: 210 * mmToPx,
+            };
       case 'Letter':
-        return isLand 
-          ? { width: '11in', height: '8.5in', basePxWidth: 11 * 96, basePxHeight: 8.5 * 96 } 
+        return isLand
+          ? { width: '11in', height: '8.5in', basePxWidth: 11 * 96, basePxHeight: 8.5 * 96 }
           : { width: '8.5in', height: '11in', basePxWidth: 8.5 * 96, basePxHeight: 11 * 96 };
       default:
-        return { width: '210mm', height: '297mm', basePxWidth: 210 * mmToPx, basePxHeight: 297 * mmToPx };
+        return {
+          width: '210mm',
+          height: '297mm',
+          basePxWidth: 210 * mmToPx,
+          basePxHeight: 297 * mmToPx,
+        };
     }
   }, [settings.pageFormat, settings.orientation]);
 
@@ -1089,12 +1242,15 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   const isMobile = containerSize.width < 768;
   const paddingX = isMobile ? 24 : 64;
   const paddingY = isMobile ? 40 : 80;
-  
+
   const availWidth = Math.max(200, containerSize.width - paddingX);
   const availHeight = Math.max(200, containerSize.height - paddingY);
 
   const fitWidthScale = Math.max(0.25, Math.min(3.0, availWidth / basePxWidth));
-  const fitPageScale = Math.max(0.25, Math.min(3.0, Math.min(availWidth / basePxWidth, availHeight / basePxHeight)));
+  const fitPageScale = Math.max(
+    0.25,
+    Math.min(3.0, Math.min(availWidth / basePxWidth, availHeight / basePxHeight)),
+  );
 
   let effectiveScale = customZoom;
   if (zoomMode === 'fit-width') {
@@ -1114,23 +1270,29 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   const scaledWidth = Math.round(basePxWidth * effectiveScale);
   const scaledHeight = Math.round(basePxHeight * effectiveScale);
 
-  const handleZoomIn = useCallback((e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    const baseScale = Math.round(effectiveScale * 10) / 10;
-    const nextScale = Math.min(3.0, baseScale + 0.1);
-    setCustomZoom(Math.round(nextScale * 100) / 100);
-    setZoomMode('custom');
-    setIsBottomZoomMenuOpen(false);
-  }, [effectiveScale, setCustomZoom, setZoomMode]);
+  const handleZoomIn = useCallback(
+    (e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      const baseScale = Math.round(effectiveScale * 10) / 10;
+      const nextScale = Math.min(3.0, baseScale + 0.1);
+      setCustomZoom(Math.round(nextScale * 100) / 100);
+      setZoomMode('custom');
+      setIsBottomZoomMenuOpen(false);
+    },
+    [effectiveScale, setCustomZoom, setZoomMode],
+  );
 
-  const handleZoomOut = useCallback((e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    const baseScale = Math.round(effectiveScale * 10) / 10;
-    const nextScale = Math.max(0.25, baseScale - 0.1);
-    setCustomZoom(Math.round(nextScale * 100) / 100);
-    setZoomMode('custom');
-    setIsBottomZoomMenuOpen(false);
-  }, [effectiveScale, setCustomZoom, setZoomMode]);
+  const handleZoomOut = useCallback(
+    (e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      const baseScale = Math.round(effectiveScale * 10) / 10;
+      const nextScale = Math.max(0.25, baseScale - 0.1);
+      setCustomZoom(Math.round(nextScale * 100) / 100);
+      setZoomMode('custom');
+      setIsBottomZoomMenuOpen(false);
+    },
+    [effectiveScale, setCustomZoom, setZoomMode],
+  );
 
   const setPresetZoom = useCallback((mode: ZoomMode, val?: number) => {
     setZoomMode(mode);
@@ -1139,8 +1301,6 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     }
     setIsBottomZoomMenuOpen(false);
   }, []);
-
-
 
   // Mouse wheel zoom inside preview canvas: Ctrl/Cmd + Scroll
   useEffect(() => {
@@ -1197,7 +1357,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         const dist = getDistance(e.touches[0], e.touches[1]);
         const factor = dist / initialDist;
         const targetScale = Math.min(3.0, Math.max(0.25, initialScaleVal * factor));
-        
+
         // Update customZoom and set mode to custom
         setCustomZoom(Math.round(targetScale * 100) / 100);
         setZoomMode('custom');
@@ -1269,9 +1429,11 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
         if (!isDebugFeatureEnabled) return;
         e.preventDefault();
-        setIsDebugOpen(prev => {
+        setIsDebugOpen((prev) => {
           const next = !prev;
-          try { localStorage.setItem('kytario-debug-view', String(next)); } catch (err) {}
+          try {
+            localStorage.setItem('kytario-debug-view', String(next));
+          } catch (err) {}
           return next;
         });
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
@@ -1305,10 +1467,15 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   // Calculate dynamic pagination for Table of Contents (Memoized for high performance)
   const tocPages = useMemo(() => {
-    if (settings.showTableOfContents === false || settings.showToc === false || settings.showIndex === false || songs.length === 0) {
+    if (
+      settings.showTableOfContents === false ||
+      settings.showToc === false ||
+      settings.showIndex === false ||
+      songs.length === 0
+    ) {
       return [];
     }
-    let items: Array<{
+    const items: Array<{
       song?: Song;
       originalIndex?: number;
       title: string;
@@ -1318,13 +1485,13 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       song,
       originalIndex: i,
       title: song.title || song.name || 'Unknown Title',
-      artist: song.artist || song.author || song.interpreter || ''
+      artist: song.artist || song.author || song.interpreter || '',
     }));
 
     if (settings.indexSortOrder === 'alphabetical') {
       const getSortKey = (t: string) => t.trim().replace(/^["'„“\(\[\{]+/, '');
       items.sort((a, b) => getSortKey(a.title).localeCompare(getSortKey(b.title), 'cs'));
-      
+
       if (settings.tocAlphabeticalGrouping) {
         let currentLetter = '';
         for (const item of items) {
@@ -1333,11 +1500,20 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           const isCh = upper.startsWith('CH');
           const firstChar = upper.charAt(0) || '#';
           const map: Record<string, string> = {
-            'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ý': 'Y', 'Ů': 'U',
-            'Ä': 'A', 'Ö': 'O', 'Ü': 'U', 'Ë': 'E'
+            Á: 'A',
+            É: 'E',
+            Í: 'I',
+            Ó: 'O',
+            Ú: 'U',
+            Ý: 'Y',
+            Ů: 'U',
+            Ä: 'A',
+            Ö: 'O',
+            Ü: 'U',
+            Ë: 'E',
           };
-          let letter = isCh ? 'CH' : (map[firstChar] || firstChar);
-          letter = isCh ? 'CH' : (/^[A-Z0-9ČĎŇŘŠŤŽ]$/i.test(letter) ? letter : '#');
+          let letter = isCh ? 'CH' : map[firstChar] || firstChar;
+          letter = isCh ? 'CH' : /^[A-Z0-9ČĎŇŘŠŤŽ]$/i.test(letter) ? letter : '#';
           if (letter !== currentLetter) {
             currentLetter = letter;
             item.groupLetter = currentLetter;
@@ -1351,8 +1527,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     const tocColumns = isLandscape ? 3 : 2;
     const tocMargins = getPageMargins(settings);
     const paddingTotalY = (tocMargins.top + tocMargins.bottom) * mmToPx;
-    
-    const safeTocSize = Number(settings.tocFontSize) || (Number(settings.lyricsFontSize) * 0.95) || 12;
+
+    const safeTocSize =
+      Number(settings.tocFontSize) || Number(settings.lyricsFontSize) * 0.95 || 12;
     const safeTitleSize = Number(settings.titleFontSize) || 16;
 
     // Explicit row metrics in pixels (guaranteed 1:1 match with rendered DOM elements)
@@ -1360,22 +1537,31 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     const rowLineHeightPx = Math.ceil(safeTocSize * rowLineHeight);
     const rowPaddingYPx = 1.5;
     const rowMarginBottomPx = 1;
-    const singleItemHeight = rowLineHeightPx + (rowPaddingYPx * 2) + rowMarginBottomPx;
+    const singleItemHeight = rowLineHeightPx + rowPaddingYPx * 2 + rowMarginBottomPx;
 
-    const showDividers = (settings.indexSortOrder === 'alphabetical') && !!settings.tocAlphabeticalGrouping && (settings.tocGroupDividers !== false);
+    const showDividers =
+      settings.indexSortOrder === 'alphabetical' &&
+      !!settings.tocAlphabeticalGrouping &&
+      settings.tocGroupDividers !== false;
     const dividerTotalHeight = 7; // 1px border + 3px marginTop + 3px marginBottom
 
     // Page 1 Header exact height
     const headerHeightP1 = Math.ceil(Math.round(safeTitleSize * 1.15) * 1.2) + 36;
-    
+
     // Subsequent Pages Header exact height
     const headerHeightSubsequent = Math.ceil(Math.round(safeTitleSize * 0.85) * 1.2) + 37;
 
     // Minimal safety buffer (2px) to handle sub-pixel rounding without artificially inflating the margin
     const bottomSafetyBuffer = 2;
 
-    const availableContentHeightP1 = Math.max(80, basePxHeight - paddingTotalY - headerHeightP1 - bottomSafetyBuffer);
-    const availableContentHeightSubsequent = Math.max(80, basePxHeight - paddingTotalY - headerHeightSubsequent - bottomSafetyBuffer);
+    const availableContentHeightP1 = Math.max(
+      80,
+      basePxHeight - paddingTotalY - headerHeightP1 - bottomSafetyBuffer,
+    );
+    const availableContentHeightSubsequent = Math.max(
+      80,
+      basePxHeight - paddingTotalY - headerHeightSubsequent - bottomSafetyBuffer,
+    );
 
     const pages: TocPage[] = [];
     const totalItems = items.length;
@@ -1394,11 +1580,19 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       while (K > 1) {
         const candidateItems = items.slice(offset, offset + K);
         const cols = balanceColumns(candidateItems, tocColumns);
-        const maxColH = Math.max(...cols.map(c => getColumnHeight(c, showDividers, singleItemHeight, dividerTotalHeight)));
+        const maxColH = Math.max(
+          ...cols.map((c) =>
+            getColumnHeight(c, showDividers, singleItemHeight, dividerTotalHeight),
+          ),
+        );
 
         if (maxColH <= availH) {
           // Prevent leaving an orphan group header as the very last item of this page if more items follow
-          if (offset + K < totalItems && candidateItems[candidateItems.length - 1].groupLetter && K > 1) {
+          if (
+            offset + K < totalItems &&
+            candidateItems[candidateItems.length - 1].groupLetter &&
+            K > 1
+          ) {
             K--;
             continue;
           }
@@ -1430,12 +1624,12 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
     return pages;
   }, [
-    songs, 
+    songs,
     title,
-    settings.indexSortOrder, 
+    settings.indexSortOrder,
     settings.tocAlphabeticalGrouping,
     settings.tocGroupDividers,
-    settings.orientation, 
+    settings.orientation,
     settings.pageFormat,
     settings.pageMargin,
     settings.pageMarginTopBottom,
@@ -1448,9 +1642,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     settings.pageMarginOuter,
     settings.bookMode,
     settings.tocFontSize,
-    settings.lyricsFontSize, 
-    settings.titleFontSize, 
-    basePxHeight
+    settings.lyricsFontSize,
+    settings.titleFontSize,
+    basePxHeight,
   ]);
 
   // List of all page IDs in order of rendering
@@ -1499,10 +1693,14 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
             const isMobileScreen = typeof window !== 'undefined' ? window.innerWidth < 640 : false;
             const pageMarginVal = isMobileScreen ? 24 : 40;
-            const pageStep = (isScaled ? scaledHeight : (parseInt(cssHeight, 10) || 1123)) + pageMarginVal;
+            const pageStep =
+              (isScaled ? scaledHeight : parseInt(cssHeight, 10) || 1123) + pageMarginVal;
 
             if (allPageIds.length > 0) {
-              const computedPageIndex = Math.min(allPageIds.length - 1, Math.max(0, Math.floor((el.scrollTop + pageStep * 0.45) / pageStep)));
+              const computedPageIndex = Math.min(
+                allPageIds.length - 1,
+                Math.max(0, Math.floor((el.scrollTop + pageStep * 0.45) / pageStep)),
+              );
               setActivePageIndex(computedPageIndex);
             }
 
@@ -1510,8 +1708,11 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
             if (songs.length > 0) {
               const tocTotalHeight = (tocPages.length || 0) * pageStep;
               const scrollFromSongs = Math.max(0, el.scrollTop - tocTotalHeight + pageStep * 0.3);
-              const computedIndex = Math.min(songs.length - 1, Math.max(0, Math.floor(scrollFromSongs / pageStep)));
-              setActiveSongIndex(prev => (prev !== computedIndex ? computedIndex : prev));
+              const computedIndex = Math.min(
+                songs.length - 1,
+                Math.max(0, Math.floor(scrollFromSongs / pageStep)),
+              );
+              setActiveSongIndex((prev) => (prev !== computedIndex ? computedIndex : prev));
             }
           }
           ticking = false;
@@ -1526,25 +1727,35 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   const documentTitle = useMemo(() => {
     const raw = title || 'Kytario_Songbook';
-    return raw.trim().replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '_');
+    return raw
+      .trim()
+      .replace(/[/\\?%*:|"<>]/g, '-')
+      .replace(/\s+/g, '_');
   }, [title]);
 
-  const syncHeadPrintPageSetup = useCallback((pageFormat: string, orientation: string, width: string, height: string, settings: PrintSettings) => {
-    if (typeof document === 'undefined') return;
-    let styleEl = document.getElementById('kytario-print-page-setup') as HTMLStyleElement | null;
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'kytario-print-page-setup';
-      document.head.appendChild(styleEl);
-    }
-    const formatName = pageFormat === 'Letter' ? 'letter' : pageFormat;
+  const syncHeadPrintPageSetup = useCallback(
+    (
+      pageFormat: string,
+      orientation: string,
+      width: string,
+      height: string,
+      settings: PrintSettings,
+    ) => {
+      if (typeof document === 'undefined') return;
+      let styleEl = document.getElementById('kytario-print-page-setup') as HTMLStyleElement | null;
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'kytario-print-page-setup';
+        document.head.appendChild(styleEl);
+      }
+      const formatName = pageFormat === 'Letter' ? 'letter' : pageFormat;
 
-    // For double-sided book printing, we use @page :left and :right pseudo-classes
-    // to provide the print engine with precise margin information for registration.
-    const inner = settings.pageMarginInner ?? 5;
-    const outer = settings.pageMarginOuter ?? 5;
+      // For double-sided book printing, we use @page :left and :right pseudo-classes
+      // to provide the print engine with precise margin information for registration.
+      const inner = settings.pageMarginInner ?? 5;
+      const outer = settings.pageMarginOuter ?? 5;
 
-    styleEl.textContent = `
+      styleEl.textContent = `
       @page {
         size: ${formatName} ${orientation};
         size: ${width} ${height};
@@ -1560,18 +1771,26 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       @page :left {
         size: ${formatName} ${orientation};
         size: ${width} ${height};
-        ${settings.bookMode ? `
+        ${
+          settings.bookMode
+            ? `
           margin-left: ${outer}mm !important;
           margin-right: ${inner}mm !important;
-        ` : 'margin: 0mm !important;'}
+        `
+            : 'margin: 0mm !important;'
+        }
       }
       @page :right {
         size: ${formatName} ${orientation};
         size: ${width} ${height};
-        ${settings.bookMode ? `
+        ${
+          settings.bookMode
+            ? `
           margin-left: ${inner}mm !important;
           margin-right: ${outer}mm !important;
-        ` : 'margin: 0mm !important;'}
+        `
+            : 'margin: 0mm !important;'
+        }
       }
       @media print {
         * {
@@ -1585,11 +1804,19 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         }
       }
     `;
-  }, []);
+    },
+    [],
+  );
 
   // Keep document head @page print rules in exact sync with current format and orientation
   useEffect(() => {
-    syncHeadPrintPageSetup(settings.pageFormat, settings.orientation, cssWidth, cssHeight, settings);
+    syncHeadPrintPageSetup(
+      settings.pageFormat,
+      settings.orientation,
+      cssWidth,
+      cssHeight,
+      settings,
+    );
   }, [settings, cssWidth, cssHeight, syncHeadPrintPageSetup]);
 
   const cleanupPrint = useCallback(() => {
@@ -1615,7 +1842,13 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   const handleDownloadPdf = useCallback(() => {
     // 0. Ensure document head has exact, current @page size & orientation rules before printing
-    syncHeadPrintPageSetup(settings.pageFormat, settings.orientation, cssWidth, cssHeight, settings);
+    syncHeadPrintPageSetup(
+      settings.pageFormat,
+      settings.orientation,
+      cssWidth,
+      cssHeight,
+      settings,
+    );
 
     // 1. Instantly trigger visual indicators (0ms delay) so user never sees a frozen app
     setIsPreparingPdf(true);
@@ -1676,7 +1909,17 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         }, waitTime);
       });
     });
-  }, [documentTitle, songs.length, onDownloadStatusChange, cleanupPrint, settings.pageFormat, settings.orientation, cssWidth, cssHeight, syncHeadPrintPageSetup]);
+  }, [
+    documentTitle,
+    songs.length,
+    onDownloadStatusChange,
+    cleanupPrint,
+    settings.pageFormat,
+    settings.orientation,
+    cssWidth,
+    cssHeight,
+    syncHeadPrintPageSetup,
+  ]);
 
   // Global browser print event listeners (handles Direct Print, Ctrl+P, and Download as PDF)
   useEffect(() => {
@@ -1698,7 +1941,15 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       window.removeEventListener('beforeprint', handleBeforePrint);
       window.removeEventListener('afterprint', handleAfterPrint);
     };
-  }, [documentTitle, cleanupPrint, settings.pageFormat, settings.orientation, cssWidth, cssHeight, syncHeadPrintPageSetup]);
+  }, [
+    documentTitle,
+    cleanupPrint,
+    settings.pageFormat,
+    settings.orientation,
+    cssWidth,
+    cssHeight,
+    syncHeadPrintPageSetup,
+  ]);
 
   // Cleanup timers on component unmount
   useEffect(() => {
@@ -1714,7 +1965,8 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     }
   }, [isPreparingPdf, isPrinting, onDownloadStatusChange]);
 
-  const coverPagesCount = (settings.showFrontCover !== false ? 1 : 0) + (settings.showBackCover !== false ? 1 : 0);
+  const coverPagesCount =
+    (settings.showFrontCover !== false ? 1 : 0) + (settings.showBackCover !== false ? 1 : 0);
   const totalPages = coverPagesCount + tocPages.length + songs.length;
 
   const activeSong = songs[activeSongIndex] || songs[0] || null;
@@ -1729,11 +1981,11 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     if (!activeDebugInfo) return;
     console.log(
       `%c[Song Fit Debug]%c #${activeDebugInfo.songIndex + 1} "${activeDebugInfo.title}" | ` +
-      `Calculated Total Lines: ${activeDebugInfo.totalLines} (raw: ${activeDebugInfo.rawLinesCount}, section: ${activeDebugInfo.sectionLinesCount}, visual: ${activeDebugInfo.visualLinesAtScale}) | ` +
-      `Chosen Font Size: ${activeDebugInfo.chosenLyricsFontSize}px (Scale: ${activeDebugInfo.computedScale}x, Base: ${activeDebugInfo.baseLyricsFontSize}px) | ` +
-      `Height: ${activeDebugInfo.calculatedHeight}px / ${activeDebugInfo.availColHeight}px (${activeDebugInfo.heightUtilization}%)`,
+        `Calculated Total Lines: ${activeDebugInfo.totalLines} (raw: ${activeDebugInfo.rawLinesCount}, section: ${activeDebugInfo.sectionLinesCount}, visual: ${activeDebugInfo.visualLinesAtScale}) | ` +
+        `Chosen Font Size: ${activeDebugInfo.chosenLyricsFontSize}px (Scale: ${activeDebugInfo.computedScale}x, Base: ${activeDebugInfo.baseLyricsFontSize}px) | ` +
+        `Height: ${activeDebugInfo.calculatedHeight}px / ${activeDebugInfo.availColHeight}px (${activeDebugInfo.heightUtilization}%)`,
       'background: #1e293b; color: #38bdf8; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
-      'color: inherit;'
+      'color: inherit;',
     );
   }, [activeDebugInfo]);
 
@@ -1745,12 +1997,16 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         getAllSongs: () => songs.map((s, i) => computeSongFitDebug(s, i, settings)),
         toggleDebugView: () => {
           if (!isDebugFeatureEnabled) {
-            console.warn('[Songbook Debug] Debug HUD is hidden because ENABLE_DEBUG_HUD is false in src/config.ts.');
+            console.warn(
+              '[Songbook Debug] Debug HUD is hidden because ENABLE_DEBUG_HUD is false in src/config.ts.',
+            );
             return;
           }
-          setIsDebugOpen(prev => {
+          setIsDebugOpen((prev) => {
             const next = !prev;
-            try { localStorage.setItem('kytario-debug-view', String(next)); } catch (e) {}
+            try {
+              localStorage.setItem('kytario-debug-view', String(next));
+            } catch (e) {}
             return next;
           });
         },
@@ -1762,7 +2018,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
     <div className="flex-1 flex flex-col h-full overflow-hidden relative print:h-auto print:min-h-0 print:overflow-visible print:block print:static">
       {/* Floating Status Pill when Songbook is Updating (Prominent Black Oval) */}
       {isUpdatingLayout && (
-        <div 
+        <div
           id="preview-updating-status-pill"
           className="absolute top-4 left-1/2 -translate-x-1/2 z-50 print:hidden flex items-center gap-3 bg-zinc-950/95 text-white px-6 py-2.5 rounded-full shadow-2xl border border-zinc-700/80 backdrop-blur-md animate-in fade-in slide-in-from-top-2 text-sm font-semibold select-none pointer-events-none"
         >
@@ -1772,30 +2028,31 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       )}
 
       {/* SCROLLABLE PREVIEW CANVAS */}
-      <div 
+      <div
         ref={containerRef}
         style={{ overflowAnchor: 'none' }}
         className="relative flex-1 overflow-y-auto overflow-x-auto bg-zinc-50 p-3 sm:p-8 pb-28 sm:pb-36 print:p-0 print:m-0 print:bg-white print:h-auto print:min-h-0 print:overflow-visible print:block print:static print-scroll-container"
       >
         {(isPreparingPdf || isPrinting) && (
-          <div 
+          <div
             id="preview-downloading-pdf-pill"
             className="fixed top-14 left-1/2 -translate-x-1/2 z-50 print:hidden flex items-center gap-2.5 bg-blue-600 text-white px-4 py-2 rounded-full shadow-xl border border-blue-500/80 backdrop-blur-md animate-in fade-in slide-in-from-top-3 text-xs font-bold select-none pointer-events-none"
           >
             <Loader2 className="w-4 h-4 animate-spin text-white" />
             <span>
-              Preparing {settings.pageFormat} {settings.orientation === 'landscape' ? 'Landscape' : 'Portrait'} PDF...
+              Preparing {settings.pageFormat}{' '}
+              {settings.orientation === 'landscape' ? 'Landscape' : 'Portrait'} PDF...
             </span>
           </div>
         )}
 
         {/* SONG PAGES LIST (ISOLATED & MEMOIZED PRINTABLE ROOT) */}
-        <div 
+        <div
           ref={printableRef}
           id="songbook-printable-area"
           className={`songbook-print-root ${isPrinting ? 'is-printing-mode' : ''} animate-in fade-in duration-200 min-w-fit flex flex-col ${shouldCenter ? 'items-center' : 'items-start pl-4 sm:pl-8'} print:block print:h-auto print:min-h-0 print:w-full print:static print:overflow-visible print:m-0 print:p-0 ${isUpdatingLayout ? 'opacity-80' : 'opacity-100'}`}
         >
-          <SongPagesList 
+          <SongPagesList
             songs={songs}
             title={title}
             url={data.url}
@@ -1825,17 +2082,22 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           type="button"
           onClick={scrollToTop}
           className="fixed z-40 w-11 sm:w-12 h-12 sm:h-14 bg-white/95 backdrop-blur-md hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 rounded-2xl shadow-xl border border-zinc-200/80 flex flex-col items-center justify-center transition-all cursor-pointer select-none print:hidden shrink-0 group"
-          style={{ bottom: 'max(5.5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))', right: 'max(0.75rem, calc(0.75rem + env(safe-area-inset-right, 0px)))' }}
+          style={{
+            bottom: 'max(5.5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
+            right: 'max(0.75rem, calc(0.75rem + env(safe-area-inset-right, 0px)))',
+          }}
           title="Scroll to Top"
           aria-label="Scroll to Top"
         >
           <ChevronUp className="w-4.5 h-4.5 sm:w-5 sm:h-5 group-hover:-translate-y-0.5 transition-transform" />
-          <span className="text-[8px] sm:text-[9px] font-bold mt-0.5 tracking-tight leading-none text-zinc-600 group-hover:text-zinc-950">Top</span>
+          <span className="text-[8px] sm:text-[9px] font-bold mt-0.5 tracking-tight leading-none text-zinc-600 group-hover:text-zinc-950">
+            Top
+          </span>
         </button>
       )}
 
       {/* Quick Song Navigator Popover */}
-      <QuickSongNavigator 
+      <QuickSongNavigator
         songs={songs}
         isSongNavOpen={isSongNavOpen}
         onScrollTo={handleScrollTo}
@@ -1849,15 +2111,17 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           id="toggle-debug-view-btn"
           onClick={(e) => {
             e.stopPropagation();
-            setIsDebugOpen(prev => {
+            setIsDebugOpen((prev) => {
               const next = !prev;
-              try { localStorage.setItem('kytario-debug-view', String(next)); } catch (err) {}
+              try {
+                localStorage.setItem('kytario-debug-view', String(next));
+              } catch (err) {}
               return next;
             });
           }}
           className={`fixed bottom-[185px] sm:bottom-[130px] right-3 sm:right-6 z-40 w-10 h-10 bg-white/95 hover:bg-zinc-100 text-zinc-600 rounded-full shadow-lg border border-black/10 flex items-center justify-center transition-colors cursor-pointer print:hidden ${
-            isDebugOpen 
-              ? 'bg-amber-500/20 text-amber-600 font-bold hover:bg-amber-500/30' 
+            isDebugOpen
+              ? 'bg-amber-500/20 text-amber-600 font-bold hover:bg-amber-500/30'
               : 'hover:bg-black/5 hover:text-zinc-900'
           }`}
           title="Toggle Song Fit Debug View"
@@ -2186,7 +2450,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
       {/* Floating Song Fit Debug HUD - ONLY rendered if ENABLE_DEBUG_HUD is true in src/config.ts */}
       {isDebugFeatureEnabled && isDebugOpen && (
-        <SongFitDebugHud 
+        <SongFitDebugHud
           debugInfo={activeDebugInfo}
           totalSongs={songs.length}
           onPrevSong={() => {
@@ -2205,7 +2469,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
           }}
           onClose={() => {
             setIsDebugOpen(false);
-            try { localStorage.setItem('kytario-debug-view', 'false'); } catch (err) {}
+            try {
+              localStorage.setItem('kytario-debug-view', 'false');
+            } catch (err) {}
           }}
           onScrollToActive={() => handleScrollTo(`song-${activeSongIndex}`)}
         />

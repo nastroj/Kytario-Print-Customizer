@@ -21,9 +21,11 @@ export interface ZipParseResult {
  * Checks if a given file or buffer is a ZIP archive.
  */
 export function isZipFile(file: File | Blob): boolean {
-  const isZipType = file.type === 'application/zip' || 
-                    file.type === 'application/x-zip-compressed';
-  const hasZipName = 'name' in file && typeof (file as File).name === 'string' && (file as File).name.toLowerCase().endsWith('.zip');
+  const isZipType = file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
+  const hasZipName =
+    'name' in file &&
+    typeof (file as File).name === 'string' &&
+    (file as File).name.toLowerCase().endsWith('.zip');
   return isZipType || hasZipName;
 }
 
@@ -32,15 +34,20 @@ export function isZipFile(file: File | Blob): boolean {
  * Reconstructs full SongbookData from `projects/{slug}/project.json` and `projects/{slug}/songs/*.json`.
  * Respects the explicit song order defined in `project.json` songbooks.
  */
-export async function parseKytarioZip(fileOrBuffer: File | Blob | ArrayBuffer): Promise<ZipParseResult> {
+export async function parseKytarioZip(
+  fileOrBuffer: File | Blob | ArrayBuffer,
+): Promise<ZipParseResult> {
   const zip = new JSZip();
   const loadedZip = await zip.loadAsync(fileOrBuffer);
 
-  const projectsMap = new Map<string, {
-    projectJson?: any;
-    songMap: Map<string, Song>;
-    fallbackSongs: Song[];
-  }>();
+  const projectsMap = new Map<
+    string,
+    {
+      projectJson?: any;
+      songMap: Map<string, Song>;
+      fallbackSongs: Song[];
+    }
+  >();
 
   const looseSongs: Song[] = [];
 
@@ -94,7 +101,11 @@ export async function parseKytarioZip(fileOrBuffer: File | Blob | ArrayBuffer): 
     }
 
     // 3. Fallback: Any other JSON file that might contain songs or songbook
-    if (lowerPath.endsWith('.json') && !lowerPath.includes('personal-data') && !lowerPath.includes('manifest')) {
+    if (
+      lowerPath.endsWith('.json') &&
+      !lowerPath.includes('personal-data') &&
+      !lowerPath.includes('manifest')
+    ) {
       try {
         const text = await entry.async('text');
         const parsed = JSON.parse(text);
@@ -120,9 +131,13 @@ export async function parseKytarioZip(fileOrBuffer: File | Blob | ArrayBuffer): 
       const sb = songbooks.find((s: any) => s.urlToken === slug) || songbooks[0];
       songbookName = sb?.name || sb?.title;
     }
-    const projectName = data.projectJson?.project?.name || data.projectJson?.project?.title || data.projectJson?.name || data.projectJson?.title;
+    const projectName =
+      data.projectJson?.project?.name ||
+      data.projectJson?.project?.title ||
+      data.projectJson?.name ||
+      data.projectJson?.title;
     const name = songbookName || projectName || slug.toUpperCase();
-    
+
     // Determine song order from projectJson.songbooks[0].songs (or songbooks matching project)
     let orderedSongs: Song[] = [];
     if (Array.isArray(songbooks) && songbooks.length > 0) {

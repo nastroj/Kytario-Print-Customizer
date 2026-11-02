@@ -28,7 +28,7 @@ export const Stepper = React.memo(function Stepper({
   className = '',
   ariaLabel,
 }: StepperProps) {
-  const isFloat = (step % 1 !== 0) || (min % 1 !== 0) || (max % 1 !== 0) || (defaultValue % 1 !== 0);
+  const isFloat = step % 1 !== 0 || min % 1 !== 0 || max % 1 !== 0 || defaultValue % 1 !== 0;
 
   const parseNum = (valStr: string) => {
     return isFloat ? parseFloat(valStr) : parseInt(valStr, 10);
@@ -77,7 +77,9 @@ export const Stepper = React.memo(function Stepper({
   const handleIncrement = () => {
     if (disabled) return;
     const current = isNaN(parseNum(localStr)) ? value : parseNum(localStr);
-    const next = isFloat ? Math.min(max, Math.round((current + step) * 100) / 100) : Math.min(max, current + step);
+    const next = isFloat
+      ? Math.min(max, Math.round((current + step) * 100) / 100)
+      : Math.min(max, current + step);
     setLocalStr(formatNum(next));
     onChange(next);
   };
@@ -85,7 +87,9 @@ export const Stepper = React.memo(function Stepper({
   const handleDecrement = () => {
     if (disabled) return;
     const current = isNaN(parseNum(localStr)) ? value : parseNum(localStr);
-    const prev = isFloat ? Math.max(min, Math.round((current - step) * 100) / 100) : Math.max(min, current - step);
+    const prev = isFloat
+      ? Math.max(min, Math.round((current - step) * 100) / 100)
+      : Math.max(min, current - step);
     setLocalStr(formatNum(prev));
     onChange(prev);
   };
@@ -110,8 +114,8 @@ export const Stepper = React.memo(function Stepper({
         <input
           id={id}
           type="text"
-          inputMode={isFloat ? "decimal" : "numeric"}
-          pattern={isFloat ? "[0-9]*[.]?[0-9]*" : "[0-9]*"}
+          inputMode={isFloat ? 'decimal' : 'numeric'}
+          pattern={isFloat ? '[0-9]*[.]?[0-9]*' : '[0-9]*'}
           disabled={disabled}
           value={localStr}
           onFocus={(e) => {

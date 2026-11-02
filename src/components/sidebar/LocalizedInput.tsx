@@ -47,16 +47,19 @@ export const LocalizedInput = React.memo(function LocalizedInput({
     };
   }, []);
 
-  const flush = useCallback((valToCommit: string) => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    if (valToCommit !== latestValRef.current) {
-      latestValRef.current = valToCommit;
-      onChange(valToCommit);
-    }
-  }, [onChange]);
+  const flush = useCallback(
+    (valToCommit: string) => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      if (valToCommit !== latestValRef.current) {
+        latestValRef.current = valToCommit;
+        onChange(valToCommit);
+      }
+    },
+    [onChange],
+  );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextVal = e.target.value;
@@ -149,16 +152,19 @@ export const LocalizedTextarea = React.memo(function LocalizedTextarea({
     };
   }, []);
 
-  const flush = useCallback((valToCommit: string) => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    if (valToCommit !== latestValRef.current) {
-      latestValRef.current = valToCommit;
-      onChange(valToCommit);
-    }
-  }, [onChange]);
+  const flush = useCallback(
+    (valToCommit: string) => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      if (valToCommit !== latestValRef.current) {
+        latestValRef.current = valToCommit;
+        onChange(valToCommit);
+      }
+    },
+    [onChange],
+  );
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const nextVal = e.target.value;

@@ -1,6 +1,18 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Check, X, ListFilter, Search, Eye, EyeOff, CheckCheck, XCircle, AlertCircle, ArrowDownWideNarrow } from 'lucide-react';
+import {
+  Check,
+  X,
+  ListFilter,
+  Search,
+  Eye,
+  EyeOff,
+  CheckCheck,
+  XCircle,
+  AlertCircle,
+  ArrowDownWideNarrow,
+} from 'lucide-react';
 import { Song } from '../types';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface SongSelectionModalProps {
   isOpen: boolean;
@@ -20,10 +32,16 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
   onCancel,
 }) => {
   // Local staged selection state for 0ms instantaneous UI clicks and zero lag
-  const [draftSelectedIds, setDraftSelectedIds] = useState<Set<string | number>>(() => new Set(selectedSongIds));
+  const [draftSelectedIds, setDraftSelectedIds] = useState<Set<string | number>>(
+    () => new Set(selectedSongIds),
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('original');
   const containerRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Trap keyboard focus inside the dialog while open; Escape cancels.
+  useFocusTrap(dialogRef, { active: isOpen, onEscape: onCancel });
 
   // Sync draft state with incoming selectedSongIds when modal opens
   useEffect(() => {
@@ -54,13 +72,14 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
     const term = searchTerm.toLowerCase().trim();
     let result = lightSongs;
     if (term) {
-      result = result.filter(s => 
-        s.title.toLowerCase().includes(term) || 
-        s.artist.toLowerCase().includes(term) ||
-        String(s.originalIndex) === term
+      result = result.filter(
+        (s) =>
+          s.title.toLowerCase().includes(term) ||
+          s.artist.toLowerCase().includes(term) ||
+          String(s.originalIndex) === term,
       );
     }
-    
+
     // Sort
     return [...result].sort((a, b) => {
       if (sortOption === 'title') return a.title.localeCompare(b.title);
@@ -71,7 +90,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
 
   // Instant local toggle (0ms latency, does not trigger expensive preview re-renders)
   const handleToggleSong = useCallback((id: string | number) => {
-    setDraftSelectedIds(prev => {
+    setDraftSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -81,20 +100,21 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
 
   // Quick batch actions
   const handleSelectAll = useCallback(() => {
-    setDraftSelectedIds(new Set(lightSongs.map(s => s.id)));
+    setDraftSelectedIds(new Set(lightSongs.map((s) => s.id)));
   }, [lightSongs]);
 
   const handleDeselectAll = useCallback(() => {
     setDraftSelectedIds(new Set());
   }, []);
 
-  const allFilteredSelected = filteredSongs.length > 0 && filteredSongs.every(s => draftSelectedIds.has(s.id));
+  const allFilteredSelected =
+    filteredSongs.length > 0 && filteredSongs.every((s) => draftSelectedIds.has(s.id));
 
   const handleToggleFiltered = useCallback(() => {
-    setDraftSelectedIds(prev => {
+    setDraftSelectedIds((prev) => {
       const next = new Set(prev);
       const shouldSelect = !allFilteredSelected;
-      filteredSongs.forEach(s => {
+      filteredSongs.forEach((s) => {
         if (shouldSelect) next.add(s.id);
         else next.delete(s.id);
       });
@@ -119,7 +139,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-zinc-950/70 backdrop-blur-md animate-in fade-in duration-200"
       style={{
         paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))',
@@ -128,7 +148,8 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
         paddingRight: 'max(0.5rem, env(safe-area-inset-right, 0px))',
       }}
     >
-      <div 
+      <div
+        ref={dialogRef}
         className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl h-[92dvh] sm:h-[85vh] sm:max-h-[85vh] max-h-[95dvh] flex flex-col overflow-hidden border border-zinc-200/90 animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
@@ -138,7 +159,10 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
         <div className="flex items-center justify-between p-3 sm:p-4 sm:px-5 border-b border-zinc-100 bg-zinc-50/90 shrink-0">
           <div className="min-w-0 pr-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 id="song-manager-title" className="text-sm sm:text-base font-bold text-zinc-900 flex items-center gap-2 truncate">
+              <h3
+                id="song-manager-title"
+                className="text-sm sm:text-base font-bold text-zinc-900 flex items-center gap-2 truncate"
+              >
                 <ListFilter className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 shrink-0" />
                 <span>Manage Song Visibility</span>
               </h3>
@@ -148,14 +172,15 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
                 </span>
               )}
             </div>
-            <p className="text-[11px] sm:text-xs text-zinc-500 mt-0.5 truncate">
+            <p className="text-[11px] sm:text-xs text-zinc-600 mt-0.5 truncate">
               Showing {filteredSongs.length} of {songs.length} songs &bull;{' '}
-              <span className="font-semibold text-zinc-800">{draftSelectedIds.size}</span> included in PDF
+              <span className="font-semibold text-zinc-800">{draftSelectedIds.size}</span> included
+              in PDF
             </p>
           </div>
-          <button 
+          <button
             type="button"
-            onClick={onCancel} 
+            onClick={onCancel}
             className="text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 rounded-xl p-1.5 transition-colors cursor-pointer shrink-0"
             aria-label="Close"
           >
@@ -213,7 +238,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
               <ArrowDownWideNarrow className="absolute left-2.5 top-2 sm:top-2.5 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
             </div>
           </div>
-          
+
           <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end shrink-0">
             {searchTerm ? (
               <button
@@ -259,7 +284,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
         </div>
 
         {/* Clean, Jitter-Free Scroll Container */}
-        <div 
+        <div
           ref={containerRef}
           className="flex-1 min-h-0 overflow-y-auto px-2.5 sm:px-4 py-2 space-y-1.5 overscroll-contain select-none"
         >
@@ -275,16 +300,16 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
                   key={`${song.id}-${idx}`}
                   onClick={() => handleToggleSong(song.id)}
                   className={`flex items-center justify-between px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl border transition-all cursor-pointer ${
-                    isSelected 
-                      ? 'border-zinc-900 bg-zinc-900/[0.03] shadow-2xs hover:bg-zinc-900/[0.06]' 
+                    isSelected
+                      ? 'border-zinc-900 bg-zinc-900/[0.03] shadow-2xs hover:bg-zinc-900/[0.06]'
                       : 'border-zinc-200 hover:bg-zinc-50 bg-white opacity-70 hover:opacity-100'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                    <div 
+                    <div
                       className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors shrink-0 ${
-                        isSelected 
-                          ? 'bg-zinc-900 border-zinc-900 text-white' 
+                        isSelected
+                          ? 'bg-zinc-900 border-zinc-900 text-white'
                           : 'border-zinc-300 bg-white'
                       }`}
                     >
@@ -294,20 +319,20 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
                       #{song.originalIndex}
                     </span>
                     <div className="min-w-0">
-                      <p className={`font-bold text-xs truncate ${isSelected ? 'text-zinc-900' : 'text-zinc-500'}`}>
+                      <p
+                        className={`font-bold text-xs truncate ${isSelected ? 'text-zinc-900' : 'text-zinc-600'}`}
+                      >
                         {song.title}
                       </p>
                       {song.artist && (
-                        <p className="text-[11px] text-zinc-400 truncate mt-0.5">
-                          {song.artist}
-                        </p>
+                        <p className="text-[11px] text-zinc-400 truncate mt-0.5">{song.artist}</p>
                       )}
                     </div>
                   </div>
-                  <span 
+                  <span
                     className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ml-2 ${
-                      isSelected 
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' 
+                      isSelected
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
                         : 'bg-zinc-100 text-zinc-400'
                     }`}
                   >
@@ -321,9 +346,11 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
 
         {/* Sticky Footer - Always Visible on All Devices & Resolutions */}
         <div className="p-3 sm:p-4 border-t border-zinc-200 bg-zinc-50/95 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-4 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] z-10">
-          <div className="text-xs text-zinc-500 w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 shrink-0">
+          <div className="text-xs text-zinc-600 w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 shrink-0">
             <div>
-              <span className={`font-bold ${draftSelectedIds.size === 0 ? 'text-red-600' : 'text-zinc-950'}`}>
+              <span
+                className={`font-bold ${draftSelectedIds.size === 0 ? 'text-red-600' : 'text-zinc-950'}`}
+              >
                 {draftSelectedIds.size}
               </span>{' '}
               of {songs.length} songs selected
@@ -335,20 +362,20 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
             )}
           </div>
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end shrink-0">
-            <button 
+            <button
               type="button"
-              onClick={onCancel} 
+              onClick={onCancel}
               className="flex-1 sm:flex-initial px-4 py-2.5 min-h-[42px] text-xs sm:text-sm font-bold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-300 rounded-xl transition-all duration-200 cursor-pointer text-center flex items-center justify-center"
             >
               Cancel
             </button>
-            <button 
+            <button
               type="button"
               onClick={handleApply}
               disabled={draftSelectedIds.size === 0}
               className={`flex-1 sm:flex-initial px-5 py-2.5 min-h-[42px] text-xs sm:text-sm font-bold text-white rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 text-center ${
                 draftSelectedIds.size === 0
-                  ? 'bg-zinc-300 text-zinc-500 cursor-not-allowed opacity-70 shadow-none'
+                  ? 'bg-zinc-300 text-zinc-600 cursor-not-allowed opacity-70 shadow-none'
                   : 'bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-950 cursor-pointer'
               }`}
             >

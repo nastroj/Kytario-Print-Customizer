@@ -14,7 +14,7 @@ export function ProgressBar({
   active,
   statusText = 'Processing...',
   subText,
-  variant = 'top-bar'
+  variant = 'top-bar',
 }: ProgressBarProps) {
   if (!active) return null;
 
@@ -23,12 +23,12 @@ export function ProgressBar({
     const clampedProgress = isDeterminate ? Math.min(100, Math.max(0, progress)) : null;
 
     return (
-      <div 
+      <div
         id="global-progress-bar"
         className="fixed top-0 left-0 right-0 z-50 pointer-events-none print:hidden h-1.5 bg-transparent overflow-hidden"
       >
         {isDeterminate ? (
-          <div 
+          <div
             className="h-full bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 shadow-[0_0_10px_rgba(245,158,11,0.6)] transition-all duration-300 ease-out"
             style={{ width: `${clampedProgress}%` }}
           />
@@ -43,7 +43,7 @@ export function ProgressBar({
 
   if (variant === 'toast') {
     return (
-      <div 
+      <div
         id="processing-toast"
         className="fixed top-4 right-4 z-40 print:hidden flex items-center gap-3 bg-zinc-900/95 text-white px-4 py-2.5 rounded-lg shadow-2xl border border-zinc-700/80 backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-top-2 text-xs"
       >
@@ -56,13 +56,12 @@ export function ProgressBar({
     );
   }
 
-  
   // Overlay variant (active spinner & dynamic indicator for JSON loading & songbook processing)
   const isDeterminate = typeof progress === 'number';
   const clampedProgress = isDeterminate ? Math.min(100, Math.max(0, progress)) : null;
 
   return (
-    <div 
+    <div
       id="loading-modal-overlay"
       className="fixed inset-0 z-50 bg-zinc-900/60 backdrop-blur-xs flex items-center justify-center p-4 print:hidden animate-in fade-in duration-200 select-none pointer-events-auto"
     >
@@ -74,10 +73,10 @@ export function ProgressBar({
         <div className="relative w-14 h-14 mx-auto flex items-center justify-center">
           {/* Ambient pulsating glow */}
           <div className="absolute inset-0 rounded-full bg-amber-500/20 animate-ping opacity-60" />
-          
+
           {/* Outer rotating gradient ring */}
           <div className="w-14 h-14 rounded-full border-[3px] border-zinc-100 border-t-amber-500 border-r-amber-400 animate-spin" />
-          
+
           {/* Inner disc with pulsing icon */}
           <div className="absolute inset-2 bg-zinc-50 rounded-full flex items-center justify-center shadow-md">
             <Music className="w-5 h-5 text-amber-500 animate-pulse" />
@@ -89,11 +88,7 @@ export function ProgressBar({
           <h3 className="text-base sm:text-lg font-bold text-zinc-900 tracking-tight">
             {statusText}
           </h3>
-          {subText && (
-            <p className="text-xs text-zinc-500 font-medium">
-              {subText}
-            </p>
-          )}
+          {subText && <p className="text-xs text-zinc-600 font-medium">{subText}</p>}
         </div>
 
         {/* Dynamic Activity Indicator */}
@@ -101,18 +96,20 @@ export function ProgressBar({
           {/* Progress bar */}
           <div className="w-full h-2.5 bg-zinc-100 rounded-full overflow-hidden border border-black/5 relative">
             {isDeterminate ? (
-               <div
-                 className="h-full bg-gradient-to-r from-amber-500 to-amber-600 rounded-full transition-all duration-200 ease-out"
-                 style={{ width: `${clampedProgress === 100 ? 100 : Math.max(3, clampedProgress!)}%` }}
-               />
+              <div
+                className="h-full bg-gradient-to-r from-amber-500 to-amber-600 rounded-full transition-all duration-200 ease-out"
+                style={{
+                  width: `${clampedProgress === 100 ? 100 : Math.max(3, clampedProgress!)}%`,
+                }}
+              />
             ) : (
-               <div className="h-full w-2/5 bg-gradient-to-r from-zinc-800/0 via-amber-500 to-zinc-800/0 rounded-full absolute animate-indeterminate-bar" />
+              <div className="h-full w-2/5 bg-gradient-to-r from-zinc-800/0 via-amber-500 to-zinc-800/0 rounded-full absolute animate-indeterminate-bar" />
             )}
           </div>
-          
+
           {isDeterminate && (
             <div className="flex items-center justify-between text-xs font-bold text-amber-600 tabular-nums">
-              <span className="text-[11px] font-medium text-zinc-500">
+              <span className="text-[11px] font-medium text-zinc-600">
                 {clampedProgress === 100 ? 'Complete' : 'Progress'}
               </span>
               <span>{clampedProgress}%</span>
@@ -122,10 +119,18 @@ export function ProgressBar({
           {/* Active status badge with live ping dot */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 text-xs font-semibold">
             <span className="relative flex h-2 w-2">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${clampedProgress === 100 ? 'bg-emerald-500' : 'bg-amber-500'} opacity-75`} />
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${clampedProgress === 100 ? 'bg-emerald-600' : 'bg-amber-600'}`} />
+              <span
+                className={`animate-ping absolute inline-flex h-full w-full rounded-full ${clampedProgress === 100 ? 'bg-emerald-500' : 'bg-amber-500'} opacity-75`}
+              />
+              <span
+                className={`relative inline-flex rounded-full h-2 w-2 ${clampedProgress === 100 ? 'bg-emerald-600' : 'bg-amber-600'}`}
+              />
             </span>
-            <span>{clampedProgress === 100 ? 'Layout complete!' : (statusText || 'Processing songbook data...')}</span>
+            <span>
+              {clampedProgress === 100
+                ? 'Layout complete!'
+                : statusText || 'Processing songbook data...'}
+            </span>
           </div>
         </div>
 
@@ -135,5 +140,4 @@ export function ProgressBar({
       </div>
     </div>
   );
-
 }

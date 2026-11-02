@@ -36,7 +36,10 @@ async function createServer() {
         const [key, ...vals] = trimmed.split('=');
         const varKey = key?.trim();
         if (varKey && !(varKey in process.env)) {
-          process.env[varKey] = vals.join('=').trim().replace(/^["']|["']$/g, '');
+          process.env[varKey] = vals
+            .join('=')
+            .trim()
+            .replace(/^["']|["']$/g, '');
         }
       }
     } catch {}
@@ -69,7 +72,7 @@ async function createServer() {
     str = str.replace(/\/+$/, '');
 
     const noProto = str.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
-    
+
     let segments: string[] = [];
     if (noProto.includes('kytario.com')) {
       const afterDomain = noProto.split('kytario.com')[1] || '';
@@ -81,15 +84,38 @@ async function createServer() {
     if (segments.length === 0) return '';
 
     const ignore = new Set([
-      'api', 'v1', 'v2', 'public', 
-      'songbook', 'songbooks', 'zpevnik', 'zpevniky', 
-      'project', 'projects', 'sections', 'export', 
-      'shared', 'cs', 'en', 'sk', 'de', 'user', 'users'
+      'api',
+      'v1',
+      'v2',
+      'public',
+      'songbook',
+      'songbooks',
+      'zpevnik',
+      'zpevniky',
+      'project',
+      'projects',
+      'sections',
+      'export',
+      'shared',
+      'cs',
+      'en',
+      'sk',
+      'de',
+      'user',
+      'users',
     ]);
 
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i].toLowerCase();
-      if ((seg === 'songbooks' || seg === 'songbook' || seg === 'zpevnik' || seg === 'zpevniky' || seg === 'projects' || seg === 'project') && i + 1 < segments.length) {
+      if (
+        (seg === 'songbooks' ||
+          seg === 'songbook' ||
+          seg === 'zpevnik' ||
+          seg === 'zpevniky' ||
+          seg === 'projects' ||
+          seg === 'project') &&
+        i + 1 < segments.length
+      ) {
         const next = segments[i + 1];
         if (!ignore.has(next.toLowerCase()) && !/^index(?:-\d+)?$/i.test(next)) {
           return next;
@@ -97,7 +123,9 @@ async function createServer() {
       }
     }
 
-    const valid = segments.filter(s => !ignore.has(s.toLowerCase()) && !/^index(?:-\d+)?$/i.test(s));
+    const valid = segments.filter(
+      (s) => !ignore.has(s.toLowerCase()) && !/^index(?:-\d+)?$/i.test(s),
+    );
     if (valid.length > 0) {
       return valid[valid.length - 1];
     }
@@ -127,16 +155,25 @@ async function createServer() {
     text = text.replace(/\s*(?:\||-|–|—)\s*(?:Digitální zpěvník|Digital Songbook).*$/i, '').trim();
 
     // Strip parenthesized or bracketed terms
-    text = text.replace(/\s*[\(\[](?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\)\]]/i, '').trim();
+    text = text
+      .replace(
+        /\s*[\(\[](?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\)\]]/i,
+        '',
+      )
+      .trim();
 
     // Strip leading prefixes like "Songbook Písničky", "Songbook: Písničky", "Songbook - Písničky", "Zpěvník Písničky"
-    const strippedLeading = text.replace(/^(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\s:\-–—]+/i, '').trim();
+    const strippedLeading = text
+      .replace(/^(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\s:\-–—]+/i, '')
+      .trim();
     if (strippedLeading) {
       text = strippedLeading;
     }
 
     // Strip trailing "Songbook" / "Zpěvník" if preceded by space/dash
-    const strippedTrailing = text.replace(/[\s:\-–—]+(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)$/i, '').trim();
+    const strippedTrailing = text
+      .replace(/[\s:\-–—]+(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)$/i, '')
+      .trim();
     if (strippedTrailing) {
       text = strippedTrailing;
     }
@@ -147,23 +184,23 @@ async function createServer() {
   function sanitizeExtractedTitle(rawTitle: string): string | null {
     if (!rawTitle) return null;
     let text = decodeHtmlEntities(rawTitle).trim();
-    
+
     text = cleanSongbookTitle(text);
-    
+
     // Ignore generic fallback titles
     const lower = text.toLowerCase();
     if (
-      !text || 
-      lower === 'kytario' || 
-      lower === 'songbook' || 
-      lower === 'zpěvník' || 
-      lower === 'zpevnik' || 
-      lower === 'digital songbook' || 
+      !text ||
+      lower === 'kytario' ||
+      lower === 'songbook' ||
+      lower === 'zpěvník' ||
+      lower === 'zpevnik' ||
+      lower === 'digital songbook' ||
       lower === 'digitální zpěvník'
     ) {
       return null;
     }
-    
+
     return text;
   }
 
@@ -171,7 +208,8 @@ async function createServer() {
     if (typeof html !== 'string') return null;
 
     // 1. OpenGraph / Twitter / Standard Meta Tags (Primary source for Kytario songbook titles)
-    const metaRegex = /<meta\s+[^>]*?(?:property|name)=["'](?:og:title|twitter:title|title)["']\s+content=["']([^"']+)["']/gi;
+    const metaRegex =
+      /<meta\s+[^>]*?(?:property|name)=["'](?:og:title|twitter:title|title)["']\s+content=["']([^"']+)["']/gi;
     let metaMatch;
     while ((metaMatch = metaRegex.exec(html)) !== null) {
       if (metaMatch[1]) {
@@ -180,7 +218,8 @@ async function createServer() {
       }
     }
 
-    const metaRevRegex = /<meta\s+[^>]*?content=["']([^"']+)["']\s+(?:property|name)=["'](?:og:title|twitter:title|title)["']/gi;
+    const metaRevRegex =
+      /<meta\s+[^>]*?content=["']([^"']+)["']\s+(?:property|name)=["'](?:og:title|twitter:title|title)["']/gi;
     while ((metaMatch = metaRevRegex.exec(html)) !== null) {
       if (metaMatch[1]) {
         const clean = sanitizeExtractedTitle(metaMatch[1]);
@@ -210,14 +249,17 @@ async function createServer() {
     }
 
     // 4. JSON-LD Structured Data (Fallback - ignore if obj.name equals author name)
-    const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    const ldMatches = html.matchAll(
+      /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+    );
     for (const match of ldMatches) {
       try {
         const parsed = JSON.parse(match[1]);
         const obj = Array.isArray(parsed) ? parsed[0] : parsed;
         if (obj) {
           const authorName = obj.author?.name || obj.byArtist?.name;
-          const candidate = obj.songbookName || obj.headline || (obj.name !== authorName ? obj.name : null);
+          const candidate =
+            obj.songbookName || obj.headline || (obj.name !== authorName ? obj.name : null);
           if (candidate && typeof candidate === 'string') {
             const clean = sanitizeExtractedTitle(candidate);
             if (clean) return clean;
@@ -246,13 +288,16 @@ async function createServer() {
     if (typeof html !== 'string') return null;
 
     // 1. Next.js __NEXT_DATA__
-    const nextDataMatch = html.match(/<script\s+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+    const nextDataMatch = html.match(
+      /<script\s+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i,
+    );
     if (nextDataMatch && nextDataMatch[1]) {
       try {
         const parsed = JSON.parse(nextDataMatch[1]);
         const pageProps = parsed?.props?.pageProps;
         if (pageProps) {
-          const candidate = pageProps.songbook || pageProps.sections || pageProps.data || pageProps.project;
+          const candidate =
+            pageProps.songbook || pageProps.sections || pageProps.data || pageProps.project;
           if (candidate && hasSongsPayload(candidate)) {
             return candidate;
           }
@@ -266,33 +311,40 @@ async function createServer() {
     }
 
     // 2. JSON-LD structured data script tags (includes single song MusicComposition)
-    const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    const ldMatches = html.matchAll(
+      /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+    );
     for (const m of ldMatches) {
       try {
         const parsed = JSON.parse(m[1]);
-        const items = Array.isArray(parsed) 
-          ? parsed 
-          : (Array.isArray(parsed?.['@graph']) ? parsed['@graph'] : [parsed]);
+        const items = Array.isArray(parsed)
+          ? parsed
+          : Array.isArray(parsed?.['@graph'])
+            ? parsed['@graph']
+            : [parsed];
 
         for (const item of items) {
           if (!item) continue;
           if (item['@type'] === 'MusicComposition' || item['@type'] === 'MusicRecording') {
             const songName = item.name || item.headline || 'Song';
             const lyricsText = item.lyrics?.text || item.text || '';
-            const artistName = item.composer?.name || item.byArtist?.name || item.author?.name || '';
+            const artistName =
+              item.composer?.name || item.byArtist?.name || item.author?.name || '';
             return {
               title: songName,
               name: songName,
-              songs: [{
-                title: songName,
-                name: songName,
-                content: lyricsText,
-                lyrics: lyricsText,
-                artist: artistName,
-                key: item.musicalKey,
-                tonalKey: item.musicalKey,
-                genre: item.genre,
-              }],
+              songs: [
+                {
+                  title: songName,
+                  name: songName,
+                  content: lyricsText,
+                  lyrics: lyricsText,
+                  artist: artistName,
+                  key: item.musicalKey,
+                  tonalKey: item.musicalKey,
+                  genre: item.genre,
+                },
+              ],
             };
           }
           if (hasSongsPayload(item) || (Array.isArray(item.track) && item.track.length > 0)) {
@@ -305,7 +357,8 @@ async function createServer() {
     }
 
     // 3. Next.js App Router RSC Stream search for song or songbook JSON
-    const rscSongRegex = /"song"\s*:\s*(\{(?:(?!<script)[\s\S])*?"sections"\s*:\s*\[[\s\S]*?\]\s*\})/g;
+    const rscSongRegex =
+      /"song"\s*:\s*(\{(?:(?!<script)[\s\S])*?"sections"\s*:\s*\[[\s\S]*?\]\s*\})/g;
     let rscMatch;
     while ((rscMatch = rscSongRegex.exec(html)) !== null) {
       try {
@@ -321,7 +374,9 @@ async function createServer() {
     }
 
     // 4. Any application/json script tag containing songs or sections
-    const jsonScriptMatches = html.matchAll(/<script[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    const jsonScriptMatches = html.matchAll(
+      /<script[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi,
+    );
     for (const m of jsonScriptMatches) {
       try {
         const parsed = JSON.parse(m[1]);
@@ -353,7 +408,10 @@ async function createServer() {
         else if (html[pos] === ']') depth--;
         pos++;
       }
-      let slice = html.slice(idx + (isEscaped ? '\\"songbooks\\":'.length : '"songbooks":'.length), pos);
+      let slice = html.slice(
+        idx + (isEscaped ? '\\"songbooks\\":'.length : '"songbooks":'.length),
+        pos,
+      );
       if (isEscaped) {
         slice = slice.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
       }
@@ -390,7 +448,7 @@ async function createServer() {
     }
 
     const seen = new Set<string>();
-    return results.filter(r => {
+    return results.filter((r) => {
       if (seen.has(r.token)) return false;
       seen.add(r.token);
       return true;
@@ -403,15 +461,20 @@ async function createServer() {
     // 1. Fast & canonical check: inspect Content-Disposition on the PDF export endpoint
     if (token) {
       try {
-        const headRes = await axios.head(`https://kytario.com/api/songbooks/${encodeURIComponent(token)}/pdf`, {
-          timeout: 4000,
-          validateStatus: (s) => s === 200,
-        });
+        const headRes = await axios.head(
+          `https://kytario.com/api/songbooks/${encodeURIComponent(token)}/pdf`,
+          {
+            timeout: 4000,
+            validateStatus: (s) => s === 200,
+          },
+        );
         const cd = headRes.headers['content-disposition'];
         if (cd) {
           const match = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="([^"]+)"/i);
           if (match && match[1]) {
-            let filename = decodeURIComponent(match[1]).replace(/\.pdf$/i, '').trim();
+            let filename = decodeURIComponent(match[1])
+              .replace(/\.pdf$/i, '')
+              .trim();
             filename = filename.replace(/^'+|'+$/g, '').trim();
             const clean = sanitizeExtractedTitle(filename);
             if (clean) {
@@ -443,10 +506,11 @@ async function createServer() {
       try {
         const res = await axios.get(pageUrl, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           },
-          timeout: 6000
+          timeout: 6000,
         });
         const html = res.data;
         if (typeof html === 'string') {
@@ -464,7 +528,12 @@ async function createServer() {
 
   // Kytario API Proxy with robust endpoint fallbacks
   app.all(['/api/proxy/kytario', '/api/proxy/kytario/:token(*)'], async (req, res) => {
-    let rawInput = (req.query.url as string) || (req.query.token as string) || (req.params as any).token || (req.params as any)[0] || '';
+    let rawInput =
+      (req.query.url as string) ||
+      (req.query.token as string) ||
+      (req.params as any).token ||
+      (req.params as any)[0] ||
+      '';
     rawInput = cleanKytarioUrl(rawInput);
     let token = extractKytarioSlug(rawInput);
     console.log(`[Proxy] Fetching songbook for input: "${rawInput}", resolved token: "${token}"`);
@@ -493,7 +562,9 @@ async function createServer() {
         if (projectHtml) {
           const projectSongbooks = extractSongbookTokensFromProjectHtml(projectHtml);
           if (projectSongbooks.length > 0) {
-            console.log(`[Proxy] Successfully resolved project "${token}" to songbook "${projectSongbooks[0].token}" (${projectSongbooks[0].name})`);
+            console.log(
+              `[Proxy] Successfully resolved project "${token}" to songbook "${projectSongbooks[0].token}" (${projectSongbooks[0].name})`,
+            );
             token = projectSongbooks[0].token;
           }
         }
@@ -530,7 +601,8 @@ async function createServer() {
     if (!token && candidateUrls.length === 0) {
       console.warn(`[Proxy] Invalid or empty songbook token requested: "${rawInput}"`);
       return res.status(400).json({
-        error: 'Invalid Kytario songbook link or code. Please enter a valid songbook name (e.g. "https://kytario.com/your-songbook").'
+        error:
+          'Invalid Kytario songbook link or code. Please enter a valid songbook name (e.g. "https://kytario.com/your-songbook").',
       });
     }
 
@@ -541,21 +613,22 @@ async function createServer() {
       try {
         const response = await axios.get(targetUrl, {
           headers: {
-            'Accept': 'application/json, text/html, text/plain, */*',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            Accept: 'application/json, text/html, text/plain, */*',
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           },
           timeout: 15000,
           maxContentLength: Infinity,
           maxBodyLength: Infinity,
-          validateStatus: (status) => status === 200
+          validateStatus: (status) => status === 200,
         });
 
         if (response.data) {
           let data = response.data;
           if (typeof data === 'string') {
-            try { 
-              data = JSON.parse(data); 
-            } catch (e) { 
+            try {
+              data = JSON.parse(data);
+            } catch (e) {
               const embedded = extractEmbeddedJsonFromHtml(data);
               if (embedded) {
                 data = embedded;
@@ -566,7 +639,7 @@ async function createServer() {
           }
 
           // If the payload has songs or songbookSongs or sections, return immediately
-          const hasSongs = 
+          const hasSongs =
             (data && Array.isArray(data.songbookSongs) && data.songbookSongs.length > 0) ||
             (Array.isArray(data) && data.length > 0) ||
             (data && Array.isArray(data.songs) && data.songs.length > 0) ||
@@ -604,13 +677,17 @@ async function createServer() {
     if (status === 404) {
       console.log(`[Proxy] Songbook not found (404) for input "${rawInput}" (token "${token}")`);
     } else {
-      console.warn(`[Proxy] Songbook request failed for input "${rawInput}" (token "${token}"):`, lastError?.message);
+      console.warn(
+        `[Proxy] Songbook request failed for input "${rawInput}" (token "${token}"):`,
+        lastError?.message,
+      );
     }
-    res.status(status).json({ 
-      error: status === 404 
-        ? `Songbook "${token || rawInput}" was not found on Kytario. Please check the URL or code.` 
-        : 'Failed to fetch songbook from Kytario. Please check the URL or code.',
-      details: lastError?.message 
+    res.status(status).json({
+      error:
+        status === 404
+          ? `Songbook "${token || rawInput}" was not found on Kytario. Please check the URL or code.`
+          : 'Failed to fetch songbook from Kytario. Please check the URL or code.',
+      details: lastError?.message,
     });
   });
 
@@ -676,8 +753,7 @@ async function createServer() {
   });
 }
 
-createServer().catch(err => {
+createServer().catch((err) => {
   console.error('Critical server startup error:', err);
   process.exit(1);
 });
-
