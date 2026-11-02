@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useDeferredValue, useTransition, useRef, useCallback, useMemo, startTransition } from 'react';
+import React, { useState, useEffect, useDeferredValue, useTransition, useRef, useCallback, useMemo, startTransition, Suspense, lazy } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { SongbookPreview } from './components/SongbookPreview';
+// Code-splitting: the heavy preview module (layout engine + page rendering, ~2.2k lines)
+// is loaded on demand instead of blocking the initial import-screen bundle.
+const SongbookPreview = lazy(() => import('./components/SongbookPreview').then(m => ({ default: m.SongbookPreview })));
 import { ProgressBar } from './components/ProgressBar';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
@@ -15,8 +17,9 @@ import { fetchSongbookFromKytario, cleanKytarioUrl, KytarioErrorDetails, getStor
 import { APP_CONFIG } from './config';
 import { DEFAULT_PRINT_SETTINGS, STORAGE_KEYS } from './config/constants';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
-import { BackgroundPdfProgressModal } from './components/BackgroundPdfProgressModal';
-import { SongSelectionModal } from './components/SongSelectionModal';
+// Modal-only components: loaded on demand so they stay out of the initial chunk.
+const BackgroundPdfProgressModal = lazy(() => import('./components/BackgroundPdfProgressModal').then(m => ({ default: m.BackgroundPdfProgressModal })));
+const SongSelectionModal = lazy(() => import('./components/SongSelectionModal').then(m => ({ default: m.SongSelectionModal })));
 import { saveCachedSongbookToStorage, loadCachedSongbookFromStorage } from './utils/storage';
 import { ZipProjectSelectModal } from './components/ZipProjectSelectModal';
 import { ImportTabs, type ImportTabId } from './components/import/ImportTabs';
@@ -24,6 +27,7 @@ import { UrlImportPanel } from './components/import/UrlImportPanel';
 import { PasteImportPanel } from './components/import/PasteImportPanel';
 import { FileDropzonePanel } from './components/import/FileDropzonePanel';
 import { ResetSongbookDialog } from './components/ResetSongbookDialog';
+import { PreviewChunkFallback } from './components/PreviewChunkFallback';
 
 const defaultSettings: PrintSettings = DEFAULT_PRINT_SETTINGS;
 
@@ -1135,21 +1139,23 @@ export default function App() {
           </div>
         )}
 
-        <SongbookPreview 
-          data={previewData} 
-          settings={settings}
-          isUpdatingLayout={isUpdatingLayout || selectedSongIds !== deferredSelectedSongIds}
-          onDownloadStatusChange={setIsDownloadingPdf}
-          onOpenSettings={handleOpenSettings}
-          zoomMode={zoomMode}
-          setZoomMode={setZoomMode}
-          customZoom={customZoom}
-          setCustomZoom={setCustomZoom}
-          onScaleChange={setActiveScale}
-          isSongNavOpen={isSongNavOpen}
-          setIsSongNavOpen={setIsSongNavOpen}
-          onOpenManageSongs={() => setIsSongSelectionOpen(true)}
-        />
+        <Suspense fallback={<PreviewChunkFallback settings={settings} />}>
+          <SongbookPreview
+            data={previewData}
+            settings={settings}
+            isUpdatingLayout={isUpdatingLayout || selectedSongIds !== deferredSelectedSongIds}
+            onDownloadStatusChange={setIsDownloadingPdf}
+            onOpenSettings={handleOpenSettings}
+            zoomMode={zoomMode}
+            setZoomMode={setZoomMode}
+            customZoom={customZoom}
+            setCustomZoom={setCustomZoom}
+            onScaleChange={setActiveScale}
+            isSongNavOpen={isSongNavOpen}
+            setIsSongNavOpen={setIsSongNavOpen}
+            onOpenManageSongs={() => setIsSongSelectionOpen(true)}
+          />
+        </Suspense>
 
         {/* Project Selection Modal for Multi-Project ZIP Archives */}
         <ZipProjectSelectModal
@@ -1165,6 +1171,7 @@ export default function App() {
         />
 
         {isSongSelectionOpen && (
+        <Suspense fallback={null}>
           <SongSelectionModal
             isOpen={isSongSelectionOpen}
             songs={songbookData?.songs || []}
@@ -1176,9 +1183,11 @@ export default function App() {
             }}
             onCancel={() => setIsSongSelectionOpen(false)}
           />
+        </Suspense>
         )}
 
         {/* Background Web Worker PDF Generation Status Modal */}
+        <Suspense fallback={null}>
         <BackgroundPdfProgressModal
           isGenerating={isGeneratingWorkerPdf}
           progress={workerPdfProgress}
@@ -1191,6 +1200,7 @@ export default function App() {
           onClearError={clearWorkerPdfError}
           onClearLastGenerated={clearWorkerPdfLastGenerated}
         />
+        </Suspense>
 
         {/* Floating Bottom Menu - Unified Toolbar in Exact Requested Order */}
         <div 
