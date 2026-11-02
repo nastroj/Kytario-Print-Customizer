@@ -2,11 +2,10 @@
  * Song layout engine: analytical font scaling, column balancing and section
  * filling used to fit songs optimally on printed pages.
  */
-import { PrintSettings, SongFitDebugInfo, ColumnBalancePlan, SectionBalancePlan } from '../types';
+import { PrintSettings, Song, SongFitDebugInfo, ColumnBalancePlan, SectionBalancePlan } from '../types';
 import { getPageMargins, getPageDimensionsPx } from './pageGeometry';
 import { MIN_READABLE_LYRICS_FONT_SIZE, MIN_READABLE_CHORDS_FONT_SIZE, MM_TO_PX } from './constants';
-import { SongSection, ParsedLine } from './songParser';
-import { parseSongContent } from './songParser';
+import { parseSongContent, SongSection, ParsedLine } from './songParser';
 
 /**
  * Internal helper to calculate the estimated height of a single song line.
@@ -949,5 +948,92 @@ export function computeSongFitDebug(
       strategy: colPlan.strategy,
     },
   };
+}
+
+
+/**
+ * Computes enhanced line margin / vertical spacing when smartFit auto-scale is enabled
+ * and the song easily fits on the page (leaving spare vertical space).
+ */
+export function computeSmartFitLineMargin(
+  sections: SongSection[],
+  settings: {
+    pageFormat?: 'A4' | 'A5' | 'Letter';
+    orientation?: 'portrait' | 'landscape';
+    columns?: number;
+    titleFontSize?: number;
+    artistFontSize?: number;
+    lyricsFontSize?: number;
+    chordsFontSize?: number;
+    showChords?: boolean;
+    smartFit?: boolean;
+    pageMargin?: number;
+    pageMarginTopBottom?: number;
+    pageMarginLeftRight?: number;
+    maxFontSizePx?: number;
+    maxLineHeight?: number;
+    sectionMarginCap?: number;
+    showSectionLines?: boolean;
+  },
+  hasTitle: boolean = true,
+  hasArtist: boolean = false,
+  scale: number = 1.0
+): number {
+  if (!settings.smartFit || !sections?.length) return 5;
+
+  const margins = getPageMargins(settings);
+  const page = getPageDimensionsPx(settings.pageFormat, settings.orientation, margins);
+
+  const usableW = Math.max(200, page.width);
+  const usableH = Math.max(200, page.height);
+
+  const baseLyricsSize = Number(settings.lyricsFontSize) || 12;
+  const baseChordsSize = Number(settings.chordsFontSize) || 12;
+
+  const titleBlockH = (hasTitle ? (Number(settings.titleFontSize) || 16) * 1.25 : 0) + 
+                     (hasArtist ? (Number(settings.artistFontSize) || 16) * 1.25 : 0) + 
+                     18;
+  const availColH = Math.max(100, usableH - titleBlockH - 24);
+
+  const colCount = getOptimalColumnCount(sections, settings);
+  const colGap = colCount > 1 ? 24 : 0;
+  const colWidth = (usableW - colGap * (colCount - 1)) / colCount;
+
+  const hasMarkers = sections.some(s => !!s.marker?.trim());
+  let maxMarkerLen = 0;
+  if (hasMarkers) {
+    sections.forEach(s => {
+      if (s.marker) maxMarkerLen = Math.max(maxMarkerLen, s.marker.replace(/[\[\]]/g, '').trim().length);
+    });
+  }
+  
+  const markerColEm = maxMarkerLen <= 2 ? 1.85 : maxMarkerLen <= 4 ? 2.2 : Math.max(2.2, maxMarkerLen * 0.6 + 0.4);
+  const sectionLineIndentEm = settings.showSectionLines !== false ? 0.6 : 0;
+  const effectiveColW = Math.max(80, colWidth - (baseLyricsSize * ((hasMarkers ? markerColEm : 0) + sectionLineIndentEm)));
+  const showChords = settings.showChords ?? true;
+
+  const lSize = baseLyricsSize * scale;
+  const cSize = baseChordsSize * scale;
+  const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * 0.54)));
+
+  const sectionHeights = sections.map((sec) => {
+    let secH = 0;
+    if (sec.marker && (!sec.parsedLines?.length || sec.parsedLines.every(l => l.isEmpty))) {
+      secH += Math.round(lSize + 6);
+    }
+    sec.parsedLines.forEach(line => {
+      secH += estimateLineHeight(line, scale, lSize, cSize, charsPerCol, showChords);
+    });
+    return secH + Math.max(14, Math.round(16 * Math.min(1.3, scale)));
+  });
+
+  const total = sectionHeights.reduce((a, b) => a + b, 0);
+  const spareRatio = Math.max(0, (availColH - total) / availColH);
+
+  if (spareRatio > 0.04) {
+    const bonus = Math.min(10, Math.round(spareRatio * 18));
+    return 5 + bonus;
+  }
+  return 5;
 }
 

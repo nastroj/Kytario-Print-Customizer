@@ -4,13 +4,16 @@
  * bounded cache because the same song content is parsed repeatedly during
  * layout, preview and PDF generation.
  */
-import { SongSection } from '../types';
 import { sectionRefRegex } from './constants';
+import { SongSection } from './parserTypes';
 import {
   isSectionHeaderLine,
   splitLineOnSectionRefs,
+  isRepetitionOrChordsOnlyLine,
   parseChordLine,
 } from './chordProParser';
+
+export type { SongSection, ParsedLine, ChordChunk } from './parserTypes';
 
 const songContentCache = new Map<string, SongSection[]>();
 const MAX_CACHE_SIZE = 1000;

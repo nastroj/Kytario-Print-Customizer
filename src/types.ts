@@ -185,6 +185,12 @@ export interface SongFitDebugInfo {
   };
 }
 
-export type { SongSection } from './utils';
+/** A parsed song section (verse/chorus/bridge block) produced by the ChordPro parser. */
+export interface SongSection {
+  marker: string;
+  isRefrain: boolean;
+  lines: string[];
+  parsedLines: import('./utils/parserTypes').ParsedLine[];
+}
 
 export type ZoomMode = 'fit-width' | 'fit-page' | 'custom';
