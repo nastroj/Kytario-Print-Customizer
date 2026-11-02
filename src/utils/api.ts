@@ -1,4 +1,4 @@
-import { cleanSongbookTitle } from '../utils';
+import { cleanSongbookTitle } from './normalizeSongbook';
 
 export interface KytarioErrorDetails {
   isCorsOrStaticHost: boolean;
@@ -599,6 +599,35 @@ export async function checkSongbookExists(
       new Set([rawToken, rawToken.toLowerCase(), rawToken.toUpperCase()].filter(Boolean)),
     );
 
+    const configuredProxyUrl = getStoredProxyUrl();
+    const isStaticHost =
+      typeof window !== 'undefined' &&
+      (window.location.hostname.endsWith('github.io') || window.location.protocol === 'file:');
+
+    // 1. Try local/configured proxy if available (avoids browser CORS issues)
+    if (configuredProxyUrl || !isStaticHost) {
+      const proxyBase = configuredProxyUrl || '/api/proxy/kytario';
+      if (!proxyBase.includes('?url=')) {
+        for (const token of candidateTokens) {
+          try {
+            const proxyCheckUrl = `${proxyBase.replace(/\/+$/, '')}/${encodeURIComponent(token)}`;
+            const res = await fetch(proxyCheckUrl, { signal: AbortSignal.timeout(5000) });
+            if (res.ok) {
+              return { exists: true, status: res.status, resolvedToken: token };
+            }
+            if (res.status === 404) {
+              continue;
+            }
+            return { exists: true };
+          } catch {
+            // Fall through if proxy call fails
+          }
+        }
+      }
+    }
+
+    // 2. Direct fetch attempt to kytario.com
+    let saw404 = false;
     for (const token of candidateTokens) {
       const checkUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(token)}/sections`;
       try {
@@ -607,19 +636,28 @@ export async function checkSongbookExists(
           signal: AbortSignal.timeout(4000),
         });
 
-        if (res.status !== 404 && res.status !== 400) {
+        if (res.ok) {
           return { exists: true, status: res.status, resolvedToken: token };
         }
+        if (res.status === 404 || res.status === 400) {
+          saw404 = true;
+        }
       } catch {
-        // Continue to next candidate
+        // Direct fetch failed (e.g. browser CORS block) -> DO NOT assume 404!
+        // Return exists: true so the full fetch pipeline (proxy/relays) can run.
+        return { exists: true };
       }
     }
 
-    return {
-      exists: false,
-      status: 404,
-      error: `Songbook "${rawToken}" was not found (404).`,
-    };
+    if (saw404) {
+      return {
+        exists: false,
+        status: 404,
+        error: `Songbook "${rawToken}" was not found (404).`,
+      };
+    }
+
+    return { exists: true };
   } catch (err: any) {
     return { exists: true };
   }
@@ -633,7 +671,11 @@ export function getStoredProxyUrl(): string {
     const local = localStorage.getItem('kytario_proxy_url')?.trim();
     if (local) return local;
   }
-  return import.meta.env.VITE_KYTARIO_PROXY_URL?.trim() || '';
+  try {
+    return (import.meta as any)?.env?.VITE_KYTARIO_PROXY_URL?.trim() || '';
+  } catch {
+    return '';
+  }
 }
 
 /**
