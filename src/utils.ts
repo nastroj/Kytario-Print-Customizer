@@ -38,6 +38,18 @@ export interface ParsedLine {
   chunks: ChordChunk[];
   hasChords: boolean;
   isRepetitionLine?: boolean;
+  /** Length of the visible lyric text with chord markup stripped, precomputed once at parse time. */
+  textLen: number;
+}
+
+/**
+ * Returns the length of a line's visible lyric text (chord/section markup like
+ * "[C]" or "{G}" removed). Uses the value precomputed during parsing instead of
+ * re-running a global regex over the raw line on every layout/scale iteration.
+ */
+export function getLyricsTextLength(line: { raw: string; textLen?: number }): number {
+  if (typeof line.textLen === 'number') return line.textLen;
+  return line.raw ? line.raw.replace(chordMarkupRegex, '').length : 0;
 }
 
 export interface SongSection {
@@ -126,6 +138,27 @@ const MAX_CACHE_SIZE = 1000;
 
 export const sectionRefRegex =
   /^(?:(?:\d+[\.\:]?|\(\d+\))(?:\s*(?:VERSE|SLOKA))?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|PREF|PRE-REF|PRE-CHORUS|OUTRO|OUT|SPC|VERSE|SLOKA|INTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|PREF\d*[\.\:]?|OUT\d*[\.\:]?|SPC\d*[\.\:]?|B[\.\:]|M[\.\:])$/i;
+
+/**
+ * Matches chord/section markup tokens such as "[C]" or "{G}". Hoisted to module
+ * scope so hot layout loops reuse a single compiled regex instead of allocating
+ * (and re-parsing) a fresh literal on every call.
+ */
+const chordMarkupRegex = /\[[^\]]*\]|\{[^}]*\}/g;
+
+/** Matches literal [ or ] characters in section markers. */
+const markerBracketsRegex = /[\[\]]/g;
+
+/** Matches a line wrapped in [ ... ] so it can be unwrapped to its inner text. */
+const wrappedMarkerRegex = /^\[(.*)\]$/;
+
+/** Fast, allocation-free length of visible text with chord markup removed. */
+function measureLyricsLength(raw: string): number {
+  if (!raw) return 0;
+  // Fast path: nothing that could be markup at all
+  if (raw.indexOf('[') === -1 && raw.indexOf('{') === -1) return raw.length;
+  return raw.replace(chordMarkupRegex, '').length;
+}
 
 /**
  * Checks if a trimmed line represents a section header or directive.
@@ -376,7 +409,7 @@ function estimateLineHeight(
     !lineData.chunks ||
     !lineData.chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef);
 
-  const textLen = lineData.raw.replace(/\[[^\]]*\]|\{[^\}]*\}/g, '').length;
+  const textLen = getLyricsTextLength(lineData);
   let chordsLen = 0;
   const hasChords = lineData.hasChords && showChords;
 
@@ -404,7 +437,7 @@ function estimateVisualLineCount(
   lineData: ParsedLine,
   charsPerCol: number,
   showChords: boolean,
-  textLen = lineData.raw.replace(/\[[^\]]*\]|\{[^\}]*\}/g, '').length,
+  textLen = getLyricsTextLength(lineData),
   chordsLen = 0,
 ): number {
   const chunks = lineData.chunks || [];
@@ -451,7 +484,7 @@ export function getOptimalColumnCount(
       for (const pl of s.parsedLines) {
         if (pl.raw && !pl.isEmpty) {
           // Measure visible lyric text, not chord markup such as [C] or {G}.
-          const visibleLength = pl.raw.replace(/\[[^\]]*\]|\{[^\}]*\}/g, '').length;
+          const visibleLength = getLyricsTextLength(pl);
           maxLineLen = Math.max(maxLineLen, visibleLength);
           totalLineLen += visibleLength;
           nonEmptyLineCount++;
@@ -544,7 +577,7 @@ export function computeSmartFitScale(
   if (hasMarkers) {
     sections.forEach((s) => {
       if (s.marker)
-        maxMarkerLen = Math.max(maxMarkerLen, s.marker.replace(/[\[\]]/g, '').trim().length);
+        maxMarkerLen = Math.max(maxMarkerLen, s.marker.replace(markerBracketsRegex, '').trim().length);
     });
   }
 
@@ -563,7 +596,7 @@ export function computeSmartFitScale(
     sec.parsedLines?.forEach((line) => {
       if (line.isEmpty) return;
       const chunks = line.chunks || [];
-      const textLen = line.raw ? line.raw.replace(/\[[^\]]*\]|\{[^\}]*\}/g, '').length : 0;
+      const textLen = getLyricsTextLength(line);
       let chordsLen = 0;
       if (line.hasChords && showChords && chunks.length > 0) {
         chordsLen = chunks.reduce(
@@ -770,7 +803,7 @@ export function computeSmartColumnBalance(
   const colGap = colCount > 1 ? 24 : 0;
   const colWidth = (usableWidth - colGap * (colCount - 1)) / colCount;
   const maxMarkerLen = sections.reduce((max, section) => {
-    const markerLength = section.marker?.replace(/[\[\]]/g, '').trim().length || 0;
+    const markerLength = section.marker?.replace(markerBracketsRegex, '').trim().length || 0;
     return Math.max(max, markerLength);
   }, 0);
   const markerColEm =
@@ -1261,7 +1294,7 @@ export function computeSongFitDebug(
   if (hasMarkers) {
     for (const s of sections) {
       if (s.marker) {
-        const cleanMarker = s.marker.replace(/^\[(.*)\]$/, '$1').trim();
+        const cleanMarker = s.marker.replace(wrappedMarkerRegex, '$1').trim();
         maxMarkerLen = Math.max(maxMarkerLen, cleanMarker.length);
       }
     }
@@ -1313,7 +1346,7 @@ export function computeSongFitDebug(
           !lineData.chunks ||
           !lineData.chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef);
 
-        const textLen = lineData.raw.replace(/\[[^\]]*\]|\{[^\}]*\}/g, '').length;
+        const textLen = getLyricsTextLength(lineData);
         let chordsLen = 0;
         const hasChords = lineData.hasChords && showChords;
         if (hasChords && lineData.chunks) {
@@ -1620,7 +1653,14 @@ export function parseSongContent(content: string): SongSection[] {
       );
       const isRep =
         !isEmpty && (isRepetitionOrChordsOnlyLine(line) || (hasChords && !hasActualLyricText));
-      return { raw: line, isEmpty, chunks, hasChords, isRepetitionLine: isRep };
+      return {
+        raw: line,
+        isEmpty,
+        chunks,
+        hasChords,
+        isRepetitionLine: isRep,
+        textLen: isEmpty ? 0 : measureLyricsLength(line),
+      };
     });
   }
 
@@ -1674,7 +1714,7 @@ export function linkSectionReferences(sections: SongSection[]) {
     sec.parsedLines.forEach((line) => {
       line.chunks.forEach((chunk) => {
         if (chunk.isSectionRef) {
-          const refText = chunk.text.replace(/^\[(.*)\]$/, '$1');
+          const refText = chunk.text.replace(wrappedMarkerRegex, '$1');
           const normalizedRef = normalize(refText);
           const targetIdx = markerToIndex.get(normalizedRef);
 
@@ -1774,7 +1814,7 @@ export function computeSmartFitLineMargin(
   if (hasMarkers) {
     sections.forEach((s) => {
       if (s.marker)
-        maxMarkerLen = Math.max(maxMarkerLen, s.marker.replace(/[\[\]]/g, '').trim().length);
+        maxMarkerLen = Math.max(maxMarkerLen, s.marker.replace(markerBracketsRegex, '').trim().length);
     });
   }
 
