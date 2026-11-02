@@ -228,8 +228,11 @@ const spacingTagRegex = /\{-{1,3}\}|\[-{1,3}\]/g;
 /** Bracketed tokens used when splitting lines on section references. */
 const bracketTokenScanRegex = /\[([^\]]+)\]/g;
 
+/** Extra character units added around a rendered chord token (left/right padding). */
+const CHORD_WIDTH_PADDING = 2;
+
 /** Fast, allocation-free length of visible text with chord markup removed. */
-function measureLyricsLength(raw: string): number {
+export function measureLyricsLength(raw: string): number {
   if (!raw) return 0;
   // Fast path: nothing that could be markup at all
   if (raw.indexOf('[') === -1 && raw.indexOf('{') === -1) return raw.length;
@@ -248,9 +251,7 @@ export function isSectionHeaderLine(trimmedLine: string): boolean {
   if (bracketMatch && sectionRefRegex.test(bracketMatch[1].trim())) return true;
   const parenMatch = trimmedLine.match(parenHeaderRegex);
   if (parenMatch && sectionRefRegex.test(parenMatch[1].trim())) return true;
-  const markerPattern =
-    /^((?:(?:\d+[\.\:]|\(\d+\))(?:\s*(?:VERSE|SLOKA))?[\.\:]?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|PREF|PRE-REF|PRE-CHORUS|OUTRO|OUT|SPC|VERSE|SLOKA|INTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|PREF\d*[\.\:]?|OUT\d*[\.\:]?|SPC\d*[\.\:]?|B[\.\:]|M[\.\:]))(?:\s+|(?=\[)|(?=\{)|$)/i;
-  return markerPattern.test(trimmedLine);
+  return markerPatternRegex.test(trimmedLine);
 }
 
 /**
@@ -454,7 +455,8 @@ export const MIN_READABLE_CHORDS_FONT_SIZE = 9.0;
  */
 /**
  * Internal helper to calculate the estimated height of a single song line.
- * KISS: Keep it simple by grouping related height logic.
+ * All width aggregates (textLen / chordsWidth / renderedWidth) are precomputed
+ * at parse time, so this stays arithmetic-only even inside binary-search loops.
  */
 function estimateLineHeight(
   lineData: ParsedLine,
@@ -468,67 +470,30 @@ function estimateLineHeight(
     return Math.max(10, Math.round(12 * Math.min(1.4, s)));
   }
 
-  const isRep =
-    lineData.isRepetitionLine ||
-    !lineData.chunks ||
-    !lineData.chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef);
-
-  const textLen = getLyricsTextLength(lineData);
-  let chordsLen = 0;
+  const isRep = lineData.isRepetitionLine === true || isChunksOnlyChords(lineData.chunks);
   const hasChords = lineData.hasChords && showChords;
-
-  if (hasChords && lineData.chunks) {
-    for (const c of lineData.chunks) {
-      if (c.chord) chordsLen += c.chord.length + 2;
-    }
-  }
-
-  const visualLines = estimateVisualLineCount(
-    lineData,
-    charsPerCol,
-    showChords,
-    textLen,
-    chordsLen,
-  );
+  const visualLines = estimateVisualLineCount(lineData, charsPerCol, showChords);
 
   if (isRep) return Math.round((cSize + 4) * 1.05) * visualLines;
   if (hasChords) return Math.round((cSize + lSize + 4) * 1.05 + 5) * visualLines;
   return Math.round((lSize + 4) * 1.05 + 5) * visualLines;
 }
 
-/** Estimates rows using the same non-shrinking chunk layout as SongDisplay. */
+/** True when a line's chunks carry no actual lyric text (chords/section refs only). */
+function isChunksOnlyChords(chunks: ChordChunk[] | undefined): boolean {
+  return !chunks || !chunks.some((c) => c.text && c.text.trim().length > 0 && !c.isSectionRef);
+}
+
+/** Estimates rows from per-line width aggregates precomputed during parsing. */
 function estimateVisualLineCount(
   lineData: ParsedLine,
   charsPerCol: number,
   showChords: boolean,
-  textLen = getLyricsTextLength(lineData),
-  chordsLen = 0,
 ): number {
-  const chunks = lineData.chunks || [];
-  if (lineData.hasChords && showChords && chordsLen === 0) {
-    chordsLen = chunks.reduce(
-      (total, chunk) => total + (chunk.chord ? chunk.chord.length + 2 : 0),
-      0,
-    );
-  }
-
-  if (chunks.length === 0) {
-    return Math.max(1, Math.ceil(Math.max(textLen, chordsLen) / charsPerCol));
-  }
-
-  const renderedWidth = lineData.isRepetitionLine
-    ? chunks.reduce(
-        (total, chunk) =>
-          total + chunk.text.length + (showChords && chunk.chord ? chunk.chord.length + 2 : 0),
-        0,
-      )
-    : chunks.reduce((total, chunk) => {
-        const textWidth = chunk.text.length;
-        const chordWidth = showChords && chunk.chord ? chunk.chord.length + 2 : 0;
-        return total + Math.max(textWidth, chordWidth);
-      }, 0);
-
-  return Math.max(1, Math.ceil(Math.max(renderedWidth, textLen, chordsLen) / charsPerCol));
+  const { textLen, chordsWidth, renderedWidth } = lineData;
+  const effectiveChordsLen = showChords ? chordsWidth : 0;
+  const width = Math.max(renderedWidth, textLen, effectiveChordsLen);
+  return Math.max(1, Math.ceil(width / charsPerCol));
 }
 
 export function getOptimalColumnCount(
@@ -654,44 +619,26 @@ export function computeSmartFitScale(
   );
   const showChords = settings.showChords ?? true;
 
-  // Measure the maximum rendered width in character units across all non-empty lines
+  // Measure the maximum rendered width in character units across all non-empty
+  // lines. All per-line aggregates were precomputed at parse time, so this is a
+  // single O(lines) pass with no regex or chunk re-scanning.
   let maxRenderedWidth = 0;
-  sections.forEach((sec) => {
-    sec.parsedLines?.forEach((line) => {
-      if (line.isEmpty) return;
-      const chunks = line.chunks || [];
-      const textLen = getLyricsTextLength(line);
-      let chordsLen = 0;
-      if (line.hasChords && showChords && chunks.length > 0) {
-        chordsLen = chunks.reduce(
-          (total, chunk) => total + (chunk.chord ? chunk.chord.length + 2 : 0),
-          0,
-        );
-      }
-      const renderedWidth =
-        chunks.length === 0
-          ? Math.max(textLen, chordsLen)
-          : line.isRepetitionLine
-            ? chunks.reduce(
-                (total, chunk) =>
-                  total +
-                  chunk.text.length +
-                  (showChords && chunk.chord ? chunk.chord.length + 2 : 0),
-                0,
-              )
-            : chunks.reduce((total, chunk) => {
-                const textWidth = chunk.text.length;
-                const chordWidth = showChords && chunk.chord ? chunk.chord.length + 2 : 0;
-                return total + Math.max(textWidth, chordWidth);
-              }, 0);
-      maxRenderedWidth = Math.max(maxRenderedWidth, renderedWidth);
-    });
-  });
+  for (const sec of sections) {
+    for (const line of sec.parsedLines ?? []) {
+      if (line.isEmpty) continue;
+      const width = Math.max(
+        line.renderedWidth,
+        line.textLen,
+        showChords && line.hasChords ? line.chordsWidth : 0,
+      );
+      if (width > maxRenderedWidth) maxRenderedWidth = width;
+    }
+  }
 
   const calcHeightAtScale = (s: number): { height: number; maxWrapLines: number } => {
     const lSize = baseLyricsSize * s;
     const cSize = baseChordsSize * s;
-    const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * 0.48)));
+    const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * AVG_CHAR_WIDTH_FACTOR)));
 
     let maxWrapLines = 1;
     const sectionHeights = sections.map((sec) => {
@@ -755,11 +702,13 @@ export function computeSmartFitScale(
     colCount;
 
   const minReadableSize = MIN_READABLE_LYRICS_FONT_SIZE;
-  const minScale = Math.max(0.48, minReadableSize / baseLyricsSize);
+  const minScale = Math.max(MIN_SCALE_FLOOR, minReadableSize / baseLyricsSize);
 
   // Maximum scale where long lines fit horizontally within the column without excessive wrapping
   const maxScaleWithoutWrap =
-    maxRenderedWidth > 0 ? effectiveColW / (maxRenderedWidth * baseLyricsSize * 0.48) : 3.5;
+    maxRenderedWidth > 0
+      ? effectiveColW / (maxRenderedWidth * baseLyricsSize * AVG_CHAR_WIDTH_FACTOR)
+      : 3.5;
 
   const { height: baseHeight } = calcHeightAtScale(1.0);
 
@@ -873,7 +822,7 @@ export function computeSmartColumnBalance(
   const markerColEm =
     maxMarkerLen <= 2 ? 1.85 : maxMarkerLen <= 4 ? 2.2 : Math.max(2.2, maxMarkerLen * 0.6 + 0.4);
   const effectiveColWidth = Math.max(80, colWidth - lSize * (maxMarkerLen > 0 ? markerColEm : 0.6));
-  const charsPerCol = Math.max(16, Math.floor(effectiveColWidth / (lSize * 0.54)));
+  const charsPerCol = Math.max(16, Math.floor(effectiveColWidth / (lSize * BALANCE_CHAR_WIDTH_FACTOR)));
 
   const defaultPlan = (
     strategy: ColumnBalancePlan['strategy'] = 'single-column',
@@ -1378,7 +1327,7 @@ export function computeSongFitDebug(
   const calcHeightAtScale = (s: number) => {
     const lSize = baseLyricsSize * s;
     const cSize = baseChordsSize * s;
-    const avgCharW = lSize * 0.54;
+    const avgCharW = lSize * BALANCE_CHAR_WIDTH_FACTOR;
     const charsPerCol = Math.max(16, Math.floor(effectiveColW / avgCharW));
 
     let maxWrapLines = 1;
@@ -1405,26 +1354,9 @@ export function computeSongFitDebug(
           continue;
         }
 
-        const isChordsOnly =
-          lineData.isRepetitionLine ||
-          !lineData.chunks ||
-          !lineData.chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef);
-
-        const textLen = getLyricsTextLength(lineData);
-        let chordsLen = 0;
+        const isChordsOnly = lineData.isRepetitionLine === true || isChunksOnlyChords(lineData.chunks);
         const hasChords = lineData.hasChords && showChords;
-        if (hasChords && lineData.chunks) {
-          for (const c of lineData.chunks) {
-            if (c.chord) chordsLen += c.chord.length + 2;
-          }
-        }
-        const visualLines = estimateVisualLineCount(
-          lineData,
-          charsPerCol,
-          showChords,
-          textLen,
-          chordsLen,
-        );
+        const visualLines = estimateVisualLineCount(lineData, charsPerCol, showChords);
         maxWrapLines = Math.max(maxWrapLines, visualLines);
         totalVisualLines += visualLines;
 
@@ -1893,7 +1825,7 @@ export function computeSmartFitLineMargin(
 
   const lSize = baseLyricsSize * scale;
   const cSize = baseChordsSize * scale;
-  const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * 0.54)));
+  const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * BALANCE_CHAR_WIDTH_FACTOR)));
 
   const sectionHeights = sections.map((sec) => {
     let secH = 0;
