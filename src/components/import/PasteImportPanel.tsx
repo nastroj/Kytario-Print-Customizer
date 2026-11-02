@@ -35,7 +35,7 @@ export function PasteImportPanel({
         aria-describedby="paste-json-help"
         className="w-full rounded-lg border border-black/10 p-3 text-xs font-mono focus:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-800 resize-none bg-zinc-50 disabled:opacity-60"
       />
-      <p id="paste-json-help" className="text-[11px] text-zinc-500 ml-1" aria-live="polite">
+      <p id="paste-json-help" className="text-[11px] text-zinc-600 ml-1" aria-live="polite">
         {value.length > 0
           ? `${value.length.toLocaleString()} characters pasted`
           : 'Copy the JSON from kytario.com and paste it above.'}

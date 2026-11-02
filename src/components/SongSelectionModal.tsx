@@ -12,6 +12,7 @@ import {
   ArrowDownWideNarrow,
 } from 'lucide-react';
 import { Song } from '../types';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface SongSelectionModalProps {
   isOpen: boolean;
@@ -37,6 +38,10 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('original');
   const containerRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Trap keyboard focus inside the dialog while open; Escape cancels.
+  useFocusTrap(dialogRef, { active: isOpen, onEscape: onCancel });
 
   // Sync draft state with incoming selectedSongIds when modal opens
   useEffect(() => {
@@ -144,6 +149,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
       }}
     >
       <div
+        ref={dialogRef}
         className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl h-[92dvh] sm:h-[85vh] sm:max-h-[85vh] max-h-[95dvh] flex flex-col overflow-hidden border border-zinc-200/90 animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
@@ -166,7 +172,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
                 </span>
               )}
             </div>
-            <p className="text-[11px] sm:text-xs text-zinc-500 mt-0.5 truncate">
+            <p className="text-[11px] sm:text-xs text-zinc-600 mt-0.5 truncate">
               Showing {filteredSongs.length} of {songs.length} songs &bull;{' '}
               <span className="font-semibold text-zinc-800">{draftSelectedIds.size}</span> included
               in PDF
@@ -314,7 +320,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
                     </span>
                     <div className="min-w-0">
                       <p
-                        className={`font-bold text-xs truncate ${isSelected ? 'text-zinc-900' : 'text-zinc-500'}`}
+                        className={`font-bold text-xs truncate ${isSelected ? 'text-zinc-900' : 'text-zinc-600'}`}
                       >
                         {song.title}
                       </p>
@@ -340,7 +346,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
 
         {/* Sticky Footer - Always Visible on All Devices & Resolutions */}
         <div className="p-3 sm:p-4 border-t border-zinc-200 bg-zinc-50/95 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-4 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] z-10">
-          <div className="text-xs text-zinc-500 w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 shrink-0">
+          <div className="text-xs text-zinc-600 w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 shrink-0">
             <div>
               <span
                 className={`font-bold ${draftSelectedIds.size === 0 ? 'text-red-600' : 'text-zinc-950'}`}
@@ -369,7 +375,7 @@ export const SongSelectionModal: React.FC<SongSelectionModalProps> = ({
               disabled={draftSelectedIds.size === 0}
               className={`flex-1 sm:flex-initial px-5 py-2.5 min-h-[42px] text-xs sm:text-sm font-bold text-white rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 text-center ${
                 draftSelectedIds.size === 0
-                  ? 'bg-zinc-300 text-zinc-500 cursor-not-allowed opacity-70 shadow-none'
+                  ? 'bg-zinc-300 text-zinc-600 cursor-not-allowed opacity-70 shadow-none'
                   : 'bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-950 cursor-pointer'
               }`}
             >

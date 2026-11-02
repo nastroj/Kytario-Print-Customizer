@@ -76,7 +76,7 @@ export const BackgroundPdfProgressModal: React.FC<BackgroundPdfProgressModalProp
                     Web Worker
                   </span>
                 </h4>
-                <p className="text-[10px] text-zinc-500">Background Client Thread</p>
+                <p className="text-[10px] text-zinc-600">Background Client Thread</p>
               </div>
             </div>
 

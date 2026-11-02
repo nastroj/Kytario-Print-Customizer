@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ResetSongbookDialogProps {
   isOpen: boolean;
@@ -7,39 +8,21 @@ interface ResetSongbookDialogProps {
 }
 
 /**
- * Accessible confirmation dialog (role="dialog", aria-modal) with focus
- * trapping and Escape-to-close handled by the parent App shortcut.
+ * Accessible confirmation dialog (role="alertdialog", aria-modal) using the
+ * shared focus-trap hook: Tab cycling, Escape-to-close, initial focus on the
+ * Cancel button and focus restoration to the trigger on close.
  */
 export function ResetSongbookDialog({ isOpen, onCancel, onConfirm }: ResetSongbookDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      // Move focus into the dialog when it opens
-      cancelRef.current?.focus();
-    }
-  }, [isOpen]);
+  useFocusTrap(dialogRef, {
+    active: isOpen,
+    onEscape: onCancel,
+    initialFocusRef: cancelRef,
+  });
 
   if (!isOpen) return null;
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Simple focus trap between the two action buttons
-    if (e.key === 'Tab') {
-      const focusables = dialogRef.current?.querySelectorAll<HTMLButtonElement>('button');
-      if (!focusables || focusables.length === 0) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      const active = document.activeElement;
-      if (e.shiftKey && active === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:hidden">
@@ -54,7 +37,6 @@ export function ResetSongbookDialog({ isOpen, onCancel, onConfirm }: ResetSongbo
         aria-modal="true"
         aria-labelledby="reset-songbook-title"
         aria-describedby="reset-songbook-description"
-        onKeyDown={handleKeyDown}
         className="relative bg-white rounded-2xl shadow-2xl border border-black/10 max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 z-10"
       >
         <h3 id="reset-songbook-title" className="text-base font-bold text-zinc-900">

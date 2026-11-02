@@ -1096,7 +1096,7 @@ export default function App() {
                 v{APP_CONFIG.APP_VERSION}
               </span>
             </div>
-            <p className="text-zinc-500 text-xs sm:text-sm max-w-sm mx-auto">
+            <p className="text-zinc-600 text-xs sm:text-sm max-w-sm mx-auto">
               Transform your Kytario songbook into print-ready PDF pages with automatic Table of
               Contents and clean formatting.
             </p>
@@ -1195,6 +1195,14 @@ export default function App() {
 
   return (
     <div className="flex h-screen h-[100dvh] min-h-[100dvh] bg-zinc-50 text-zinc-900 overflow-hidden font-sans relative print:h-auto print:min-h-0 print:overflow-visible print:block print:bg-white print:text-black print:p-0 print:m-0">
+      {/* Keyboard users can jump straight to the songbook preview, skipping the sidebar controls */}
+      <a
+        href="#main-preview"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:bg-white focus:text-zinc-900 focus:rounded-lg focus:shadow-lg focus:text-sm focus:font-semibold print:hidden"
+      >
+        Skip to songbook preview
+      </a>
+
       {/* Full-screen Loading Spinner Overlay while parsing or loading a new songbook */}
       <ProgressBar
         active={isLoadingJson}
@@ -1266,8 +1274,9 @@ export default function App() {
           </div>
         )}
 
-        <Suspense fallback={<PreviewChunkFallback settings={settings} />}>
-          <SongbookPreview
+        <main id="main-preview" tabIndex={-1} className="flex flex-col min-h-0">
+          <Suspense fallback={<PreviewChunkFallback settings={settings} />}>
+            <SongbookPreview
             data={previewData}
             settings={settings}
             isUpdatingLayout={isUpdatingLayout || selectedSongIds !== deferredSelectedSongIds}
@@ -1496,36 +1505,42 @@ export default function App() {
         {/* Offline Indicator */}
         <OfflineIndicator />
 
-        {/* Unified Top-Right Notification Toast Container */}
-        {toast && (
-          <div className="fixed top-4 right-4 z-[100] print:hidden animate-in fade-in slide-in-from-top-3 duration-300">
-            <div
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-medium ${
-                toast.type === 'error'
-                  ? 'bg-red-950 text-white border-red-800/60'
-                  : 'bg-zinc-950 text-white border-white/15'
-              }`}
-            >
-              {toast.type === 'error' ? (
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              )}
-              <span>{toast.message}</span>
-              <button
-                onClick={() => setToast(null)}
-                className="ml-2 text-zinc-400 hover:text-white transition-colors p-1 cursor-pointer"
-                title="Dismiss"
+        {/* Unified Top-Right Notification Toast Container (persistent live region so screen readers announce every toast) */}
+        <div className="fixed top-4 right-4 z-[100] print:hidden" role="status" aria-live="polite">
+          {toast && (
+            <div className="animate-in fade-in slide-in-from-top-3 duration-300">
+              <div
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-medium ${
+                  toast.type === 'error'
+                    ? 'bg-red-950 text-white border-red-800/60'
+                    : 'bg-zinc-950 text-white border-white/15'
+                }`}
               >
-                ✕
-              </button>
+                {toast.type === 'error' ? (
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" aria-hidden="true" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" aria-hidden="true" />
+                )}
+                <span>{toast.message}</span>
+                <button
+                  onClick={() => setToast(null)}
+                  className="ml-2 text-zinc-300 hover:text-white transition-colors p-1 cursor-pointer"
+                  aria-label="Dismiss notification"
+                  title="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Auto-save Brief Notification */}
         {showAutoSaveIndicator && (
-          <div className="fixed top-4 right-4 z-[100] print:hidden animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-none select-none">
+          <div
+            className="fixed top-4 right-4 z-[99] print:hidden animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-none select-none"
+            role="status"
+          >
             <div className="bg-zinc-950/95 text-white border border-zinc-700/50 rounded-full py-2 px-4 shadow-2xl flex items-center gap-2.5 text-xs font-semibold">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />

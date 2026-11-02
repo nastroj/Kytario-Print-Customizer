@@ -72,7 +72,7 @@ export function UrlImportPanel({
           aria-busy={isProcessing}
           className="w-full rounded-lg border border-black/10 p-3 text-sm focus:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-800 bg-zinc-50 disabled:opacity-60"
         />
-        <p id="kytario-url-help" className="text-[11px] text-zinc-500 ml-1">
+        <p id="kytario-url-help" className="text-[11px] text-zinc-600 ml-1">
           Paste a public Kytario songbook link or its short code, then press Enter to import.
         </p>
       </div>
@@ -231,13 +231,13 @@ export function UrlImportPanel({
                     <button
                       type="button"
                       onClick={onClearProxy}
-                      className="text-[10px] text-zinc-500 hover:text-red-600 underline cursor-pointer"
+                      className="text-[10px] text-zinc-600 hover:text-red-600 underline cursor-pointer"
                     >
                       Reset to default
                     </button>
                   </div>
                 )}
-                <p className="text-[10px] text-zinc-500 leading-tight">
+                <p className="text-[10px] text-zinc-600 leading-tight">
                   💡 You can copy the ready-to-use worker script from{' '}
                   <code className="text-zinc-700 font-semibold">cloudflare-worker.js</code> in the
                   repository.

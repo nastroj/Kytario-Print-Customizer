@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { Download, Share2, PlusSquare, X, Smartphone } from 'lucide-react';
 
 interface PWAInstallButtonProps {
@@ -13,6 +14,13 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
 }) => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const iosGuideRef = useRef<HTMLDivElement>(null);
+
+  // Trap focus in the iOS install sheet while it is open; Escape closes it.
+  useFocusTrap(iosGuideRef, {
+    active: showIOSGuide,
+    onEscape: () => setShowIOSGuide(false),
+  });
 
   // Suppress completely if already installed as standalone PWA
   if (isInstalled) {
@@ -95,6 +103,10 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
         >
           <div
             id="pwa-ios-modal-content"
+            ref={iosGuideRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pwa-ios-modal-title"
             className="w-full max-w-sm rounded-2xl bg-white border border-black/10 p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
@@ -104,8 +116,10 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                   <Smartphone className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-zinc-900">Install Kytario</h3>
-                  <p className="text-[11px] text-zinc-500">Add to iPhone or iPad Home Screen</p>
+                  <h3 id="pwa-ios-modal-title" className="text-sm font-semibold text-zinc-900">
+                    Install Kytario
+                  </h3>
+                  <p className="text-[11px] text-zinc-600">Add to iPhone or iPad Home Screen</p>
                 </div>
               </div>
               <button

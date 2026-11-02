@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Archive, Music, Check, Layers, ChevronRight, X, Loader2 } from 'lucide-react';
 import { ExtractedProject } from '../utils/zipParser';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ZipProjectSelectModalProps {
   isOpen: boolean;
@@ -25,6 +26,16 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [importOnlyPublic, setImportOnlyPublic] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Trap focus inside the modal while it is open; Escape cancels unless a
+  // project import is already in flight.
+  useFocusTrap(modalRef, {
+    active: isOpen,
+    onEscape: () => {
+      if (!isSubmitting) onCancel();
+    },
+  });
 
   // Sync selected slug whenever new projects are passed in or modal opens
   useEffect(() => {
@@ -63,6 +74,7 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
 
       {/* Modal Dialog Card */}
       <div
+        ref={modalRef}
         className="relative bg-white rounded-2xl shadow-2xl border border-black/10 max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-10"
         onClick={(e) => e.stopPropagation()}
       >
@@ -81,7 +93,7 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
                   {projects.length} found
                 </span>
               </div>
-              <p className="text-xs text-zinc-500 mt-0.5">
+              <p className="text-xs text-zinc-600 mt-0.5">
                 <span className="font-medium text-zinc-700 truncate inline-block max-w-[240px] sm:max-w-xs align-bottom">
                   {fileName}
                 </span>{' '}
@@ -124,7 +136,7 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
                     className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                       isSelected
                         ? 'bg-zinc-900 text-white'
-                        : 'bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200'
+                        : 'bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200'
                     }`}
                   >
                     <Music className="w-4 h-4" />
@@ -138,7 +150,7 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
+                    <div className="flex items-center gap-2 text-xs text-zinc-600 mt-0.5">
                       <span className="font-mono text-[11px] text-zinc-400">/{proj.slug}</span>
                       {proj.description && (
                         <>
@@ -204,7 +216,7 @@ export const ZipProjectSelectModal: React.FC<ZipProjectSelectModalProps> = ({
                       Merged
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-500 mt-0.5">
+                  <p className="text-xs text-zinc-600 mt-0.5">
                     Merge all {projects.length} songbooks into a single combined collection
                   </p>
                 </div>

@@ -88,7 +88,7 @@ export function ProgressBar({
           <h3 className="text-base sm:text-lg font-bold text-zinc-900 tracking-tight">
             {statusText}
           </h3>
-          {subText && <p className="text-xs text-zinc-500 font-medium">{subText}</p>}
+          {subText && <p className="text-xs text-zinc-600 font-medium">{subText}</p>}
         </div>
 
         {/* Dynamic Activity Indicator */}
@@ -109,7 +109,7 @@ export function ProgressBar({
 
           {isDeterminate && (
             <div className="flex items-center justify-between text-xs font-bold text-amber-600 tabular-nums">
-              <span className="text-[11px] font-medium text-zinc-500">
+              <span className="text-[11px] font-medium text-zinc-600">
                 {clampedProgress === 100 ? 'Complete' : 'Progress'}
               </span>
               <span>{clampedProgress}%</span>

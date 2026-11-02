@@ -197,7 +197,7 @@ export function FileDropzonePanel({
         >
           Drag and drop your Kytario .json or export .zip here
         </p>
-        <p id="dropzone-help" className="text-[12px] sm:text-sm text-zinc-500 mb-6 font-medium">
+        <p id="dropzone-help" className="text-[12px] sm:text-sm text-zinc-600 mb-6 font-medium">
           Supports single JSON, multiple song files, or full Kytario export ZIP archives (max{' '}
           {MAX_UPLOAD_SIZE_BYTES / 1024 / 1024} MB each)
         </p>
