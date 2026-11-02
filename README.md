@@ -12,23 +12,10 @@ A modern, high-performance web application designed to transform Kytario songboo
 
 ## 🌟 What's New in v1.9.0
 
-- **Modular Component Architecture & Code Decomposition**:
-  - Decomposed the monolithic sidebar into clean, maintainable subcomponents under `src/components/sidebar/` (`PageLayoutSection`, `CoverPageSection`, `TypographySection`, `ColorDotInput`, `LocalizedInput`, `MaterialToggle`, `Stepper`).
-  - Modularized the songbook import interface into dedicated panels under `src/components/import/` (`ImportTabs`, `UrlImportPanel`, `PasteImportPanel`, `FileDropzonePanel`).
-  - Extracted self-contained dialogs for `ResetSongbookDialog`, `SongSelectionModal`, and `ZipProjectSelectModal`.
-- **On-Demand Code-Splitting & Lazy Loading**:
-  - Code-split the heavy layout & preview rendering engine (`SongbookPreview`, ~2,200 lines) using dynamic `React.lazy()` and `Suspense`, drastically reducing initial bundle size and accelerating initial load time for the import screen.
-  - Lazy-loaded modal dialogs (`BackgroundPdfProgressModal`, `SongSelectionModal`) on demand with a dedicated `PreviewChunkFallback` component for smooth transitions.
-- **Draft Settings & Unapplied Changes Tracking**:
-  - Introduced real-time settings diffing (`getChangedSettingsList`) across 40+ layout, typography, and cover settings.
-  - Added pending change indicators and animated badges to the floating Settings button showing the exact count of pending changes (`hasUnappliedChanges`).
-  - Added section-level change tracking (`hasLayoutChanges`, `hasCoverChanges`, `hasTypographyChanges`) so users can see which categories were modified before applying.
-  - Added the `UnappliedSettingsBanner` component with one-click **Review**, **Discard**, and **Update Layout** controls.
-- **Concurrent State & Storage Performance**:
-  - Debounced and transition-wrapped song selection updates (`startSongSelectionTransition`, `useDeferredValue`) to maintain instant responsiveness during batch updates.
-  - Hybrid storage engine utilizing asynchronous IndexedDB alongside `localStorage` to safely store large songbooks (250+ songs) without browser quota crashes.
-- **Build Hygiene & Environment Optimization**:
-  - Removed non-npm artifacts (`bun.lock`), validated all production dependencies, and ensured clean Node.js 22 + React 19 + Tailwind v4 + Express compatibility.
+- **Modular Architecture & Code-Splitting**: Decomposed monolithic sidebar and import panels into decoupled subcomponents and introduced lazy loading (`React.lazy`) for the heavy preview rendering engine.
+- **Draft Settings & Unapplied Changes Tracking**: Real-time settings diffing across 40+ parameters with unapplied changes indicator and one-click review/update banner.
+- **URL & Slug Resolution Fixes**: Robust Kytario URL and slug parsing with subpage ignoring (`/songs`, `/print`) and enhanced title enrichment.
+- **Concurrent Performance & Storage**: React 19 concurrent transitions and asynchronous IndexedDB caching for large songbooks (250+ songs).
 
 ---
 

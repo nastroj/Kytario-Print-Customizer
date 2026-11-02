@@ -103,6 +103,19 @@ async function createServer() {
       'de',
       'user',
       'users',
+      'print',
+      'songs',
+      'song',
+      'edit',
+      'view',
+      'share',
+      'settings',
+      'details',
+      'info',
+      'embed',
+      'preview',
+      'layout',
+      'customizer',
     ]);
 
     for (let i = 0; i < segments.length; i++) {
@@ -113,7 +126,8 @@ async function createServer() {
           seg === 'zpevnik' ||
           seg === 'zpevniky' ||
           seg === 'projects' ||
-          seg === 'project') &&
+          seg === 'project' ||
+          seg === 'shared') &&
         i + 1 < segments.length
       ) {
         const next = segments[i + 1];
@@ -127,7 +141,7 @@ async function createServer() {
       (s) => !ignore.has(s.toLowerCase()) && !/^index(?:-\d+)?$/i.test(s),
     );
     if (valid.length > 0) {
-      return valid[valid.length - 1];
+      return valid[0];
     }
 
     return '';

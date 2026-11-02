@@ -2,25 +2,12 @@
 
 ## v1.9.0 - 2026-11-02
 
-### Modular Architecture, Code-Splitting, Draft Settings Tracking & Modal Optimization
+### Modular Architecture, Code-Splitting, Draft Settings Tracking & URL Resolution Fixes
 
-- **Modular Component Decomposition**:
-  - Refactored monolithic views into clean, decoupled subcomponents under `src/components/sidebar/` (`PageLayoutSection.tsx`, `CoverPageSection.tsx`, `TypographySection.tsx`, `ColorDotInput.tsx`, `LocalizedInput.tsx`, `MaterialToggle.tsx`, `Stepper.tsx`).
-  - Modularized songbook import workflows into dedicated panels under `src/components/import/` (`ImportTabs.tsx`, `UrlImportPanel.tsx`, `PasteImportPanel.tsx`, `FileDropzonePanel.tsx`).
-  - Extracted standalone, self-contained dialogs for `ResetSongbookDialog.tsx`, `SongSelectionModal.tsx`, and `ZipProjectSelectModal.tsx`.
-- **On-Demand Code-Splitting & Lazy Loading**:
-  - Integrated dynamic `React.lazy()` and `Suspense` for the core layout engine and preview rendering module (`SongbookPreview.tsx`), significantly reducing the initial JavaScript bundle footprint and accelerating the initial render of the import screen.
-  - Implemented lazy loading for on-demand modals (`BackgroundPdfProgressModal.tsx` and `SongSelectionModal.tsx`) paired with a dedicated `PreviewChunkFallback.tsx` placeholder for seamless loading transitions.
-- **Draft Settings & Unapplied Changes Tracking**:
-  - Implemented real-time settings comparison (`getChangedSettingsList`) across 40+ layout, typography, and cover parameters.
-  - Added pending change indicators and animated badges to the floating Settings button showing the exact count of pending changes (`hasUnappliedChanges`).
-  - Added category-level change flags (`hasLayoutChanges`, `hasCoverChanges`, `hasTypographyChanges`) within the sidebar so users can easily see modified sections.
-  - Built the `UnappliedSettingsBanner` component with one-click **Review**, **Discard**, and **Update Layout** controls.
-- **Concurrent State & Performance Hardening**:
-  - Wrapped song selection updates in React 19 `useTransition` and `useDeferredValue` with debouncing, eliminating UI frame drops during high-frequency song toggles.
-  - Enhanced hybrid caching strategy using asynchronous IndexedDB alongside `localStorage` to reliably store large songbooks (250+ songs) without browser storage quota exceptions.
-- **Dependency & Build Pipeline Hygiene**:
-  - Pruned non-npm lockfiles (`bun.lock`) and aligned package configurations with Node.js 22, React 19, Tailwind CSS v4, and Express server proxy.
+- **Modular Architecture & Code-Splitting**: Decomposed monolithic sidebar and import workflows into clean subcomponents and added dynamic code-splitting for `SongbookPreview`.
+- **Draft Settings & Unapplied Changes Tracking**: Real-time settings diffing across 40+ layout and typography parameters with an interactive unapplied changes banner.
+- **URL & Slug Resolution Hardening**: Improved Kytario URL parsing and slug extraction to correctly ignore trailing action paths (`/songs`, `/print`) and prevent mismatched songbook associations.
+- **Concurrent Performance & Caching**: React 19 concurrent transitions and hybrid IndexedDB storage for large songbooks (250+ songs).
 
 ---
 
