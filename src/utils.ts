@@ -15,7 +15,6 @@ import {
   PrintSettings,
   SongFitDebugInfo,
   ColumnBalancePlan,
-  SectionBalancePlan,
 } from './types';
 
 export * from './utils/jsonRepair';
@@ -40,16 +39,21 @@ export interface ParsedLine {
   isRepetitionLine?: boolean;
   /** Length of the visible lyric text with chord markup stripped, precomputed once at parse time. */
   textLen: number;
+  /** Total rendered width of the line's chords in character units (chord length + 2), precomputed at parse time. */
+  chordsWidth: number;
+  /** Sum of per-chunk max(text width, chord width) for normal lines; sum of text+chord widths for repetition lines. Precomputed at parse time. */
+  renderedWidth: number;
 }
 
 /**
  * Returns the length of a line's visible lyric text (chord/section markup like
  * "[C]" or "{G}" removed). Uses the value precomputed during parsing instead of
  * re-running a global regex over the raw line on every layout/scale iteration.
+ * Falls back to measuring the raw text so ad-hoc line objects keep working.
  */
-export function getLyricsTextLength(line: { raw: string; textLen?: number }): number {
+export function getLyricsTextLength(line: { raw: string; textLen: number }): number {
   if (typeof line.textLen === 'number') return line.textLen;
-  return line.raw ? line.raw.replace(chordMarkupRegex, '').length : 0;
+  return measureLyricsLength(line.raw);
 }
 
 export interface SongSection {
@@ -133,8 +137,61 @@ export function getPageMargins(
   return { top, bottom, left, right, inner, outer };
 }
 
+/**
+ * LRU cache of parsed song content. Insertion order in a Map doubles as the
+ * recency order: on a hit we delete + re-insert so the entry moves to the
+ * "most recently used" end, and on overflow we evict only the least-recently
+ * used entries (one quarter of the cache) instead of clearing everything,
+ * which previously forced a full re-parse of every remaining song.
+ */
 const songContentCache = new Map<string, SongSection[]>();
 const MAX_CACHE_SIZE = 1000;
+
+function cachePut(key: string, value: SongSection[]): void {
+  if (songContentCache.size >= MAX_CACHE_SIZE && !songContentCache.has(key)) {
+    const evictCount = Math.max(1, Math.floor(MAX_CACHE_SIZE / 4));
+    let evicted = 0;
+    for (const oldKey of songContentCache.keys()) {
+      songContentCache.delete(oldKey);
+      if (++evicted >= evictCount) break;
+    }
+  }
+  songContentCache.set(key, value);
+}
+
+/** Average glyph width as a fraction of font size (monospace-ish approximation). */
+export const AVG_CHAR_WIDTH_FACTOR = 0.48;
+/** Same factor tuned for the slightly wider column-balancing estimator. */
+export const BALANCE_CHAR_WIDTH_FACTOR = 0.54;
+/** Minimum smart-fit scale floor independent of base font size. */
+export const MIN_SCALE_FLOOR = 0.48;
+
+/** Splits a line into plain text and bracketed/braced tokens (kept in the result). */
+const chordSplitRegex = /(\{[^}]+\}|\[[^[\]]+\])/g;
+/** Matches repetition/bar notation like "|:" ":|" "| |". */
+const repBarRegex = /:\|\|:|:\|\s*\|:/g;
+/** Matches leading whitespace of a string. */
+const leadingWhitespaceRegex = /^(\s*)(.*)$/;
+/** ChordPro closing directives (end_of_chorus etc.). */
+const cpCloseDirectiveRegex =
+  /^\{(?:end_of_chorus|eoc|end_of_bridge|eob|end_of_verse|eov|end_of_tab|eot)\}/i;
+/** ChordPro opening/comment directives used as section headers. */
+const cpOpenDirectiveRegex =
+  /^\{(?:(?:c|comment):\s*([^}]+)|(start_of_chorus|soc|start_of_bridge|sob|start_of_verse|sov|start_of_tab|sot))\}(?:\s*(.*)|$)/i;
+/** Markdown-style decorated headers ("### Bridge", "**Bridge**", "--- Bridge ---"). */
+const mdHeaderRegex =
+  /^(?:#{1,4}|\*{1,2}|-{2,4}|={2,4})\s*([A-Za-z0-9\u00C0-\u024F\s\.:]+?)\s*(?:#{1,4}|\*{1,2}|-{2,4}|={2,4})?$/;
+/** Bracketed section marker at line start ("[REF]", "[1.] verse"). */
+const bracketHeaderRegex = /^\[([^\]]+)\](?:\s*(.*)|$)/;
+/** Parenthesized section marker at line start ("(REF)", "(1.) verse"). */
+const parenHeaderRegex = /^\(([^\)]+)\)(?:\s*(.*)|$)/;
+/** Standalone bracketed section reference ("[REF]"). */
+const standaloneBracketRefRegex = /^\[([^\]]+)\]$/;
+/** Section prefix markers at line start ("1.", "Bridge:", "R:", "Mezihra:"). */
+const markerPatternRegex =
+  /^((?:(?:\d+[\.\:]|\(\d+\))(?:\s*(?:VERSE|SLOKA))?[\.\:]?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|PREF|PRE-REF|PRE-CHORUS|OUTRO|OUT|SPC|VERSE|SLOKA|INTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|PREF\d*[\.\:]?|OUT\d*[\.\:]?|SPC\d*[\.\:]?|B[\.\:]|M[\.\:]))(?:\s+|(?=\[)|(?=\{)|$)/i;
+/** Refrain detection on an uppercased marker. */
+const refrainMarkerRegex = /^R\d*[\.:]?$/;
 
 export const sectionRefRegex =
   /^(?:(?:\d+[\.\:]?|\(\d+\))(?:\s*(?:VERSE|SLOKA))?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|PREF|PRE-REF|PRE-CHORUS|OUTRO|OUT|SPC|VERSE|SLOKA|INTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|PREF\d*[\.\:]?|OUT\d*[\.\:]?|SPC\d*[\.\:]?|B[\.\:]|M[\.\:])$/i;
@@ -146,18 +203,67 @@ export const sectionRefRegex =
  */
 const chordMarkupRegex = /\[[^\]]*\]|\{[^}]*\}/g;
 
+/** Matches one or more bracketed/braced tokens (global variant for match/replace). */
+const chordTokensGlobalRegex = /\{[^\}]+\}|\[[^\]]+\]/g;
+/** Fast test for any bracketed/braced token character in a line. */
+const hasChordTokenRegex = /[[{]/;
+
 /** Matches literal [ or ] characters in section markers. */
 const markerBracketsRegex = /[\[\]]/g;
 
 /** Matches a line wrapped in [ ... ] so it can be unwrapped to its inner text. */
 const wrappedMarkerRegex = /^\[(.*)\]$/;
 
+/** ChordPro opening/comment directives used as section headers (no tail capture). */
+const cpOpenDirectiveNoTailRegex =
+  /^\{(?:(?:c|comment):\s*([^}]+)|(start_of_chorus|soc|start_of_bridge|sob|start_of_verse|sov|start_of_tab|sot))\}/i;
+/** Strips repetition/bar/punctuation/count characters from notation lines. */
+const repNotationCharsRegex = /[|:\\/!.()\[\]{}\s0-9xX%*\-+~]/g;
+/** Musical label prefixes allowed on chords-only lines ("Intro:", "Mezihra", ...). */
+const musicLabelRegex =
+  /^(?:Intro|Outro|OUT|Solo|SPC|Mezihra|Bridge|BRD|Coda|R|Ref|PREF|Pre-Ref|Pre-Chorus|Refrén|Refrain|Chorus|Verse|Sloka|Riff|Interlude|Předehra|Dohra|Kytara|Guitar|Instr|Instrumental|Theme|Lead|Break|Takt|Bar|Akordy|Chords)[0-9]*[\.:]?$/i;
+/** Kytario spacing tags ({-}, {--}, {---} and bracket variants). */
+const spacingTagRegex = /\{-{1,3}\}|\[-{1,3}\]/g;
+/** Bracketed tokens used when splitting lines on section references. */
+const bracketTokenScanRegex = /\[([^\]]+)\]/g;
+
+/** Extra character units added around a rendered chord token (left/right padding). */
+const CHORD_WIDTH_PADDING = 2;
+
 /** Fast, allocation-free length of visible text with chord markup removed. */
-function measureLyricsLength(raw: string): number {
+export function measureLyricsLength(raw: string): number {
   if (!raw) return 0;
   // Fast path: nothing that could be markup at all
   if (raw.indexOf('[') === -1 && raw.indexOf('{') === -1) return raw.length;
   return raw.replace(chordMarkupRegex, '').length;
+}
+
+/**
+ * Computes the per-line width aggregates (`chordsWidth`, `renderedWidth`) in
+ * character units from already-parsed chunks, so height/wrap estimation during
+ * scale search never needs to re-scan chunk text or run regexes.
+ * - Normal lines: rendered width is the sum of per-chunk max(text, chord+padding),
+ *   mirroring how chords float above their lyric syllables.
+ * - Repetition/chords-only lines: chords and notation occupy their own horizontal
+ *   space, so widths are summed instead of maxed.
+ */
+export function computeLineWidthAggregates(
+  chunks: ChordChunk[],
+  isRep: boolean,
+): { chordsWidth: number; renderedWidth: number } {
+  let chordsWidth = 0;
+  let renderedWidth = 0;
+  for (const c of chunks) {
+    const textWidth = c.text ? c.text.length : 0;
+    const chordWidth = c.chord ? c.chord.length + CHORD_WIDTH_PADDING : 0;
+    if (chordWidth > 0) chordsWidth += chordWidth;
+    if (isRep || c.isSectionRef) {
+      renderedWidth += textWidth + chordWidth;
+    } else {
+      renderedWidth += Math.max(textWidth, chordWidth);
+    }
+  }
+  return { chordsWidth, renderedWidth };
 }
 
 /**
@@ -166,25 +272,13 @@ function measureLyricsLength(raw: string): number {
 export function isSectionHeaderLine(trimmedLine: string): boolean {
   if (!trimmedLine) return false;
   if (trimmedLine.startsWith('- ')) return true;
-  if (
-    /^\{(?:(?:c|comment):\s*([^}]+)|(start_of_chorus|soc|start_of_bridge|sob|start_of_verse|sov|start_of_tab|sot))\}/i.test(
-      trimmedLine,
-    )
-  )
-    return true;
-  if (
-    /^(?:#{1,4}|\*{1,2}|-{2,4}|={2,4})\s*([A-Za-z0-9\u00C0-\u024F\s\.:]+?)\s*(?:#{1,4}|\*{1,2}|-{2,4}|={2,4})?$/.test(
-      trimmedLine,
-    )
-  )
-    return true;
-  const bracketMatch = trimmedLine.match(/^\[([^\]]+)\](?:\s*(.*)|$)/);
+  if (cpOpenDirectiveNoTailRegex.test(trimmedLine)) return true;
+  if (mdHeaderRegex.test(trimmedLine)) return true;
+  const bracketMatch = trimmedLine.match(bracketHeaderRegex);
   if (bracketMatch && sectionRefRegex.test(bracketMatch[1].trim())) return true;
-  const parenMatch = trimmedLine.match(/^\(([^\)]+)\)(?:\s*(.*)|$)/);
+  const parenMatch = trimmedLine.match(parenHeaderRegex);
   if (parenMatch && sectionRefRegex.test(parenMatch[1].trim())) return true;
-  const markerPattern =
-    /^((?:(?:\d+[\.\:]|\(\d+\))(?:\s*(?:VERSE|SLOKA))?[\.\:]?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|PREF|PRE-REF|PRE-CHORUS|OUTRO|OUT|SPC|VERSE|SLOKA|INTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|PREF\d*[\.\:]?|OUT\d*[\.\:]?|SPC\d*[\.\:]?|B[\.\:]|M[\.\:]))(?:\s+|(?=\[)|(?=\{)|$)/i;
-  return markerPattern.test(trimmedLine);
+  return markerPatternRegex.test(trimmedLine);
 }
 
 /**
@@ -197,8 +291,9 @@ export function splitLineOnSectionRefs(line: string): string[] {
     return [line];
   }
 
-  // Find all [bracketed] occurrences
-  const regex = /\[([^\]]+)\]/g;
+  // Find all [bracketed] occurrences (hoisted regex; reset lastIndex for reentrancy)
+  const regex = bracketTokenScanRegex;
+  regex.lastIndex = 0;
   let match: RegExpExecArray | null;
   const splitIndices: { start: number; end: number; text: string }[] = [];
 
@@ -250,8 +345,11 @@ export function splitLineOnSectionRefs(line: string): string[] {
 export function isRepetitionOrChordsOnlyLine(line: string): boolean {
   if (!line || !line.trim()) return false;
 
+  // Fast path: no bracket/brace characters at all -> cannot be a chords-only line
+  if (!hasChordTokenRegex.test(line)) return false;
+
   // Extract all bracketed/braced contents
-  const matches = line.match(/\{[^\}]+\}|\[[^\]]+\]/g);
+  const matches = line.match(chordTokensGlobalRegex);
   if (!matches) return false;
 
   // Check if at least one match is an actual chord (not a section reference)
@@ -262,20 +360,17 @@ export function isRepetitionOrChordsOnlyLine(line: string): boolean {
   if (!hasActualChords) return false;
 
   // Strip all chord and section ref brackets
-  const withoutChords = line.replace(/\{[^\}]+\}|\[[^\]]+\]/g, '').trim();
+  const withoutChords = line.replace(chordTokensGlobalRegex, '').trim();
   if (!withoutChords) return true; // Only chords and whitespace
 
   // Check if what remains outside chords consists strictly of repetition / bar / tempo / count notation
   // e.g. |: :| | || //: :// 1. 2. (4x) 2x %
-  const stripped = withoutChords.replace(/[|:\\/!.\(\)\[\]\{\}\s0-9xX%*\-+~]/g, '');
+  const stripped = withoutChords.replace(repNotationCharsRegex, '');
   if (stripped.length === 0) return true;
 
   // Also check if what remains is a musical label prefix or note
   // e.g. Intro:, Solo:, Riff:, Mezihra:, Předehra:, Dohra:, Bridge:, BRD:, SPC:, OUT:, PREF:, Interlude:, Sloka:, Verse:, Chorus:
-  const strippedNoLabels = stripped.replace(
-    /^(?:Intro|Outro|OUT|Solo|SPC|Mezihra|Bridge|BRD|Coda|R|Ref|PREF|Pre-Ref|Pre-Chorus|Refrén|Refrain|Chorus|Verse|Sloka|Riff|Interlude|Předehra|Dohra|Kytara|Guitar|Instr|Instrumental|Theme|Lead|Break|Takt|Bar|Akordy|Chords)[0-9]*[\.:]?$/i,
-    '',
-  );
+  const strippedNoLabels = stripped.replace(musicLabelRegex, '');
   return strippedNoLabels.length === 0;
 }
 
@@ -290,12 +385,12 @@ export function parseChordLine(line: string): ChordChunk[] {
   // Pre-process Kytario spacing tags into physical spaces only if present
   let processedLine = line;
   if (line.includes('{-') || line.includes('[-')) {
-    processedLine = line.replace(/\{-{1,3}\}|\[-{1,3}\]/g, (m) => ' '.repeat(m.length - 2));
+    processedLine = line.replace(spacingTagRegex, (m) => ' '.repeat(m.length - 2));
   }
 
   // Handle repetition / chords-only lines where chords and repetition marks are inline
   if (isRepetitionOrChordsOnlyLine(processedLine)) {
-    const parts = processedLine.split(/(\{[^\}]+\}|\[[^\]]+\])/g);
+    const parts = processedLine.split(chordSplitRegex);
     const chunks: ChordChunk[] = [];
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
@@ -311,10 +406,7 @@ export function parseChordLine(line: string): ChordChunk[] {
           chunks.push({ chord: inner, text: '' });
         }
       } else {
-        const normalized = part
-          .replace(/:\|\|:/g, ':| |:')
-          .replace(/:\|\s*\|:/g, ':| |:')
-          .trim();
+        const normalized = part.replace(repBarRegex, ':| |:').trim();
         if (normalized.length > 0) {
           chunks.push({ chord: null, text: normalized });
         }
@@ -323,7 +415,7 @@ export function parseChordLine(line: string): ChordChunk[] {
     return chunks;
   }
 
-  const parts = processedLine.split(/(\{[^\}]+\}|\[[^\]]+\])/g);
+  const parts = processedLine.split(chordSplitRegex);
   const chunks: ChordChunk[] = [];
 
   let currentChord: string | null = null;
@@ -353,7 +445,7 @@ export function parseChordLine(line: string): ChordChunk[] {
     } else {
       if (currentChord !== null || part.length > 0) {
         // Extract leading spaces to ensure text following a spaced chord starts *after* the chord's visual width
-        const match = part.match(/^(\s*)(.*)$/);
+        const match = part.match(leadingWhitespaceRegex);
         const leadingSpaces = match ? match[1] : '';
         const restText = match ? match[2] : '';
 
@@ -390,7 +482,8 @@ export const MIN_READABLE_CHORDS_FONT_SIZE = 9.0;
  */
 /**
  * Internal helper to calculate the estimated height of a single song line.
- * KISS: Keep it simple by grouping related height logic.
+ * All width aggregates (textLen / chordsWidth / renderedWidth) are precomputed
+ * at parse time, so this stays arithmetic-only even inside binary-search loops.
  */
 function estimateLineHeight(
   lineData: ParsedLine,
@@ -404,67 +497,30 @@ function estimateLineHeight(
     return Math.max(10, Math.round(12 * Math.min(1.4, s)));
   }
 
-  const isRep =
-    lineData.isRepetitionLine ||
-    !lineData.chunks ||
-    !lineData.chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef);
-
-  const textLen = getLyricsTextLength(lineData);
-  let chordsLen = 0;
+  const isRep = lineData.isRepetitionLine === true || isChunksOnlyChords(lineData.chunks);
   const hasChords = lineData.hasChords && showChords;
-
-  if (hasChords && lineData.chunks) {
-    for (const c of lineData.chunks) {
-      if (c.chord) chordsLen += c.chord.length + 2;
-    }
-  }
-
-  const visualLines = estimateVisualLineCount(
-    lineData,
-    charsPerCol,
-    showChords,
-    textLen,
-    chordsLen,
-  );
+  const visualLines = estimateVisualLineCount(lineData, charsPerCol, showChords);
 
   if (isRep) return Math.round((cSize + 4) * 1.05) * visualLines;
   if (hasChords) return Math.round((cSize + lSize + 4) * 1.05 + 5) * visualLines;
   return Math.round((lSize + 4) * 1.05 + 5) * visualLines;
 }
 
-/** Estimates rows using the same non-shrinking chunk layout as SongDisplay. */
+/** True when a line's chunks carry no actual lyric text (chords/section refs only). */
+function isChunksOnlyChords(chunks: ChordChunk[] | undefined): boolean {
+  return !chunks || !chunks.some((c) => c.text && c.text.trim().length > 0 && !c.isSectionRef);
+}
+
+/** Estimates rows from per-line width aggregates precomputed during parsing. */
 function estimateVisualLineCount(
   lineData: ParsedLine,
   charsPerCol: number,
   showChords: boolean,
-  textLen = getLyricsTextLength(lineData),
-  chordsLen = 0,
 ): number {
-  const chunks = lineData.chunks || [];
-  if (lineData.hasChords && showChords && chordsLen === 0) {
-    chordsLen = chunks.reduce(
-      (total, chunk) => total + (chunk.chord ? chunk.chord.length + 2 : 0),
-      0,
-    );
-  }
-
-  if (chunks.length === 0) {
-    return Math.max(1, Math.ceil(Math.max(textLen, chordsLen) / charsPerCol));
-  }
-
-  const renderedWidth = lineData.isRepetitionLine
-    ? chunks.reduce(
-        (total, chunk) =>
-          total + chunk.text.length + (showChords && chunk.chord ? chunk.chord.length + 2 : 0),
-        0,
-      )
-    : chunks.reduce((total, chunk) => {
-        const textWidth = chunk.text.length;
-        const chordWidth = showChords && chunk.chord ? chunk.chord.length + 2 : 0;
-        return total + Math.max(textWidth, chordWidth);
-      }, 0);
-
-  return Math.max(1, Math.ceil(Math.max(renderedWidth, textLen, chordsLen) / charsPerCol));
+  const { textLen, chordsWidth, renderedWidth } = lineData;
+  const effectiveChordsLen = showChords ? chordsWidth : 0;
+  const width = Math.max(renderedWidth, textLen, effectiveChordsLen);
+  return Math.max(1, Math.ceil(width / charsPerCol));
 }
 
 export function getOptimalColumnCount(
@@ -590,44 +646,26 @@ export function computeSmartFitScale(
   );
   const showChords = settings.showChords ?? true;
 
-  // Measure the maximum rendered width in character units across all non-empty lines
+  // Measure the maximum rendered width in character units across all non-empty
+  // lines. All per-line aggregates were precomputed at parse time, so this is a
+  // single O(lines) pass with no regex or chunk re-scanning.
   let maxRenderedWidth = 0;
-  sections.forEach((sec) => {
-    sec.parsedLines?.forEach((line) => {
-      if (line.isEmpty) return;
-      const chunks = line.chunks || [];
-      const textLen = getLyricsTextLength(line);
-      let chordsLen = 0;
-      if (line.hasChords && showChords && chunks.length > 0) {
-        chordsLen = chunks.reduce(
-          (total, chunk) => total + (chunk.chord ? chunk.chord.length + 2 : 0),
-          0,
-        );
-      }
-      const renderedWidth =
-        chunks.length === 0
-          ? Math.max(textLen, chordsLen)
-          : line.isRepetitionLine
-            ? chunks.reduce(
-                (total, chunk) =>
-                  total +
-                  chunk.text.length +
-                  (showChords && chunk.chord ? chunk.chord.length + 2 : 0),
-                0,
-              )
-            : chunks.reduce((total, chunk) => {
-                const textWidth = chunk.text.length;
-                const chordWidth = showChords && chunk.chord ? chunk.chord.length + 2 : 0;
-                return total + Math.max(textWidth, chordWidth);
-              }, 0);
-      maxRenderedWidth = Math.max(maxRenderedWidth, renderedWidth);
-    });
-  });
+  for (const sec of sections) {
+    for (const line of sec.parsedLines ?? []) {
+      if (line.isEmpty) continue;
+      const width = Math.max(
+        line.renderedWidth,
+        line.textLen,
+        showChords && line.hasChords ? line.chordsWidth : 0,
+      );
+      if (width > maxRenderedWidth) maxRenderedWidth = width;
+    }
+  }
 
   const calcHeightAtScale = (s: number): { height: number; maxWrapLines: number } => {
     const lSize = baseLyricsSize * s;
     const cSize = baseChordsSize * s;
-    const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * 0.48)));
+    const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * AVG_CHAR_WIDTH_FACTOR)));
 
     let maxWrapLines = 1;
     const sectionHeights = sections.map((sec) => {
@@ -691,11 +729,13 @@ export function computeSmartFitScale(
     colCount;
 
   const minReadableSize = MIN_READABLE_LYRICS_FONT_SIZE;
-  const minScale = Math.max(0.48, minReadableSize / baseLyricsSize);
+  const minScale = Math.max(MIN_SCALE_FLOOR, minReadableSize / baseLyricsSize);
 
   // Maximum scale where long lines fit horizontally within the column without excessive wrapping
   const maxScaleWithoutWrap =
-    maxRenderedWidth > 0 ? effectiveColW / (maxRenderedWidth * baseLyricsSize * 0.48) : 3.5;
+    maxRenderedWidth > 0
+      ? effectiveColW / (maxRenderedWidth * baseLyricsSize * AVG_CHAR_WIDTH_FACTOR)
+      : 3.5;
 
   const { height: baseHeight } = calcHeightAtScale(1.0);
 
@@ -809,7 +849,7 @@ export function computeSmartColumnBalance(
   const markerColEm =
     maxMarkerLen <= 2 ? 1.85 : maxMarkerLen <= 4 ? 2.2 : Math.max(2.2, maxMarkerLen * 0.6 + 0.4);
   const effectiveColWidth = Math.max(80, colWidth - lSize * (maxMarkerLen > 0 ? markerColEm : 0.6));
-  const charsPerCol = Math.max(16, Math.floor(effectiveColWidth / (lSize * 0.54)));
+  const charsPerCol = Math.max(16, Math.floor(effectiveColWidth / (lSize * BALANCE_CHAR_WIDTH_FACTOR)));
 
   const defaultPlan = (
     strategy: ColumnBalancePlan['strategy'] = 'single-column',
@@ -847,7 +887,6 @@ export function computeSmartColumnBalance(
   });
 
   const totalHeight = sectionHeights.reduce((a, b) => a + b, 0);
-  const targetColHeight = totalHeight / colCount;
 
   // 2. Compute clean inter-section column break points
   const cuts: number[] = [];
@@ -1314,7 +1353,7 @@ export function computeSongFitDebug(
   const calcHeightAtScale = (s: number) => {
     const lSize = baseLyricsSize * s;
     const cSize = baseChordsSize * s;
-    const avgCharW = lSize * 0.54;
+    const avgCharW = lSize * BALANCE_CHAR_WIDTH_FACTOR;
     const charsPerCol = Math.max(16, Math.floor(effectiveColW / avgCharW));
 
     let maxWrapLines = 1;
@@ -1341,26 +1380,9 @@ export function computeSongFitDebug(
           continue;
         }
 
-        const isChordsOnly =
-          lineData.isRepetitionLine ||
-          !lineData.chunks ||
-          !lineData.chunks.some((c: any) => c.text && c.text.trim().length > 0 && !c.isSectionRef);
-
-        const textLen = getLyricsTextLength(lineData);
-        let chordsLen = 0;
+        const isChordsOnly = lineData.isRepetitionLine === true || isChunksOnlyChords(lineData.chunks);
         const hasChords = lineData.hasChords && showChords;
-        if (hasChords && lineData.chunks) {
-          for (const c of lineData.chunks) {
-            if (c.chord) chordsLen += c.chord.length + 2;
-          }
-        }
-        const visualLines = estimateVisualLineCount(
-          lineData,
-          charsPerCol,
-          showChords,
-          textLen,
-          chordsLen,
-        );
+        const visualLines = estimateVisualLineCount(lineData, charsPerCol, showChords);
         maxWrapLines = Math.max(maxWrapLines, visualLines);
         totalVisualLines += visualLines;
 
@@ -1484,7 +1506,13 @@ export function parseSongContent(content: string): SongSection[] {
   if (!strContent.trim()) return [];
 
   const cached = songContentCache.get(strContent);
-  if (cached) return cached;
+  if (cached) {
+    // LRU recency handling: Map iteration order is insertion order, so delete +
+    // re-insert moves the hit entry to the "most recently used" end.
+    songContentCache.delete(strContent);
+    songContentCache.set(strContent, cached);
+    return cached;
+  }
 
   const sections: SongSection[] = [];
   const initialLines = strContent.split('\n');
@@ -1495,8 +1523,6 @@ export function parseSongContent(content: string): SongSection[] {
   }
 
   let currentSection: SongSection | null = null;
-  const markerRegex =
-    /^((?:\d+[\.\:]|\(\d+\))|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|PREF|PRE-REF|PRE-CHORUS|OUTRO|OUT|SPC|VERSE|SLOKA|INTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]|\(R\d*\)|BRD\d*[\.\:]?|\(BRD\d*\)|PREF\d*[\.\:]?|\(PREF\d*\)|OUT\d*[\.\:]?|\(OUT\d*\)|SPC\d*[\.\:]?|\(SPC\d*\))(?:\s+|(?=\[)|(?=\{)|$)/i;
 
   for (let i = 0; i < rawLines.length; i++) {
     const rawLine = rawLines[i];
@@ -1514,9 +1540,7 @@ export function parseSongContent(content: string): SongSection[] {
     }
 
     // 2. ChordPro closing directives
-    if (
-      /^\{(?:end_of_chorus|eoc|end_of_bridge|eob|end_of_verse|eov|end_of_tab|eot)\}/i.test(trimmed)
-    ) {
+    if (cpCloseDirectiveRegex.test(trimmed)) {
       currentSection = null;
       continue;
     }
@@ -1525,7 +1549,7 @@ export function parseSongContent(content: string): SongSection[] {
     // When followed by another section header or end of song, it represents a link to section
     // and must be placed on its own line rather than defining a new section header.
     const isStandaloneBracketedRef =
-      /^\[([^\]]+)\]$/.test(trimmed) && sectionRefRegex.test(trimmed.slice(1, -1).trim());
+      standaloneBracketRefRegex.test(trimmed) && sectionRefRegex.test(trimmed.slice(1, -1).trim());
     if (isStandaloneBracketedRef) {
       let nextLineTrimmed = '';
       for (let k = i + 1; k < rawLines.length; k++) {
@@ -1558,9 +1582,7 @@ export function parseSongContent(content: string): SongSection[] {
       header = { marker, textAfter: '' };
     } else {
       // 3b. ChordPro opening directives (e.g. "{c: Bridge}", "{comment: 1. Verse}", "{start_of_chorus}", "{soc}", "{sob}")
-      const cpMatch = trimmed.match(
-        /^\{(?:(?:c|comment):\s*([^}]+)|(start_of_chorus|soc|start_of_bridge|sob|start_of_verse|sov|start_of_tab|sot))\}(?:\s*(.*)|$)/i,
-      );
+      const cpMatch = trimmed.match(cpOpenDirectiveRegex);
       if (cpMatch) {
         const raw = (cpMatch[1] || cpMatch[2] || '').trim();
         let marker = raw;
@@ -1570,9 +1592,7 @@ export function parseSongContent(content: string): SongSection[] {
         header = { marker, textAfter: (cpMatch[3] || '').trim() };
       } else {
         // 3c. Markdown headers or decorators (e.g. "### Bridge", "**Bridge**", "--- Bridge ---", "=== Bridge ===")
-        const mdMatch = trimmed.match(
-          /^(?:#{1,4}|\*{1,2}|-{2,4}|={2,4})\s*([A-Za-z0-9\u00C0-\u024F\s\.:]+?)\s*(?:#{1,4}|\*{1,2}|-{2,4}|={2,4})?$/,
-        );
+        const mdMatch = trimmed.match(mdHeaderRegex);
         if (mdMatch) {
           const candidate = mdMatch[1].trim();
           if (sectionRefRegex.test(candidate)) {
@@ -1583,7 +1603,7 @@ export function parseSongContent(content: string): SongSection[] {
 
       // 3d. Bracketed section marker at line start (e.g. "[1.]", "[Bridge]", "[REF]", "[1. verse]", "[B:]")
       if (!header) {
-        const bracketMatch = trimmed.match(/^\[([^\]]+)\](?:\s*(.*)|$)/);
+        const bracketMatch = trimmed.match(bracketHeaderRegex);
         if (bracketMatch && sectionRefRegex.test(bracketMatch[1].trim())) {
           header = { marker: bracketMatch[1].trim(), textAfter: bracketMatch[2] || '' };
         }
@@ -1591,7 +1611,7 @@ export function parseSongContent(content: string): SongSection[] {
 
       // 3e. Parenthesized section marker at line start (e.g. "(1.)", "(Bridge)", "(REF)", "(1. verse)", "(B)", "(M)")
       if (!header) {
-        const parenMatch = trimmed.match(/^\(([^\)]+)\)(?:\s*(.*)|$)/);
+        const parenMatch = trimmed.match(parenHeaderRegex);
         if (parenMatch && sectionRefRegex.test(parenMatch[1].trim())) {
           header = { marker: parenMatch[1].trim(), textAfter: parenMatch[2] || '' };
         }
@@ -1599,9 +1619,7 @@ export function parseSongContent(content: string): SongSection[] {
 
       // 3f. Standard prefix markers (e.g. "1. ", "1. verse", "Bridge: ", "Bridge", "B: ", "B. ", "Mezihra: ", "R: ", "Chorus:", "BRD", "BRD1", "PREF", "OUT", "SPC")
       if (!header) {
-        const markerPattern =
-          /^((?:(?:\d+[\.\:]|\(\d+\))(?:\s*(?:VERSE|SLOKA))?[\.\:]?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|PREF|PRE-REF|PRE-CHORUS|OUTRO|OUT|SPC|VERSE|SLOKA|INTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|PREF\d*[\.\:]?|OUT\d*[\.\:]?|SPC\d*[\.\:]?|B[\.\:]|M[\.\:]))(?:\s+|(?=\[)|(?=\{)|$)/i;
-        const match = trimmed.match(markerPattern);
+        const match = trimmed.match(markerPatternRegex);
         if (match) {
           let marker = (match[1] || match[0] || '').trim();
           if (marker.startsWith('[') && marker.endsWith(']')) marker = marker.slice(1, -1).trim();
@@ -1621,7 +1639,7 @@ export function parseSongContent(content: string): SongSection[] {
     ) {
       const upper = header.marker.toUpperCase();
       const isRefrain =
-        upper.includes('REF') || upper.includes('CHORUS') || /^R\d*[\.\:]?$/.test(upper);
+        upper.includes('REF') || upper.includes('CHORUS') || refrainMarkerRegex.test(upper);
       currentSection = { marker: header.marker, isRefrain, lines: [], parsedLines: [] };
       sections.push(currentSection);
       if (header.textAfter && header.textAfter.trim() !== '') {
@@ -1653,6 +1671,9 @@ export function parseSongContent(content: string): SongSection[] {
       );
       const isRep =
         !isEmpty && (isRepetitionOrChordsOnlyLine(line) || (hasChords && !hasActualLyricText));
+      const { chordsWidth, renderedWidth } = isEmpty
+        ? { chordsWidth: 0, renderedWidth: 0 }
+        : computeLineWidthAggregates(chunks, isRep);
       return {
         raw: line,
         isEmpty,
@@ -1660,6 +1681,8 @@ export function parseSongContent(content: string): SongSection[] {
         hasChords,
         isRepetitionLine: isRep,
         textLen: isEmpty ? 0 : measureLyricsLength(line),
+        chordsWidth,
+        renderedWidth,
       };
     });
   }
@@ -1668,10 +1691,7 @@ export function parseSongContent(content: string): SongSection[] {
 
   linkSectionReferences(result);
 
-  if (songContentCache.size >= MAX_CACHE_SIZE) {
-    songContentCache.clear();
-  }
-  songContentCache.set(strContent, result);
+  cachePut(strContent, result);
 
   return result;
 }
@@ -1829,7 +1849,7 @@ export function computeSmartFitLineMargin(
 
   const lSize = baseLyricsSize * scale;
   const cSize = baseChordsSize * scale;
-  const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * 0.54)));
+  const charsPerCol = Math.max(16, Math.floor(effectiveColW / (lSize * BALANCE_CHAR_WIDTH_FACTOR)));
 
   const sectionHeights = sections.map((sec) => {
     let secH = 0;
