@@ -56,8 +56,9 @@ export function useFocusTrap<T extends HTMLElement>(
     document.body.style.overflow = 'hidden';
 
     const getFocusables = (): HTMLElement[] =>
-      Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-        (el) => el.offsetParent !== null || el === document.activeElement,
+      Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter(
+        (el): el is HTMLElement =>
+          el instanceof HTMLElement && (el.offsetParent !== null || el === document.activeElement),
       );
 
     // Move focus into the dialog (unless the caller opted out).

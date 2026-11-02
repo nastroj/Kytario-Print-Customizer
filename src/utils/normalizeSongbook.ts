@@ -48,6 +48,11 @@ export function cleanSongbookTitle(rawTitle: string): string {
 function rawPath(obj: RawSongbookLike | undefined, ...keys: string[]): JsonValue | undefined {
   let cur: JsonValue | undefined = obj;
   for (const key of keys) {
+    // Support array indexing via numeric path segments (e.g. 'songbookSongs', '0', 'song').
+    if (/^\d+$/.test(key) && Array.isArray(cur)) {
+      cur = cur[Number(key)];
+      continue;
+    }
     const rec = asRecord(cur);
     if (!rec) return undefined;
     cur = rec[key];

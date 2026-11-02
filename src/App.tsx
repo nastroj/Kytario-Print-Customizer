@@ -1337,6 +1337,7 @@ export default function App() {
             onClearLastGenerated={clearWorkerPdfLastGenerated}
           />
         </Suspense>
+        </main>
 
         {/* Floating Bottom Menu - Unified Toolbar in Exact Requested Order */}
         <div
