@@ -13,10 +13,10 @@ describe('convertKytarioSectionsToChordpro', () => {
       {
         title: 'Refrén',
         tokens: [
-          { type: 1, content: 'Am' },   // chord
+          { type: 1, content: 'Am' }, // chord
           { type: 0, content: 'Dnes už' }, // lyric text
-          { type: 6 },                    // newline
-          { type: 2, content: 'D' },     // chord variant
+          { type: 6 }, // newline
+          { type: 2, content: 'D' }, // chord variant
           { type: 0, content: 'poslední' },
         ],
       },
@@ -28,21 +28,35 @@ describe('convertKytarioSectionsToChordpro', () => {
   });
 
   it('handles repeat markers (type 4 / 5) with counts', () => {
-    const sections = [{ title: '', tokens: [{ type: 4 }, { type: 0, content: 'x' }, { type: 5, content: 3 }] }];
+    const sections = [
+      { title: '', tokens: [{ type: 4 }, { type: 0, content: 'x' }, { type: 5, content: 3 }] },
+    ];
     const out = convertKytarioSectionsToChordpro(sections);
     expect(out).toContain('|: x :| (3x)');
   });
 
   it('expands spacing tokens (type 3)', () => {
-    const sections = [{ title: 'S', tokens: [{ type: 3, content: 4 }, { type: 0, content: 'x' }] }];
+    const sections = [
+      {
+        title: 'S',
+        tokens: [
+          { type: 3, content: 4 },
+          { type: 0, content: 'x' },
+        ],
+      },
+    ];
     const out = convertKytarioSectionsToChordpro(sections);
     // Full output is trimmed, so anchor the spaces to the following lyric token.
     expect(out).toMatch(/ {4}x/);
   });
 
   it('falls back to plain content/text when no tokens exist', () => {
-    expect(convertKytarioSectionsToChordpro([{ title: 'A', content: 'plain lyrics' }])).toContain('plain lyrics');
-    expect(convertKytarioSectionsToChordpro([{ title: 'B', text: 'text lyrics' }])).toContain('text lyrics');
+    expect(convertKytarioSectionsToChordpro([{ title: 'A', content: 'plain lyrics' }])).toContain(
+      'plain lyrics',
+    );
+    expect(convertKytarioSectionsToChordpro([{ title: 'B', text: 'text lyrics' }])).toContain(
+      'text lyrics',
+    );
   });
 
   it('skips null/undefined sections gracefully', () => {

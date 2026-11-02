@@ -38,7 +38,7 @@ export function extractKytarioSlug(input: string): string {
   str = str.replace(/\/+$/, '');
 
   const noProto = str.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
-  
+
   let segments: string[] = [];
   if (noProto.includes('kytario.com')) {
     const afterDomain = noProto.split('kytario.com')[1] || '';
@@ -50,15 +50,38 @@ export function extractKytarioSlug(input: string): string {
   if (segments.length === 0) return '';
 
   const ignore = new Set([
-    'api', 'v1', 'v2', 'public', 
-    'songbook', 'songbooks', 'zpevnik', 'zpevniky', 
-    'project', 'projects', 'sections', 'export', 
-    'shared', 'cs', 'en', 'sk', 'de', 'user', 'users'
+    'api',
+    'v1',
+    'v2',
+    'public',
+    'songbook',
+    'songbooks',
+    'zpevnik',
+    'zpevniky',
+    'project',
+    'projects',
+    'sections',
+    'export',
+    'shared',
+    'cs',
+    'en',
+    'sk',
+    'de',
+    'user',
+    'users',
   ]);
 
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i].toLowerCase();
-    if ((seg === 'songbooks' || seg === 'songbook' || seg === 'zpevnik' || seg === 'zpevniky' || seg === 'projects' || seg === 'project') && i + 1 < segments.length) {
+    if (
+      (seg === 'songbooks' ||
+        seg === 'songbook' ||
+        seg === 'zpevnik' ||
+        seg === 'zpevniky' ||
+        seg === 'projects' ||
+        seg === 'project') &&
+      i + 1 < segments.length
+    ) {
       const next = segments[i + 1];
       if (!ignore.has(next.toLowerCase()) && !/^index(?:-\d+)?$/i.test(next)) {
         return next;
@@ -66,7 +89,9 @@ export function extractKytarioSlug(input: string): string {
     }
   }
 
-  const valid = segments.filter(s => !ignore.has(s.toLowerCase()) && !/^index(?:-\d+)?$/i.test(s));
+  const valid = segments.filter(
+    (s) => !ignore.has(s.toLowerCase()) && !/^index(?:-\d+)?$/i.test(s),
+  );
   if (valid.length > 0) {
     return valid[valid.length - 1];
   }
@@ -90,23 +115,23 @@ function decodeHtmlEntities(str: string): string {
 function sanitizeExtractedTitle(rawTitle: string): string | null {
   if (!rawTitle) return null;
   let text = decodeHtmlEntities(rawTitle).trim();
-  
+
   text = cleanSongbookTitle(text);
-  
+
   // Ignore generic fallback titles
   const lower = text.toLowerCase();
   if (
-    !text || 
-    lower === 'kytario' || 
-    lower === 'songbook' || 
-    lower === 'zpěvník' || 
-    lower === 'zpevnik' || 
-    lower === 'digital songbook' || 
+    !text ||
+    lower === 'kytario' ||
+    lower === 'songbook' ||
+    lower === 'zpěvník' ||
+    lower === 'zpevnik' ||
+    lower === 'digital songbook' ||
     lower === 'digitální zpěvník'
   ) {
     return null;
   }
-  
+
   return text;
 }
 
@@ -114,7 +139,8 @@ export function extractTitleFromHtml(html: string): string | null {
   if (typeof html !== 'string') return null;
 
   // 1. OpenGraph / Twitter / Standard Meta Tags (Primary source for Kytario songbook titles)
-  const metaRegex = /<meta\s+[^>]*?(?:property|name)=["'](?:og:title|twitter:title|title)["']\s+content=["']([^"']+)["']/gi;
+  const metaRegex =
+    /<meta\s+[^>]*?(?:property|name)=["'](?:og:title|twitter:title|title)["']\s+content=["']([^"']+)["']/gi;
   let metaMatch;
   while ((metaMatch = metaRegex.exec(html)) !== null) {
     if (metaMatch[1]) {
@@ -123,7 +149,8 @@ export function extractTitleFromHtml(html: string): string | null {
     }
   }
 
-  const metaRevRegex = /<meta\s+[^>]*?content=["']([^"']+)["']\s+(?:property|name)=["'](?:og:title|twitter:title|title)["']/gi;
+  const metaRevRegex =
+    /<meta\s+[^>]*?content=["']([^"']+)["']\s+(?:property|name)=["'](?:og:title|twitter:title|title)["']/gi;
   while ((metaMatch = metaRevRegex.exec(html)) !== null) {
     if (metaMatch[1]) {
       const clean = sanitizeExtractedTitle(metaMatch[1]);
@@ -153,14 +180,17 @@ export function extractTitleFromHtml(html: string): string | null {
   }
 
   // 4. JSON-LD Structured Data (Fallback - ignore if obj.name equals author name)
-  const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  const ldMatches = html.matchAll(
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  );
   for (const match of ldMatches) {
     try {
       const parsed = JSON.parse(match[1]);
       const obj = Array.isArray(parsed) ? parsed[0] : parsed;
       if (obj) {
         const authorName = obj.author?.name || obj.byArtist?.name;
-        const candidate = obj.songbookName || obj.headline || (obj.name !== authorName ? obj.name : null);
+        const candidate =
+          obj.songbookName || obj.headline || (obj.name !== authorName ? obj.name : null);
         if (candidate && typeof candidate === 'string') {
           const clean = sanitizeExtractedTitle(candidate);
           if (clean) return clean;
@@ -195,7 +225,8 @@ export function extractEmbeddedJsonFromHtml(html: string): any | null {
       const parsed = JSON.parse(nextDataMatch[1]);
       const pageProps = parsed?.props?.pageProps;
       if (pageProps) {
-        const candidate = pageProps.songbook || pageProps.sections || pageProps.data || pageProps.project;
+        const candidate =
+          pageProps.songbook || pageProps.sections || pageProps.data || pageProps.project;
         if (candidate && hasSongsPayload(candidate)) {
           return candidate;
         }
@@ -209,13 +240,17 @@ export function extractEmbeddedJsonFromHtml(html: string): any | null {
   }
 
   // 2. JSON-LD structured data script tags (includes single song MusicComposition)
-  const ldMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  const ldMatches = html.matchAll(
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  );
   for (const m of ldMatches) {
     try {
       const parsed = JSON.parse(m[1]);
-      const items = Array.isArray(parsed) 
-        ? parsed 
-        : (Array.isArray(parsed?.['@graph']) ? parsed['@graph'] : [parsed]);
+      const items = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.['@graph'])
+          ? parsed['@graph']
+          : [parsed];
 
       for (const item of items) {
         if (!item) continue;
@@ -226,16 +261,18 @@ export function extractEmbeddedJsonFromHtml(html: string): any | null {
           return {
             title: songName,
             name: songName,
-            songs: [{
-              title: songName,
-              name: songName,
-              content: lyricsText,
-              lyrics: lyricsText,
-              artist: artistName,
-              key: item.musicalKey,
-              tonalKey: item.musicalKey,
-              genre: item.genre,
-            }],
+            songs: [
+              {
+                title: songName,
+                name: songName,
+                content: lyricsText,
+                lyrics: lyricsText,
+                artist: artistName,
+                key: item.musicalKey,
+                tonalKey: item.musicalKey,
+                genre: item.genre,
+              },
+            ],
           };
         }
         if (hasSongsPayload(item) || (Array.isArray(item.track) && item.track.length > 0)) {
@@ -248,7 +285,8 @@ export function extractEmbeddedJsonFromHtml(html: string): any | null {
   }
 
   // 3. Next.js App Router RSC Stream search for song or songbook JSON
-  const rscSongRegex = /"song"\s*:\s*(\{(?:(?!<script)[\s\S])*?"sections"\s*:\s*\[[\s\S]*?\]\s*\})/g;
+  const rscSongRegex =
+    /"song"\s*:\s*(\{(?:(?!<script)[\s\S])*?"sections"\s*:\s*\[[\s\S]*?\]\s*\})/g;
   let rscMatch;
   while ((rscMatch = rscSongRegex.exec(html)) !== null) {
     try {
@@ -264,7 +302,9 @@ export function extractEmbeddedJsonFromHtml(html: string): any | null {
   }
 
   // 4. Any application/json script tag containing songs or sections
-  const jsonScriptMatches = html.matchAll(/<script[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  const jsonScriptMatches = html.matchAll(
+    /<script[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  );
   for (const m of jsonScriptMatches) {
     try {
       const parsed = JSON.parse(m[1]);
@@ -434,7 +474,9 @@ async function enrichTitleInClient(data: any, token: string, rawUrl?: string) {
   }
 }
 
-export function extractSongbookTokensFromProjectHtml(html: string): { token: string; name: string }[] {
+export function extractSongbookTokensFromProjectHtml(
+  html: string,
+): { token: string; name: string }[] {
   if (typeof html !== 'string') return [];
   const results: { token: string; name: string }[] = [];
 
@@ -453,7 +495,10 @@ export function extractSongbookTokensFromProjectHtml(html: string): { token: str
       else if (html[pos] === ']') depth--;
       pos++;
     }
-    let slice = html.slice(idx + (isEscaped ? '\\"songbooks\\":'.length : '"songbooks":'.length), pos);
+    let slice = html.slice(
+      idx + (isEscaped ? '\\"songbooks\\":'.length : '"songbooks":'.length),
+      pos,
+    );
     if (isEscaped) {
       slice = slice.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
     }
@@ -489,7 +534,7 @@ export function extractSongbookTokensFromProjectHtml(html: string): { token: str
   }
 
   const seen = new Set<string>();
-  return results.filter(r => {
+  return results.filter((r) => {
     if (seen.has(r.token)) return false;
     seen.add(r.token);
     return true;
@@ -500,19 +545,25 @@ export function extractSongbookTokensFromProjectHtml(html: string): { token: str
  * Fast control function to verify if a Kytario songbook URL/token exists before full fetching.
  * If 404 or 400 is returned, fails immediately without freezing or hanging on slow proxies.
  */
-export async function checkSongbookExists(tokenOrUrl: string): Promise<{ exists: boolean; status?: number; error?: string }> {
+export async function checkSongbookExists(
+  tokenOrUrl: string,
+): Promise<{ exists: boolean; status?: number; error?: string }> {
   try {
     const token = extractKytarioSlug(tokenOrUrl) || tokenOrUrl.trim();
     if (!token) return { exists: false, error: 'Empty songbook token' };
 
     const checkUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(token)}/sections`;
-    const res = await fetch(checkUrl, { 
+    const res = await fetch(checkUrl, {
       method: 'GET',
-      signal: AbortSignal.timeout(4000) 
+      signal: AbortSignal.timeout(4000),
     });
 
     if (res.status === 404 || res.status === 400) {
-      return { exists: false, status: res.status, error: `Songbook "${token}" was not found (404).` };
+      return {
+        exists: false,
+        status: res.status,
+        error: `Songbook "${token}" was not found (404).`,
+      };
     }
     return { exists: true, status: res.status };
   } catch (err: any) {
@@ -548,7 +599,7 @@ export function setStoredProxyUrl(url: string): void {
 export async function fetchSongbookFromKytario(url: string): Promise<any> {
   let cleanUrl = cleanKytarioUrl(url);
   let token = extractKytarioSlug(cleanUrl);
-  
+
   if (!token && !/^https?:\/\//i.test(cleanUrl)) {
     throw new Error('Please enter a valid Kytario songbook URL or code.');
   }
@@ -565,7 +616,9 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
         if (wrapper && wrapper.contents) {
           const songbooks = extractSongbookTokensFromProjectHtml(wrapper.contents);
           if (songbooks.length > 0) {
-            console.log(`[Client] Resolved project "${token}" to songbook: "${songbooks[0].token}"`);
+            console.log(
+              `[Client] Resolved project "${token}" to songbook: "${songbooks[0].token}"`,
+            );
             token = songbooks[0].token;
             cleanUrl = `https://kytario.com/cs/${token}`;
           }
@@ -580,19 +633,21 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
   if (token && !isProjectUrl) {
     const check = await checkSongbookExists(token);
     if (!check.exists && (check.status === 404 || check.status === 400)) {
-      throw new KytarioFetchError(`Songbook "${token}" was not found (404). Please check the URL or code.`, {
-        isCorsOrStaticHost: false,
-        token,
-        apiUrl: `https://kytario.com/api/songbooks/${token}/sections`,
-        webUrl: `https://kytario.com/${token}`,
-      });
+      throw new KytarioFetchError(
+        `Songbook "${token}" was not found (404). Please check the URL or code.`,
+        {
+          isCorsOrStaticHost: false,
+          token,
+          apiUrl: `https://kytario.com/api/songbooks/${token}/sections`,
+          webUrl: `https://kytario.com/${token}`,
+        },
+      );
     }
   }
 
-  const isStaticHost = typeof window !== 'undefined' && (
-    window.location.hostname.endsWith('github.io') ||
-    window.location.protocol === 'file:'
-  );
+  const isStaticHost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname.endsWith('github.io') || window.location.protocol === 'file:');
 
   const targetParam = token || cleanUrl;
   const configuredProxyUrl = getStoredProxyUrl();
@@ -633,7 +688,10 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
       }
     } catch (err: any) {
       if (err instanceof KytarioFetchError) throw err;
-      console.warn('Configured Kytario proxy not available, attempting client-side fallback strategies:', err?.message);
+      console.warn(
+        'Configured Kytario proxy not available, attempting client-side fallback strategies:',
+        err?.message,
+      );
     }
   }
 

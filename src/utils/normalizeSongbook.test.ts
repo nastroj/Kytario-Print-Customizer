@@ -47,7 +47,9 @@ describe('normalizeSongbookData', () => {
   });
 
   it('finds titles nested under data.songbook / payload / songbookSongs[0].song.project', () => {
-    expect(normalizeSongbookData({ data: { songbook: { name: 'Deep Book' } }, songs: [] }).title).toBe('Deep Book');
+    expect(
+      normalizeSongbookData({ data: { songbook: { name: 'Deep Book' } }, songs: [] }).title,
+    ).toBe('Deep Book');
     const viaProject = normalizeSongbookData({
       songbookSongs: [{ song: { project: { name: 'Project Book' }, title: 'S', content: 'c' } }],
     });

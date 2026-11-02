@@ -14,7 +14,7 @@
  */
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, _env, _ctx) {
     // 1. Handle CORS Preflight requests
     if (request.method === "OPTIONS") {
       return new Response(null, {
@@ -61,7 +61,7 @@ export default {
       }
 
       if (!token && rawUrl) {
-        const match = rawUrl.match(/(?:songbooks?|cs|sk|en|zpevnik)?\/([a-zA-Z0-9_\-]+)\/?(?=[?#]|$)/i);
+        const match = rawUrl.match(/(?:songbooks?|cs|sk|en|zpevnik)?\/([a-zA-Z0-9_-]+)\/?(?=[?#]|$)/i);
         if (match && match[1]) {
           token = match[1];
         }

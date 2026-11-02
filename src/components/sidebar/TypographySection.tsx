@@ -106,12 +106,7 @@ const AccentColorCard = React.memo(function AccentColorCard({
   return (
     <div className="p-2 bg-zinc-50 rounded-lg border border-black/5 flex items-center justify-between">
       <span className="text-xs font-semibold text-zinc-800">{label}</span>
-      <ColorDotInput
-        id={id}
-        value={color}
-        onChange={onChange}
-        title={title}
-      />
+      <ColorDotInput id={id} value={color} onChange={onChange} title={title} />
     </div>
   );
 });
@@ -143,7 +138,10 @@ const TYPO_KEYS: (keyof PrintSettings)[] = [
   'showIndex',
 ];
 
-function areTypographyPropsEqual(prev: TypographySectionProps, next: TypographySectionProps): boolean {
+function areTypographyPropsEqual(
+  prev: TypographySectionProps,
+  next: TypographySectionProps,
+): boolean {
   if (prev.idSuffix !== next.idSuffix) return false;
   if (prev.hasTypoChanges !== next.hasTypoChanges) return false;
   if (prev.onSettingChange !== next.onSettingChange) return false;
@@ -175,17 +173,19 @@ export const TypographySection = React.memo(function TypographySection({
 
   return (
     <div className="pt-3 border-t border-black/5">
-      <div ref={typoRef} className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 transition-all">
+      <div
+        ref={typoRef}
+        className="p-2.5 bg-zinc-50 rounded-lg border border-black/5 transition-all"
+      >
         <div
           onClick={handleToggle}
           className="flex items-center justify-between select-none cursor-pointer group"
         >
           <div className="min-w-0 pr-2">
-            <span className="text-xs font-semibold text-zinc-800 block">
-              Font and Colors
-            </span>
+            <span className="text-xs font-semibold text-zinc-800 block">Font and Colors</span>
             <p className="text-[10.5px] text-zinc-500 leading-tight truncate">
-              {draftSettings.lyricsFontSize ?? 12}px lyrics • {draftSettings.chordsFontSize ?? 12}px chords • Text & accent colors
+              {draftSettings.lyricsFontSize ?? 12}px lyrics • {draftSettings.chordsFontSize ?? 12}px
+              chords • Text & accent colors
             </p>
           </div>
           <div className="p-0.5 text-zinc-400 group-hover:text-zinc-700 transition-colors shrink-0">
@@ -195,162 +195,164 @@ export const TypographySection = React.memo(function TypographySection({
 
         {isOpen && (
           <div className="space-y-2 pt-2.5 mt-2.5 border-t border-black/5 animate-in fade-in duration-150">
-          {/* Typography Rows with Font Size Steppers & Color Dots */}
-          <div className="space-y-1.5">
-          {/* Title */}
-          <TypographyRowItem
-            id={`title-${idSuffix}`}
-            label="Song Title"
-            colorTitle="Change title color"
-            color={draftSettings.titleColor}
-            onColorChange={(c) => onSettingChange('titleColor', c)}
-            italic={draftSettings.titleItalic || false}
-            italicTitle="Toggle italic style for song titles"
-            italicAriaLabel="Toggle title italic"
-            onItalicChange={(it) => onSettingChange('titleItalic', it)}
-            fontSize={draftSettings.titleFontSize}
-            fontSizeMin={10}
-            fontSizeMax={48}
-            fontSizeDefault={16}
-            fontSizeAriaLabel="Song Title Font Size"
-            onFontSizeChange={(val) => onSettingChange('titleFontSize', val)}
-          />
-
-          {/* Artist */}
-          <TypographyRowItem
-            id={`artist-${idSuffix}`}
-            label="Artist / Author"
-            colorTitle="Change artist color"
-            color={draftSettings.artistColor}
-            onColorChange={(c) => onSettingChange('artistColor', c)}
-            italic={draftSettings.artistItalic || false}
-            italicTitle="Toggle italic style for artist names"
-            italicAriaLabel="Toggle artist italic"
-            onItalicChange={(it) => onSettingChange('artistItalic', it)}
-            fontSize={draftSettings.artistFontSize}
-            fontSizeMin={8}
-            fontSizeMax={36}
-            fontSizeDefault={12}
-            fontSizeAriaLabel="Artist Font Size"
-            onFontSizeChange={(val) => onSettingChange('artistFontSize', val)}
-          />
-
-          {/* Lyrics */}
-          <TypographyRowItem
-            id={`lyrics-${idSuffix}`}
-            label="Lyrics Text"
-            colorTitle="Change lyrics color"
-            color={draftSettings.lyricsColor}
-            onColorChange={(c) => onSettingChange('lyricsColor', c)}
-            italic={draftSettings.lyricsItalic || false}
-            italicTitle="Toggle italic style for lyrics"
-            italicAriaLabel="Toggle lyrics italic"
-            onItalicChange={(it) => onSettingChange('lyricsItalic', it)}
-            fontSize={draftSettings.lyricsFontSize}
-            fontSizeMin={8}
-            fontSizeMax={32}
-            fontSizeDefault={11}
-            fontSizeAriaLabel="Lyrics Font Size"
-            onFontSizeChange={(val) => onSettingChange('lyricsFontSize', val)}
-          />
-
-          {/* Chords */}
-          <TypographyRowItem
-            id={`chords-${idSuffix}`}
-            label="Chords"
-            colorTitle="Change chords color"
-            color={draftSettings.chordsColor}
-            onColorChange={(c) => onSettingChange('chordsColor', c)}
-            italic={draftSettings.chordsItalic || false}
-            italicTitle="Toggle italic style for chords"
-            italicAriaLabel="Toggle chords italic"
-            onItalicChange={(it) => onSettingChange('chordsItalic', it)}
-            fontSize={draftSettings.chordsFontSize}
-            fontSizeMin={8}
-            fontSizeMax={32}
-            fontSizeDefault={11}
-            fontSizeAriaLabel="Chords Font Size"
-            onFontSizeChange={(val) => onSettingChange('chordsFontSize', val)}
-          />
-
-          {/* Table of Contents Typography */}
-          {(draftSettings.showTableOfContents !== false && draftSettings.showToc !== false && draftSettings.showIndex !== false) && (
-            <div className="space-y-2">
+            {/* Typography Rows with Font Size Steppers & Color Dots */}
+            <div className="space-y-1.5">
+              {/* Title */}
               <TypographyRowItem
-                id={`toc-${idSuffix}`}
-                label="ToC Items"
-                colorTitle="Change Table of Contents item color"
-                color={draftSettings.tocColor || '#18181b'}
-                onColorChange={(c) => onSettingChange('tocColor', c)}
-                italic={draftSettings.tocItalic || false}
-                italicTitle="Toggle italic style for Table of Contents items"
-                italicAriaLabel="Toggle ToC italic"
-                onItalicChange={(it) => onSettingChange('tocItalic', it)}
-                fontSize={draftSettings.tocFontSize ?? 11}
-                fontSizeMin={8}
-                fontSizeMax={24}
-                fontSizeDefault={11}
-                fontSizeAriaLabel="Table of Contents Font Size"
-                onFontSizeChange={(val) => onSettingChange('tocFontSize', val)}
+                id={`title-${idSuffix}`}
+                label="Song Title"
+                colorTitle="Change title color"
+                color={draftSettings.titleColor}
+                onColorChange={(c) => onSettingChange('titleColor', c)}
+                italic={draftSettings.titleItalic || false}
+                italicTitle="Toggle italic style for song titles"
+                italicAriaLabel="Toggle title italic"
+                onItalicChange={(it) => onSettingChange('titleItalic', it)}
+                fontSize={draftSettings.titleFontSize}
+                fontSizeMin={10}
+                fontSizeMax={48}
+                fontSizeDefault={16}
+                fontSizeAriaLabel="Song Title Font Size"
+                onFontSizeChange={(val) => onSettingChange('titleFontSize', val)}
               />
-              <div className="grid grid-cols-2 gap-2">
-                <AccentColorCard
-                  id={`tocArtistColor-${idSuffix}`}
-                  label="ToC Authors"
-                  color={draftSettings.tocArtistColor || '#52525b'}
-                  title="Author/artist name color in Table of Contents"
-                  onChange={(c) => onSettingChange('tocArtistColor', c)}
-                />
-                <AccentColorCard
-                  id={`tocPageColor-${idSuffix}`}
-                  label="ToC Page Nums"
-                  color={draftSettings.tocPageColor || '#71717a'}
-                  title="Page number and subtext color in Table of Contents"
-                  onChange={(c) => onSettingChange('tocPageColor', c)}
-                />
+
+              {/* Artist */}
+              <TypographyRowItem
+                id={`artist-${idSuffix}`}
+                label="Artist / Author"
+                colorTitle="Change artist color"
+                color={draftSettings.artistColor}
+                onColorChange={(c) => onSettingChange('artistColor', c)}
+                italic={draftSettings.artistItalic || false}
+                italicTitle="Toggle italic style for artist names"
+                italicAriaLabel="Toggle artist italic"
+                onItalicChange={(it) => onSettingChange('artistItalic', it)}
+                fontSize={draftSettings.artistFontSize}
+                fontSizeMin={8}
+                fontSizeMax={36}
+                fontSizeDefault={12}
+                fontSizeAriaLabel="Artist Font Size"
+                onFontSizeChange={(val) => onSettingChange('artistFontSize', val)}
+              />
+
+              {/* Lyrics */}
+              <TypographyRowItem
+                id={`lyrics-${idSuffix}`}
+                label="Lyrics Text"
+                colorTitle="Change lyrics color"
+                color={draftSettings.lyricsColor}
+                onColorChange={(c) => onSettingChange('lyricsColor', c)}
+                italic={draftSettings.lyricsItalic || false}
+                italicTitle="Toggle italic style for lyrics"
+                italicAriaLabel="Toggle lyrics italic"
+                onItalicChange={(it) => onSettingChange('lyricsItalic', it)}
+                fontSize={draftSettings.lyricsFontSize}
+                fontSizeMin={8}
+                fontSizeMax={32}
+                fontSizeDefault={11}
+                fontSizeAriaLabel="Lyrics Font Size"
+                onFontSizeChange={(val) => onSettingChange('lyricsFontSize', val)}
+              />
+
+              {/* Chords */}
+              <TypographyRowItem
+                id={`chords-${idSuffix}`}
+                label="Chords"
+                colorTitle="Change chords color"
+                color={draftSettings.chordsColor}
+                onColorChange={(c) => onSettingChange('chordsColor', c)}
+                italic={draftSettings.chordsItalic || false}
+                italicTitle="Toggle italic style for chords"
+                italicAriaLabel="Toggle chords italic"
+                onItalicChange={(it) => onSettingChange('chordsItalic', it)}
+                fontSize={draftSettings.chordsFontSize}
+                fontSizeMin={8}
+                fontSizeMax={32}
+                fontSizeDefault={11}
+                fontSizeAriaLabel="Chords Font Size"
+                onFontSizeChange={(val) => onSettingChange('chordsFontSize', val)}
+              />
+
+              {/* Table of Contents Typography */}
+              {draftSettings.showTableOfContents !== false &&
+                draftSettings.showToc !== false &&
+                draftSettings.showIndex !== false && (
+                  <div className="space-y-2">
+                    <TypographyRowItem
+                      id={`toc-${idSuffix}`}
+                      label="ToC Items"
+                      colorTitle="Change Table of Contents item color"
+                      color={draftSettings.tocColor || '#18181b'}
+                      onColorChange={(c) => onSettingChange('tocColor', c)}
+                      italic={draftSettings.tocItalic || false}
+                      italicTitle="Toggle italic style for Table of Contents items"
+                      italicAriaLabel="Toggle ToC italic"
+                      onItalicChange={(it) => onSettingChange('tocItalic', it)}
+                      fontSize={draftSettings.tocFontSize ?? 11}
+                      fontSizeMin={8}
+                      fontSizeMax={24}
+                      fontSizeDefault={11}
+                      fontSizeAriaLabel="Table of Contents Font Size"
+                      onFontSizeChange={(val) => onSettingChange('tocFontSize', val)}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <AccentColorCard
+                        id={`tocArtistColor-${idSuffix}`}
+                        label="ToC Authors"
+                        color={draftSettings.tocArtistColor || '#52525b'}
+                        title="Author/artist name color in Table of Contents"
+                        onChange={(c) => onSettingChange('tocArtistColor', c)}
+                      />
+                      <AccentColorCard
+                        id={`tocPageColor-${idSuffix}`}
+                        label="ToC Page Nums"
+                        color={draftSettings.tocPageColor || '#71717a'}
+                        title="Page number and subtext color in Table of Contents"
+                        onChange={(c) => onSettingChange('tocPageColor', c)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+              {/* Line & Element Colors in Compact Grid */}
+              <div className="pt-2 border-t border-black/5">
+                <div className="grid grid-cols-2 gap-2">
+                  <AccentColorCard
+                    id={`markerColor-${idSuffix}`}
+                    label="Markers"
+                    color={draftSettings.markerColor}
+                    title="Section markers (Verse 1, Chorus...)"
+                    onChange={(c) => onSettingChange('markerColor', c)}
+                  />
+
+                  <AccentColorCard
+                    id={`sectionLineColor-${idSuffix}`}
+                    label="Verse Line"
+                    color={draftSettings.sectionLineColor || '#71717a'}
+                    title="Vertical line along verses"
+                    onChange={(c) => onSettingChange('sectionLineColor', c)}
+                  />
+
+                  <AccentColorCard
+                    id={`refrainLineColor-${idSuffix}`}
+                    label="Refrain Line"
+                    color={draftSettings.refrainLineColor || '#18181b'}
+                    title="Vertical line along refrains / chorus"
+                    onChange={(c) => onSettingChange('refrainLineColor', c)}
+                  />
+
+                  <AccentColorCard
+                    id={`sectionSeparatorColor-${idSuffix}`}
+                    label="Separator"
+                    color={draftSettings.sectionSeparatorColor || '#e4e4e7'}
+                    title="Horizontal line between sections"
+                    onChange={(c) => onSettingChange('sectionSeparatorColor', c)}
+                  />
+                </div>
               </div>
             </div>
-          )}
-
-          {/* Line & Element Colors in Compact Grid */}
-          <div className="pt-2 border-t border-black/5">
-            <div className="grid grid-cols-2 gap-2">
-              <AccentColorCard
-                id={`markerColor-${idSuffix}`}
-                label="Markers"
-                color={draftSettings.markerColor}
-                title="Section markers (Verse 1, Chorus...)"
-                onChange={(c) => onSettingChange('markerColor', c)}
-              />
-
-              <AccentColorCard
-                id={`sectionLineColor-${idSuffix}`}
-                label="Verse Line"
-                color={draftSettings.sectionLineColor || '#71717a'}
-                title="Vertical line along verses"
-                onChange={(c) => onSettingChange('sectionLineColor', c)}
-              />
-
-              <AccentColorCard
-                id={`refrainLineColor-${idSuffix}`}
-                label="Refrain Line"
-                color={draftSettings.refrainLineColor || '#18181b'}
-                title="Vertical line along refrains / chorus"
-                onChange={(c) => onSettingChange('refrainLineColor', c)}
-              />
-
-              <AccentColorCard
-                id={`sectionSeparatorColor-${idSuffix}`}
-                label="Separator"
-                color={draftSettings.sectionSeparatorColor || '#e4e4e7'}
-                title="Horizontal line between sections"
-                onChange={(c) => onSettingChange('sectionSeparatorColor', c)}
-              />
-            </div>
           </div>
-        </div>
-      </div>
-    )}
+        )}
       </div>
     </div>
   );

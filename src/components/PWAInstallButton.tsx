@@ -104,12 +104,8 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                   <Smartphone className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-zinc-900">
-                    Install Kytario
-                  </h3>
-                  <p className="text-[11px] text-zinc-500">
-                    Add to iPhone or iPad Home Screen
-                  </p>
+                  <h3 className="text-sm font-semibold text-zinc-900">Install Kytario</h3>
+                  <p className="text-[11px] text-zinc-500">Add to iPhone or iPad Home Screen</p>
                 </div>
               </div>
               <button
@@ -128,7 +124,11 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                   1
                 </span>
                 <span className="leading-relaxed">
-                  Tap the <strong className="text-zinc-900 inline-flex items-center gap-1"><Share2 className="w-3.5 h-3.5 inline text-blue-500" /> Share</strong> button in Safari's navigation bar.
+                  Tap the{' '}
+                  <strong className="text-zinc-900 inline-flex items-center gap-1">
+                    <Share2 className="w-3.5 h-3.5 inline text-blue-500" /> Share
+                  </strong>{' '}
+                  button in Safari's navigation bar.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
@@ -136,7 +136,11 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                   2
                 </span>
                 <span className="leading-relaxed">
-                  Scroll down the menu and tap <strong className="text-zinc-900 inline-flex items-center gap-1"><PlusSquare className="w-3.5 h-3.5 inline text-zinc-700" /> Add to Home Screen</strong>.
+                  Scroll down the menu and tap{' '}
+                  <strong className="text-zinc-900 inline-flex items-center gap-1">
+                    <PlusSquare className="w-3.5 h-3.5 inline text-zinc-700" /> Add to Home Screen
+                  </strong>
+                  .
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
@@ -144,7 +148,8 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
                   3
                 </span>
                 <span className="leading-relaxed">
-                  Tap <strong className="text-zinc-900">Add</strong> in the top right to launch Kytario with full-screen offline access.
+                  Tap <strong className="text-zinc-900">Add</strong> in the top right to launch
+                  Kytario with full-screen offline access.
                 </span>
               </li>
             </ol>

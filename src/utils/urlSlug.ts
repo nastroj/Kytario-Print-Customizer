@@ -8,7 +8,7 @@
 export function normalizeUrlAndShortUrl(
   foundVal?: string | null,
   foundSlug?: string | null,
-  defaultDomain = 'kytario.com'
+  defaultDomain = 'kytario.com',
 ): { url: string; shortUrl: string; slug?: string } {
   if (!foundVal || !foundVal.trim()) {
     if (foundSlug && foundSlug.trim()) {
@@ -25,7 +25,7 @@ export function normalizeUrlAndShortUrl(
     };
   }
 
-  let cleaned = foundVal.trim().replace(/\/+$/, '');
+  const cleaned = foundVal.trim().replace(/\/+$/, '');
   const s = foundSlug?.trim() ? foundSlug.trim().replace(/^\/+|\/+$/g, '') : undefined;
 
   // If foundVal is just root kytario.com (no path), but we also have a slug, attach the slug
@@ -45,7 +45,9 @@ export function normalizeUrlAndShortUrl(
   if (/^https?:\/\//i.test(cleaned)) {
     const url = cleaned.replace(/^http:\/\//i, 'https://');
     const shortUrl = url.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
-    const derivedSlug = s || (url.includes(defaultDomain) ? url.split(defaultDomain)[1]?.replace(/^\/+/, '') : undefined);
+    const derivedSlug =
+      s ||
+      (url.includes(defaultDomain) ? url.split(defaultDomain)[1]?.replace(/^\/+/, '') : undefined);
     return { url, shortUrl, slug: derivedSlug || undefined };
   }
 
@@ -53,7 +55,11 @@ export function normalizeUrlAndShortUrl(
   if (/^(?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/.*)?$/i.test(cleaned)) {
     const cleanNoWww = cleaned.replace(/^www\./i, '');
     const url = 'https://' + cleanNoWww;
-    const derivedSlug = s || (cleanNoWww.includes(defaultDomain) ? cleanNoWww.split(defaultDomain)[1]?.replace(/^\/+/, '') : undefined);
+    const derivedSlug =
+      s ||
+      (cleanNoWww.includes(defaultDomain)
+        ? cleanNoWww.split(defaultDomain)[1]?.replace(/^\/+/, '')
+        : undefined);
     return {
       url,
       shortUrl: cleanNoWww,
@@ -76,7 +82,7 @@ export function normalizeUrlAndShortUrl(
  */
 export function extractSongbookUrlAndSlug(
   raw: any,
-  rawJsonText?: string
+  rawJsonText?: string,
 ): { url: string; shortUrl: string; slug?: string } {
   const candidates: any[] = [];
   if (raw && typeof raw === 'object') {
@@ -84,15 +90,18 @@ export function extractSongbookUrlAndSlug(
     if (raw.songbook && typeof raw.songbook === 'object') candidates.push(raw.songbook);
     if (raw.data && typeof raw.data === 'object') {
       candidates.push(raw.data);
-      if (raw.data.songbook && typeof raw.data.songbook === 'object') candidates.push(raw.data.songbook);
+      if (raw.data.songbook && typeof raw.data.songbook === 'object')
+        candidates.push(raw.data.songbook);
     }
     if (raw.payload && typeof raw.payload === 'object') {
       candidates.push(raw.payload);
-      if (raw.payload.songbook && typeof raw.payload.songbook === 'object') candidates.push(raw.payload.songbook);
+      if (raw.payload.songbook && typeof raw.payload.songbook === 'object')
+        candidates.push(raw.payload.songbook);
     }
     if (raw.result && typeof raw.result === 'object') {
       candidates.push(raw.result);
-      if (raw.result.songbook && typeof raw.result.songbook === 'object') candidates.push(raw.result.songbook);
+      if (raw.result.songbook && typeof raw.result.songbook === 'object')
+        candidates.push(raw.result.songbook);
     }
     if (raw.meta && typeof raw.meta === 'object') candidates.push(raw.meta);
     if (raw.metadata && typeof raw.metadata === 'object') candidates.push(raw.metadata);
@@ -165,17 +174,26 @@ export function extractSongbookUrlAndSlug(
       }
     }
     // Check if obj.id is a string slug (non-numeric)
-    if (!foundSlug && !foundUrl && typeof obj.id === 'string' && obj.id.trim() && !/^\d+$/.test(obj.id.trim())) {
+    if (
+      !foundSlug &&
+      !foundUrl &&
+      typeof obj.id === 'string' &&
+      obj.id.trim() &&
+      !/^\d+$/.test(obj.id.trim())
+    ) {
       foundSlug = obj.id.trim();
     }
     if (foundUrl && foundSlug) break;
   }
 
   // If not found in object, or if foundUrl is just root kytario.com, scan raw text
-  if ((!foundUrl && !foundSlug) || (foundUrl && /^(?:https?:\/\/)?(?:www\.)?kytario\.com\/?$/i.test(foundUrl) && !foundSlug)) {
+  if (
+    (!foundUrl && !foundSlug) ||
+    (foundUrl && /^(?:https?:\/\/)?(?:www\.)?kytario\.com\/?$/i.test(foundUrl) && !foundSlug)
+  ) {
     if (rawJsonText) {
       const slugMatch = rawJsonText.match(
-        /"(?:urlToken|url_token|slugToken|slug_token|slug|songbookSlug|songbook_slug|zpevnikSlug|zpevnik_slug|code|shareCode|share_code|songbookCode|songbook_code)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i
+        /"(?:urlToken|url_token|slugToken|slug_token|slug|songbookSlug|songbook_slug|zpevnikSlug|zpevnik_slug|code|shareCode|share_code|songbookCode|songbook_code)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i,
       );
       if (slugMatch && slugMatch[1]) {
         try {
@@ -187,7 +205,7 @@ export function extractSongbookUrlAndSlug(
 
       if (!foundUrl) {
         const urlMatch = rawJsonText.match(
-          /"(?:shortUrl|short_url|shortURL|url|songbookUrl|songbook_url|shareUrl|share_url|shareLink|share_link|link|path)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i
+          /"(?:shortUrl|short_url|shortURL|url|songbookUrl|songbook_url|shareUrl|share_url|shareLink|share_link|link|path)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i,
         );
         if (urlMatch && urlMatch[1]) {
           try {
@@ -206,7 +224,10 @@ export function extractSongbookUrlAndSlug(
 /**
  * Cleanly formats a display URL for songbook cover pages (e.g. "kytario.com/your-songbook").
  */
-export function formatCoverDisplayUrl(rawUrlOrSlug?: string | null, fallbackDomain = 'kytario.com'): string {
+export function formatCoverDisplayUrl(
+  rawUrlOrSlug?: string | null,
+  fallbackDomain = 'kytario.com',
+): string {
   if (!rawUrlOrSlug || !rawUrlOrSlug.trim()) return fallbackDomain;
   let trimmed = rawUrlOrSlug.trim().replace(/\/+$/, '');
   if (/^https?:\/\//i.test(trimmed)) {
@@ -223,9 +244,12 @@ export function formatCoverDisplayUrl(rawUrlOrSlug?: string | null, fallbackDoma
 /**
  * Cleanly formats a QR code target URL (e.g. "https://kytario.com/your-songbook").
  */
-export function formatCoverQrUrl(rawUrlOrSlug?: string | null, fallbackUrl = 'https://kytario.com'): string {
+export function formatCoverQrUrl(
+  rawUrlOrSlug?: string | null,
+  fallbackUrl = 'https://kytario.com',
+): string {
   if (!rawUrlOrSlug || !rawUrlOrSlug.trim()) return fallbackUrl;
-  let trimmed = rawUrlOrSlug.trim().replace(/\/+$/, '');
+  const trimmed = rawUrlOrSlug.trim().replace(/\/+$/, '');
   if (/^https?:\/\//i.test(trimmed)) {
     return trimmed.replace(/^http:\/\//i, 'https://');
   }
@@ -249,23 +273,30 @@ export function resolveCoverUrl(options: {
   songbookShortUrl?: string;
   songbookSlug?: string;
 }): { displayUrl: string; qrTarget: string } {
-  const { isCustom = false, customUrl, customQrUrl, songbookUrl, songbookShortUrl, songbookSlug } = options;
+  const {
+    isCustom = false,
+    customUrl,
+    customQrUrl,
+    songbookUrl,
+    songbookShortUrl,
+    songbookSlug,
+  } = options;
 
   // Custom cover with user-specified URL
   if (isCustom && customUrl && customUrl.trim()) {
     const displayUrl = formatCoverDisplayUrl(customUrl.trim());
-    const qrTarget = (customQrUrl && customQrUrl.trim())
-      ? customQrUrl.trim()
-      : formatCoverQrUrl(customUrl.trim());
+    const qrTarget =
+      customQrUrl && customQrUrl.trim() ? customQrUrl.trim() : formatCoverQrUrl(customUrl.trim());
     return { displayUrl, qrTarget };
   }
 
   // Auto-generated cover (or custom cover using songbook defaults):
   const candidate = songbookShortUrl || songbookUrl || songbookSlug || '';
   const displayUrl = formatCoverDisplayUrl(candidate);
-  const qrTarget = (isCustom && customQrUrl && customQrUrl.trim())
-    ? customQrUrl.trim()
-    : formatCoverQrUrl(candidate);
+  const qrTarget =
+    isCustom && customQrUrl && customQrUrl.trim()
+      ? customQrUrl.trim()
+      : formatCoverQrUrl(candidate);
 
   return { displayUrl, qrTarget };
 }

@@ -2,9 +2,9 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
-import {fileURLToPath} from 'url';
-import {defineConfig, loadEnv} from 'vite';
-import {VitePWA} from 'vite-plugin-pwa';
+import { fileURLToPath } from 'url';
+import { defineConfig, loadEnv } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 /// <reference types="vitest/config" />
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,13 +12,17 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const envBase = (process.env.BASE_PATH || env.BASE_PATH || process.env.BASE_URL || env.BASE_URL || '').trim();
+  const envBase = (
+    process.env.BASE_PATH ||
+    env.BASE_PATH ||
+    process.env.BASE_URL ||
+    env.BASE_URL ||
+    ''
+  ).trim();
   const rawBase = envBase || '/';
   // Use absolute base '/' in development to prevent issues with Vite middleware and PWA dev-sw.
   // In production builds, use the configured relative or absolute base path.
-  const base = command === 'serve'
-    ? '/'
-    : (rawBase.endsWith('/') ? rawBase : `${rawBase}/`);
+  const base = command === 'serve' ? '/' : rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
   const disableHmr = process.env.DISABLE_HMR === 'true' || env.DISABLE_HMR === 'true';
   return {
     base,
@@ -57,7 +61,8 @@ export default defineConfig(({ command, mode }) => {
           id: './',
           name: 'Kytario Print Customizer',
           short_name: 'Kytario',
-          description: 'Transform your Kytario songbook into print-ready PDF pages with automatic Table of Contents and clean formatting.',
+          description:
+            'Transform your Kytario songbook into print-ready PDF pages with automatic Table of Contents and clean formatting.',
           theme_color: '#18181b',
           background_color: '#18181b',
           display: 'standalone',

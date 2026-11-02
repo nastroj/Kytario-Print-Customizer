@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeSingleSong, extractSongsFromAny, recoverSongsFromCorruptedText } from './normalizeSong';
+import {
+  normalizeSingleSong,
+  extractSongsFromAny,
+  recoverSongsFromCorruptedText,
+} from './normalizeSong';
 
 describe('normalizeSingleSong', () => {
   it('maps title from the first present alias (title > name > songName)', () => {
@@ -26,7 +30,15 @@ describe('normalizeSingleSong', () => {
   it('converts token sections to ChordPro content when available', () => {
     const song = normalizeSingleSong({
       title: 'S',
-      sections: [{ title: 'Refrén', tokens: [{ type: 1, content: 'Am' }, { type: 0, content: 'hei' }] }],
+      sections: [
+        {
+          title: 'Refrén',
+          tokens: [
+            { type: 1, content: 'Am' },
+            { type: 0, content: 'hei' },
+          ],
+        },
+      ],
     });
     expect(song.content).toContain('[Am]hei');
   });
@@ -74,7 +86,9 @@ describe('extractSongsFromAny', () => {
   });
 
   it('handles deeply wrapped payload.result structures', () => {
-    const data = { payload: { result: { songbookSongs: [{ song: { title: 'Deep', content: 'c' } }] } } };
+    const data = {
+      payload: { result: { songbookSongs: [{ song: { title: 'Deep', content: 'c' } }] } },
+    };
     const songs = extractSongsFromAny(data);
     expect(songs.map((s) => s.title)).toContain('Deep');
   });

@@ -118,19 +118,31 @@ describe('formatCoverQrUrl', () => {
 
 describe('resolveCoverUrl', () => {
   it('prefers custom URL on custom covers', () => {
-    const r = resolveCoverUrl({ isCustom: true, customUrl: 'https://moje.cz/xxx', songbookSlug: 'ignored' });
+    const r = resolveCoverUrl({
+      isCustom: true,
+      customUrl: 'https://moje.cz/xxx',
+      songbookSlug: 'ignored',
+    });
     expect(r.displayUrl).toBe('moje.cz/xxx');
     expect(r.qrTarget).toBe('https://moje.cz/xxx');
   });
 
   it('allows a separate custom QR target override', () => {
-    const r = resolveCoverUrl({ isCustom: true, customUrl: 'moje.cz/page', customQrUrl: 'https://qr.example/1' });
+    const r = resolveCoverUrl({
+      isCustom: true,
+      customUrl: 'moje.cz/page',
+      customQrUrl: 'https://qr.example/1',
+    });
     expect(r.qrTarget).toBe('https://qr.example/1');
     expect(r.displayUrl).toBe('moje.cz/page');
   });
 
   it('uses songbook shortUrl > url > slug priority for auto covers', () => {
-    const r = resolveCoverUrl({ songbookShortUrl: 'kytario.com/a', songbookUrl: 'https://kytario.com/b', songbookSlug: 'c' });
+    const r = resolveCoverUrl({
+      songbookShortUrl: 'kytario.com/a',
+      songbookUrl: 'https://kytario.com/b',
+      songbookSlug: 'c',
+    });
     expect(r.displayUrl).toBe('kytario.com/a');
     expect(r.qrTarget).toBe('https://kytario.com/a');
   });

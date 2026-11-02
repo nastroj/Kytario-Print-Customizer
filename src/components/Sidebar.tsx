@@ -2,14 +2,14 @@ import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from '
 import { PrintSettings } from '../types';
 import { APP_CONFIG } from '../config';
 import { PWAInstallButton } from './PWAInstallButton';
-import { 
-  Settings2, 
+import {
+  Settings2,
   FileDown,
-  FolderOpen, 
-  ChevronLeft, 
-  ChevronRight, 
-  X, 
-  Loader2, 
+  FolderOpen,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Loader2,
   RefreshCw,
   Save,
   RotateCcw,
@@ -22,7 +22,9 @@ import { TypographySection } from './sidebar/TypographySection';
 interface SidebarProps {
   settings: PrintSettings;
   draftSettings?: PrintSettings;
-  onDraftSettingsChange?: (settings: PrintSettings | ((prev: PrintSettings) => PrintSettings)) => void;
+  onDraftSettingsChange?: (
+    settings: PrintSettings | ((prev: PrintSettings) => PrintSettings),
+  ) => void;
   onDiscardSettings?: () => void;
   hasUnappliedChanges?: boolean;
   changes?: ChangedSettingItem[];
@@ -51,7 +53,10 @@ interface SidebarContentProps {
   hasLayoutChanges: boolean;
   hasCoverChanges: boolean;
   hasTypographyChanges: boolean;
-  onSettingChange: (keyOrPartial: keyof PrintSettings | Partial<PrintSettings>, value?: any) => void;
+  onSettingChange: (
+    keyOrPartial: keyof PrintSettings | Partial<PrintSettings>,
+    value?: any,
+  ) => void;
   onSaveSettings?: () => void;
   onResetToDefaults?: () => void;
   onDiscardChanges: () => void;
@@ -100,7 +105,7 @@ const SidebarContent = memo(function SidebarContent({
     <div className="flex flex-col flex-1 min-h-0 gap-3.5 overflow-hidden">
       {/* Header Area (Supports swipe-down to dismiss in mobile/desktop drawer) */}
       <div className="pb-2.5 border-b border-black/5 shrink-0 flex items-center justify-between">
-        <div 
+        <div
           className={`flex-1 min-w-0 ${
             isDrawer ? 'cursor-grab active:cursor-grabbing select-none touch-pan-y' : ''
           }`}
@@ -241,7 +246,7 @@ const SidebarContent = memo(function SidebarContent({
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-sm'
                   : 'bg-zinc-900 hover:bg-black text-white border-transparent'
               }`}
-              title={isPdfReady ? "PDF generated! Click to save" : "Export and download as PDF"}
+              title={isPdfReady ? 'PDF generated! Click to save' : 'Export and download as PDF'}
             >
               {isDownloadingPdf ? (
                 <>
@@ -297,19 +302,19 @@ const SidebarContent = memo(function SidebarContent({
   );
 });
 
-export const Sidebar = memo(function Sidebar({ 
-  settings, 
+export const Sidebar = memo(function Sidebar({
+  settings,
   draftSettings: externalDraftSettings,
   onDraftSettingsChange,
   onDiscardSettings,
   hasUnappliedChanges: externalHasUnappliedChanges,
   changes: externalChanges,
-  onApplySettings, 
+  onApplySettings,
   onSaveSettings,
   onResetToDefaults,
-  onResetSongbook, 
-  onFileUpload, 
-  onDownloadPdf, 
+  onResetSongbook,
+  onFileUpload,
+  onDownloadPdf,
   isDownloadingPdf = false,
   isPdfReady = false,
   isMobileOpen = false,
@@ -378,49 +383,55 @@ export const Sidebar = memo(function Sidebar({
     setDragOffset(0);
   }, []);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    touchStartYRef.current = e.clientY;
-    touchStartXRef.current = e.clientX;
-    currentDragOffsetRef.current = 0;
-    setIsDragging(true);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
+      touchStartYRef.current = e.clientY;
+      touchStartXRef.current = e.clientX;
+      currentDragOffsetRef.current = 0;
+      setIsDragging(true);
 
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      if (touchStartYRef.current === null) return;
-      const deltaY = moveEvent.clientY - touchStartYRef.current;
-      if (deltaY > 0) {
-        currentDragOffsetRef.current = deltaY;
-        setDragOffset(deltaY);
-      }
-    };
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        if (touchStartYRef.current === null) return;
+        const deltaY = moveEvent.clientY - touchStartYRef.current;
+        if (deltaY > 0) {
+          currentDragOffsetRef.current = deltaY;
+          setDragOffset(deltaY);
+        }
+      };
 
-    const onMouseUp = () => {
-      const finalOffset = currentDragOffsetRef.current;
-      touchStartYRef.current = null;
-      touchStartXRef.current = null;
-      setIsDragging(false);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      const onMouseUp = () => {
+        const finalOffset = currentDragOffsetRef.current;
+        touchStartYRef.current = null;
+        touchStartXRef.current = null;
+        setIsDragging(false);
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
 
-      if (finalOffset > 45) {
-        setDragOffset(0);
-        onMobileClose?.();
-      } else {
-        setDragOffset(0);
-      }
-    };
+        if (finalOffset > 45) {
+          setDragOffset(0);
+          onMobileClose?.();
+        } else {
+          setDragOffset(0);
+        }
+      };
 
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-  }, [onMobileClose]);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    },
+    [onMobileClose],
+  );
 
-  const headerSwipeProps = useMemo(() => ({
-    onTouchStart: handleTouchStart,
-    onTouchMove: handleTouchMove,
-    onTouchEnd: handleTouchEnd,
-    onTouchCancel: handleTouchCancel,
-    onMouseDown: handleMouseDown,
-  }), [handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel, handleMouseDown]);
+  const headerSwipeProps = useMemo(
+    () => ({
+      onTouchStart: handleTouchStart,
+      onTouchMove: handleTouchMove,
+      onTouchEnd: handleTouchEnd,
+      onTouchCancel: handleTouchCancel,
+      onMouseDown: handleMouseDown,
+    }),
+    [handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel, handleMouseDown],
+  );
 
   // Synchronize internal draft when settings prop changes if not externally controlled
   useEffect(() => {
@@ -431,8 +442,8 @@ export const Sidebar = memo(function Sidebar({
   const draftSettings = externalDraftSettings ?? internalDraftSettings;
 
   // Dynamic viewport height listener for scaling settings sidebar relative to window size
-  const [viewportHeight, setViewportHeight] = useState(() => 
-    typeof window !== 'undefined' ? window.innerHeight : 800
+  const [viewportHeight, setViewportHeight] = useState(() =>
+    typeof window !== 'undefined' ? window.innerHeight : 800,
   );
 
   useEffect(() => {
@@ -450,7 +461,7 @@ export const Sidebar = memo(function Sidebar({
       return Math.round(viewportHeight * 0.94);
     } else if (viewportHeight <= 900) {
       // Medium displays: take up to 90% height
-      return Math.round(viewportHeight * 0.90);
+      return Math.round(viewportHeight * 0.9);
     } else {
       // Large / Desktop displays: take up to 88% height (max 920px) so as many settings as possible are visible at once
       return Math.min(Math.round(viewportHeight * 0.88), 920);
@@ -474,59 +485,72 @@ export const Sidebar = memo(function Sidebar({
     return externalChanges ?? getChangedSettingsList(draftSettings, settings);
   }, [externalChanges, draftSettings, settings]);
 
-  const hasChanges = externalHasUnappliedChanges !== undefined ? externalHasUnappliedChanges : changes.length > 0;
+  const hasChanges =
+    externalHasUnappliedChanges !== undefined ? externalHasUnappliedChanges : changes.length > 0;
 
   const hasLayoutChanges = useMemo(() => {
-    return changes.some(c => c.section === 'layout');
+    return changes.some((c) => c.section === 'layout');
   }, [changes]);
 
   const hasCoverChanges = useMemo(() => {
-    return changes.some(c => c.section === 'cover');
+    return changes.some((c) => c.section === 'cover');
   }, [changes]);
 
   const hasTypographyChanges = useMemo(() => {
-    return changes.some(c => c.section === 'typography');
+    return changes.some((c) => c.section === 'typography');
   }, [changes]);
 
-  const setCollapsed = useCallback((val: boolean) => {
-    if (onToggleCollapse) {
-      onToggleCollapse(val);
-    } else {
-      setInternalCollapsed(val);
-    }
-  }, [onToggleCollapse]);
+  const setCollapsed = useCallback(
+    (val: boolean) => {
+      if (onToggleCollapse) {
+        onToggleCollapse(val);
+      } else {
+        setInternalCollapsed(val);
+      }
+    },
+    [onToggleCollapse],
+  );
 
-  const updateDraft = useCallback((updater: (prev: PrintSettings) => PrintSettings) => {
-    if (onDraftSettingsChange) {
-      (onDraftSettingsChange as any)((prev: PrintSettings) => updater(prev));
-    } else {
-      setInternalDraftSettings(updater);
-    }
-  }, [onDraftSettingsChange]);
+  const updateDraft = useCallback(
+    (updater: (prev: PrintSettings) => PrintSettings) => {
+      if (onDraftSettingsChange) {
+        (onDraftSettingsChange as any)((prev: PrintSettings) => updater(prev));
+      } else {
+        setInternalDraftSettings(updater);
+      }
+    },
+    [onDraftSettingsChange],
+  );
 
-  const handleSettingChange = useCallback((keyOrPartial: keyof PrintSettings | Partial<PrintSettings>, value?: any) => {
-    updateDraft((prev) => {
-      if (typeof keyOrPartial === 'object' && keyOrPartial !== null) {
+  const handleSettingChange = useCallback(
+    (keyOrPartial: keyof PrintSettings | Partial<PrintSettings>, value?: any) => {
+      updateDraft((prev) => {
+        if (typeof keyOrPartial === 'object' && keyOrPartial !== null) {
+          return {
+            ...prev,
+            ...keyOrPartial,
+          };
+        }
         return {
           ...prev,
-          ...keyOrPartial,
+          [keyOrPartial as keyof PrintSettings]: value,
         };
-      }
-      return {
-        ...prev,
-        [keyOrPartial as keyof PrintSettings]: value,
-      };
-    });
-  }, [updateDraft]);
+      });
+    },
+    [updateDraft],
+  );
 
-  const handleApplyChanges = useCallback((isDrawer = false) => {
-    onApplySettings(draftSettings);
-    if (isDrawer && onMobileClose) {
-      setTimeout(() => {
-        onMobileClose();
-      }, 150);
-    }
-  }, [onApplySettings, draftSettings, onMobileClose]);
+  const handleApplyChanges = useCallback(
+    (isDrawer = false) => {
+      onApplySettings(draftSettings);
+      if (isDrawer && onMobileClose) {
+        setTimeout(() => {
+          onMobileClose();
+        }, 150);
+      }
+    },
+    [onApplySettings, draftSettings, onMobileClose],
+  );
 
   const handleDiscardChanges = useCallback(() => {
     if (onDiscardSettings) {
@@ -539,21 +563,21 @@ export const Sidebar = memo(function Sidebar({
   return (
     <>
       {/* Settings Bottom Sheet Drawer (Rolls up from bottom on all viewports) */}
-      <div 
+      <div
         className={`fixed inset-0 z-50 flex print:hidden transition-all duration-300 ease-in-out ${
           isMobileOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
         }`}
         aria-hidden={!isMobileOpen}
       >
         {/* Backdrop (backdrop blur and fade) */}
-        <div 
+        <div
           className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${
             isMobileOpen ? 'opacity-100' : 'opacity-0'
           }`}
           onClick={onMobileClose}
         />
         {/* Bottom Sheet Container */}
-        <div 
+        <div
           id="mobile-settings-sidebar"
           onClick={(e) => e.stopPropagation()}
           className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-[92vw] sm:w-[480px] md:w-[540px] max-w-2xl h-auto bg-white text-zinc-900 border-t border-black/10 rounded-t-3xl shadow-2xl p-4 sm:p-5 z-50 flex flex-col min-h-0 will-change-transform ${
@@ -561,11 +585,11 @@ export const Sidebar = memo(function Sidebar({
           } ${isMobileOpen ? 'translate-y-0' : 'translate-y-full'}`}
           style={{
             maxHeight: `${dynamicMaxHeight}px`,
-            ...(dragOffset > 0 ? { transform: `translate(-50%, ${dragOffset}px)` } : {})
+            ...(dragOffset > 0 ? { transform: `translate(-50%, ${dragOffset}px)` } : {}),
           }}
         >
           {/* Top Swipable Grab Area */}
-          <div 
+          <div
             className="w-full pt-1 pb-2 shrink-0 select-none touch-pan-y cursor-grab active:cursor-grabbing flex justify-center items-center"
             {...headerSwipeProps}
             onClick={onMobileClose}

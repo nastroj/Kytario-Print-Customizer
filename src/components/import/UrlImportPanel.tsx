@@ -37,17 +37,23 @@ export function UrlImportPanel({
   onClearProxy,
   onSwitchToPasteTab,
 }: UrlImportPanelProps) {
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !isProcessing) {
-      e.preventDefault();
-      onSubmit();
-    }
-  }, [isProcessing, onSubmit]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter' && !isProcessing) {
+        e.preventDefault();
+        onSubmit();
+      }
+    },
+    [isProcessing, onSubmit],
+  );
 
   return (
     <div className="space-y-4 py-4" role="group" aria-label="Import from Kytario URL">
       <div className="space-y-2">
-        <label htmlFor="kytario-url-input" className="text-xs font-bold text-zinc-700 uppercase tracking-wider ml-1 block">
+        <label
+          htmlFor="kytario-url-input"
+          className="text-xs font-bold text-zinc-700 uppercase tracking-wider ml-1 block"
+        >
           Kytario Songbook Link or Code
         </label>
         <input
@@ -90,7 +96,10 @@ export function UrlImportPanel({
       </button>
 
       {fetchDetails && (
-        <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3 text-left" role="alert">
+        <div
+          className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3 text-left"
+          role="alert"
+        >
           <div className="flex items-start gap-2.5">
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
             <div>
@@ -98,15 +107,15 @@ export function UrlImportPanel({
                 GitHub Pages Static Hosting Notice
               </h4>
               <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-                Automatic import tried public CORS relays but could not fetch this songbook. If relays are unavailable, configure the optional Cloudflare Worker proxy or use the manual JSON steps below.
+                Automatic import tried public CORS relays but could not fetch this songbook. If
+                relays are unavailable, configure the optional Cloudflare Worker proxy or use the
+                manual JSON steps below.
               </p>
             </div>
           </div>
 
           <div className="p-3 bg-white rounded-lg border border-amber-200/70 space-y-2">
-            <div className="text-xs font-bold text-zinc-900">
-              ⚡ Quick 2-Step Import:
-            </div>
+            <div className="text-xs font-bold text-zinc-900">⚡ Quick 2-Step Import:</div>
             <ol className="text-xs text-zinc-600 list-decimal list-inside space-y-1.5 leading-relaxed">
               <li>
                 Click below to open the songbook JSON data directly in your browser:
@@ -123,7 +132,15 @@ export function UrlImportPanel({
                 </div>
               </li>
               <li>
-                Press <kbd className="px-1.5 py-0.5 bg-zinc-100 border border-zinc-200 rounded font-mono text-[10px] font-semibold">Ctrl+A</kbd> then <kbd className="px-1.5 py-0.5 bg-zinc-100 border border-zinc-200 rounded font-mono text-[10px] font-semibold">Ctrl+C</kbd> to copy all text.
+                Press{' '}
+                <kbd className="px-1.5 py-0.5 bg-zinc-100 border border-zinc-200 rounded font-mono text-[10px] font-semibold">
+                  Ctrl+A
+                </kbd>{' '}
+                then{' '}
+                <kbd className="px-1.5 py-0.5 bg-zinc-100 border border-zinc-200 rounded font-mono text-[10px] font-semibold">
+                  Ctrl+C
+                </kbd>{' '}
+                to copy all text.
               </li>
               <li>
                 Switch to the{' '}
@@ -134,7 +151,11 @@ export function UrlImportPanel({
                 >
                   Paste JSON tab
                 </button>{' '}
-                and press <kbd className="px-1.5 py-0.5 bg-zinc-100 border border-zinc-200 rounded font-mono text-[10px] font-semibold">Ctrl+V</kbd>.
+                and press{' '}
+                <kbd className="px-1.5 py-0.5 bg-zinc-100 border border-zinc-200 rounded font-mono text-[10px] font-semibold">
+                  Ctrl+V
+                </kbd>
+                .
               </li>
             </ol>
           </div>
@@ -168,15 +189,27 @@ export function UrlImportPanel({
               className="text-xs font-semibold text-amber-800 hover:text-amber-900 flex items-center justify-between w-full py-1 text-left cursor-pointer"
             >
               <span>⚙️ Optional: Configure Cloudflare Worker Proxy</span>
-              <span className="text-[11px] underline text-amber-700">{showProxyConfig ? 'Hide' : 'Set Proxy URL'}</span>
+              <span className="text-[11px] underline text-amber-700">
+                {showProxyConfig ? 'Hide' : 'Set Proxy URL'}
+              </span>
             </button>
             {showProxyConfig && (
-              <div id="proxy-config-panel" className="mt-2 p-3 bg-white/95 rounded-lg border border-amber-200 text-xs space-y-2">
+              <div
+                id="proxy-config-panel"
+                className="mt-2 p-3 bg-white/95 rounded-lg border border-amber-200 text-xs space-y-2"
+              >
                 <p className="text-zinc-600 leading-relaxed text-[11px]">
-                  To enable automated 1-click imports on GitHub Pages, enter your Cloudflare Worker URL (e.g. <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-800 font-mono">https://kytario-proxy.workers.dev</code>):
+                  To enable automated 1-click imports on GitHub Pages, enter your Cloudflare Worker
+                  URL (e.g.{' '}
+                  <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-800 font-mono">
+                    https://kytario-proxy.workers.dev
+                  </code>
+                  ):
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <label htmlFor="proxy-url-input" className="sr-only">Custom proxy URL</label>
+                  <label htmlFor="proxy-url-input" className="sr-only">
+                    Custom proxy URL
+                  </label>
                   <input
                     id="proxy-url-input"
                     type="url"
@@ -205,7 +238,9 @@ export function UrlImportPanel({
                   </div>
                 )}
                 <p className="text-[10px] text-zinc-500 leading-tight">
-                  💡 You can copy the ready-to-use worker script from <code className="text-zinc-700 font-semibold">cloudflare-worker.js</code> in the repository.
+                  💡 You can copy the ready-to-use worker script from{' '}
+                  <code className="text-zinc-700 font-semibold">cloudflare-worker.js</code> in the
+                  repository.
                 </p>
               </div>
             )}

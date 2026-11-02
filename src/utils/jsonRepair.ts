@@ -3,7 +3,6 @@
  * songbook import pipeline (safeParseSongbookJson, corrupted-text recovery).
  */
 
-
 /**
  * Preprocesses raw JSON input by stripping BOM, invisible characters, markdown fences,
  * and extracting JSON blocks if surrounded by conversational or extraneous text.
@@ -13,7 +12,7 @@ function preprocessJsonText(raw: string): string {
   let cleaned = String(raw).trim();
 
   // 1. Remove UTF-8 BOM and non-standard invisible whitespace/separators
-  cleaned = cleaned.replace(/^[\uFEFF\u200B\u200C\u200D\u00A0\s]+/, '').trim();
+  cleaned = cleaned.replace(/^[\uFEFF\u200B\u200C\u200D\u00A0\s]+/u, '').trim();
 
   // 2. Remove Markdown code block wrappers if present (e.g. ```json ... ```)
   const codeBlockMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
@@ -158,11 +157,16 @@ function tryParseSequenceOrNdjson(str: string): any[] | null {
       }
     } catch {
       // Try line-by-line NDJSON
-      const lines = trimmed.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const lines = trimmed
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
       const objects: any[] = [];
       for (const line of lines) {
         try {
-          const p = JSON.parse(fixUnescapedControlCharsInJson(removeTrailingCommas(line.replace(/,$/, ''))));
+          const p = JSON.parse(
+            fixUnescapedControlCharsInJson(removeTrailingCommas(line.replace(/,$/, ''))),
+          );
           if (p && typeof p === 'object') objects.push(p);
         } catch {
           // ignore unparsable line

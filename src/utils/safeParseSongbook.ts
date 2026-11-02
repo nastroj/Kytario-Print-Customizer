@@ -76,7 +76,9 @@ export function safeParseSongbookJson(rawJson: string): {
   if (recoveredSongs.length > 0) {
     // Extract songbook title if available
     let songbookTitle = 'Recovered Songbook';
-    const titleMatch = cleaned.match(/"(?:name|title|songbookTitle|songbook)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i);
+    const titleMatch = cleaned.match(
+      /"(?:name|title|songbookTitle|songbook)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i,
+    );
     if (titleMatch && titleMatch[1]) {
       try {
         songbookTitle = JSON.parse(`"${titleMatch[1]}"`);
@@ -101,5 +103,7 @@ export function safeParseSongbookJson(rawJson: string): {
     };
   }
 
-  throw new Error('Unable to parse JSON file. Please verify that the file contains song data with titles and lyrics.');
+  throw new Error(
+    'Unable to parse JSON file. Please verify that the file contains song data with titles and lyrics.',
+  );
 }

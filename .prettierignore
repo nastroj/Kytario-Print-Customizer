@@ -1,0 +1,13 @@
+# Ignore build output and dependencies
+dist/
+dev-dist/
+node_modules/
+
+# Generated PWA precache manifests are rebuilt on every `npm run build`
+sw.js
+workbox-*.js
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store

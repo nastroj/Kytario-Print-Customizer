@@ -2,7 +2,18 @@ import { PDFDocument, rgb, RGB } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import QRCode from 'qrcode';
 import { SongbookData, PrintSettings, Song } from '../types';
-import { parseSongContent, computeSmartFitScale, computeSmartColumnBalance, computeSmartSectionFilling, partitionSectionsIntoColumns, computeSmartFitLineMargin, SongSection, resolveCoverUrl, getPageMargins, getOptimalColumnCount } from '../utils';
+import {
+  parseSongContent,
+  computeSmartFitScale,
+  computeSmartColumnBalance,
+  computeSmartSectionFilling,
+  partitionSectionsIntoColumns,
+  computeSmartFitLineMargin,
+  SongSection,
+  resolveCoverUrl,
+  getPageMargins,
+  getOptimalColumnCount,
+} from '../utils';
 
 export interface GeneratePdfPayload {
   songbookData?: SongbookData;
@@ -57,7 +68,9 @@ function hexToPdfRgb(hex: string | undefined, defaultHex = '#18181b'): RGB {
     clean = defaultHex;
   }
   clean = clean.replace('#', '');
-  let r = 0, g = 0, b = 0;
+  let r = 0,
+    g = 0,
+    b = 0;
   if (clean.length === 3) {
     r = parseInt(clean[0] + clean[0], 16);
     g = parseInt(clean[1] + clean[1], 16);
@@ -73,7 +86,10 @@ function hexToPdfRgb(hex: string | undefined, defaultHex = '#18181b'): RGB {
 }
 
 // Helper: Page physical dimensions in standard PDF points (72 pt = 1 inch, 25.4 mm)
-function getPageDimensions(format = 'A4', orientation = 'portrait'): { width: number; height: number } {
+function getPageDimensions(
+  format = 'A4',
+  orientation = 'portrait',
+): { width: number; height: number } {
   const isLandscape = orientation === 'landscape';
   let w = 595.28; // A4 pt: 210mm * 72 / 25.4
   let h = 841.89; // A4 pt: 297mm * 72 / 25.4
@@ -84,8 +100,8 @@ function getPageDimensions(format = 'A4', orientation = 'portrait'): { width: nu
       h = 595.28; // 210mm
       break;
     case 'Letter':
-      w = 612.0;  // 8.5in
-      h = 792.0;  // 11in
+      w = 612.0; // 8.5in
+      h = 792.0; // 11in
       break;
     case 'A4':
     default:
@@ -123,7 +139,7 @@ function balanceColumns<T extends { groupLetter?: string }>(items: T[], numCols:
       }
       const lastItemIndex = colStartIndex + counts[c] - 1;
       const lastItem = items[lastItemIndex];
-      
+
       if (lastItem && lastItem.groupLetter && lastItemIndex + 1 < items.length) {
         counts[c]--;
         counts[c + 1]++;
@@ -146,7 +162,7 @@ function getColumnHeight<T extends { groupLetter?: string }>(
   colItems: T[],
   showDividers: boolean,
   singleItemHeight: number,
-  dividerTotalHeight: number
+  dividerTotalHeight: number,
 ): number {
   let h = 0;
   for (let i = 0; i < colItems.length; i++) {
@@ -214,12 +230,13 @@ function qrCodeToPngBytes(matrix: Uint8Array, size: number): Uint8Array {
     const len = chunk.length;
     hdr[1] = len & 0xff;
     hdr[2] = (len >>> 8) & 0xff;
-    hdr[3] = (~len) & 0xff;
+    hdr[3] = ~len & 0xff;
     hdr[4] = (~len >>> 8) & 0xff;
     blocks.push(hdr, new Uint8Array(chunk));
   }
 
-  let a = 1, b = 0;
+  let a = 1,
+    b = 0;
   for (let i = 0; i < raw.length; i++) {
     a = (a + raw[i]) % 65521;
     b = (b + a) % 65521;
@@ -231,41 +248,65 @@ function qrCodeToPngBytes(matrix: Uint8Array, size: number): Uint8Array {
   for (const p of idatParts) idatLen += p.length;
   const idat = new Uint8Array(idatLen);
   off = 0;
-  for (const p of idatParts) { idat.set(p, off); off += p.length; }
+  for (const p of idatParts) {
+    idat.set(p, off);
+    off += p.length;
+  }
 
   const crcTable = new Uint32Array(256);
   for (let i = 0; i < 256; i++) {
     let c = i;
-    for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    for (let j = 0; j < 8; j++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
     crcTable[i] = c;
   }
   const crc32 = (buf: Uint8Array) => {
-    let crc = 0xFFFFFFFF;
+    let crc = 0xffffffff;
     for (let i = 0; i < buf.length; i++) crc = crcTable[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
-    return crc ^ 0xFFFFFFFF;
+    return crc ^ 0xffffffff;
   };
 
   const chunk = (type: string, data: Uint8Array): Uint8Array => {
     const t = new Uint8Array(4);
     for (let i = 0; i < 4; i++) t[i] = type.charCodeAt(i);
     const dlen = data.length;
-    const len = new Uint8Array([(dlen >>> 24) & 0xff, (dlen >>> 16) & 0xff, (dlen >>> 8) & 0xff, dlen & 0xff]);
+    const len = new Uint8Array([
+      (dlen >>> 24) & 0xff,
+      (dlen >>> 16) & 0xff,
+      (dlen >>> 8) & 0xff,
+      dlen & 0xff,
+    ]);
     const crcInput = new Uint8Array(4 + dlen);
     crcInput.set(t);
     crcInput.set(data, 4);
     const crc = crc32(crcInput);
-    const crcBuf = new Uint8Array([(crc >>> 24) & 0xff, (crc >>> 16) & 0xff, (crc >>> 8) & 0xff, crc & 0xff]);
+    const crcBuf = new Uint8Array([
+      (crc >>> 24) & 0xff,
+      (crc >>> 16) & 0xff,
+      (crc >>> 8) & 0xff,
+      crc & 0xff,
+    ]);
     const out = new Uint8Array(12 + dlen);
-    out.set(len); out.set(t, 4); out.set(data, 8); out.set(crcBuf, 8 + dlen);
+    out.set(len);
+    out.set(t, 4);
+    out.set(data, 8);
+    out.set(crcBuf, 8 + dlen);
     return out;
   };
 
   const ihdr = new Uint8Array(13);
-  ihdr[0] = (size >>> 24) & 0xff; ihdr[1] = (size >>> 16) & 0xff;
-  ihdr[2] = (size >>> 8) & 0xff; ihdr[3] = size & 0xff;
-  ihdr[4] = (size >>> 24) & 0xff; ihdr[5] = (size >>> 16) & 0xff;
-  ihdr[6] = (size >>> 8) & 0xff; ihdr[7] = size & 0xff;
-  ihdr[8] = 8; ihdr[9] = 0; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  ihdr[0] = (size >>> 24) & 0xff;
+  ihdr[1] = (size >>> 16) & 0xff;
+  ihdr[2] = (size >>> 8) & 0xff;
+  ihdr[3] = size & 0xff;
+  ihdr[4] = (size >>> 24) & 0xff;
+  ihdr[5] = (size >>> 16) & 0xff;
+  ihdr[6] = (size >>> 8) & 0xff;
+  ihdr[7] = size & 0xff;
+  ihdr[8] = 8;
+  ihdr[9] = 0;
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
 
   const sig = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   const iend = chunk('IEND', new Uint8Array(0));
@@ -275,7 +316,10 @@ function qrCodeToPngBytes(matrix: Uint8Array, size: number): Uint8Array {
   for (const p of parts) total += p.length;
   const png = new Uint8Array(total);
   off = 0;
-  for (const p of parts) { png.set(p, off); off += p.length; }
+  for (const p of parts) {
+    png.set(p, off);
+    off += p.length;
+  }
   return png;
 }
 
@@ -297,14 +341,18 @@ async function renderFrontCoverPage(
   colTitle: RGB,
   colArtist: RGB,
   colSectionLine: RGB,
-  ptPerPx: number
+  ptPerPx: number,
 ) {
   const isCustom = settings.frontCoverType === 'custom';
   const isLandscape = settings.orientation === 'landscape';
 
-  const bTitle = (isCustom && settings.frontCoverTitle?.trim())
-    ? settings.frontCoverTitle.trim()
-    : (settings.frontCoverTitle?.trim() || songbookData.title || (songbookData as any).name || 'SONGBOOK');
+  const bTitle =
+    isCustom && settings.frontCoverTitle?.trim()
+      ? settings.frontCoverTitle.trim()
+      : settings.frontCoverTitle?.trim() ||
+        songbookData.title ||
+        (songbookData as any).name ||
+        'SONGBOOK';
 
   const { displayUrl, qrTarget } = resolveCoverUrl({
     isCustom,
@@ -316,14 +364,16 @@ async function renderFrontCoverPage(
   });
 
   const subtitle = settings.frontCoverSubtitle?.trim();
-  const dedicationText = settings.frontCoverShowDedication !== false ? settings.frontCoverDedication?.trim() : undefined;
+  const dedicationText =
+    settings.frontCoverShowDedication !== false ? settings.frontCoverDedication?.trim() : undefined;
 
   const showQr = settings.frontCoverShowQr !== false;
 
   const showFooter = Boolean(settings.frontCoverShowFooter);
-  const footerText = isCustom && settings.frontCoverFooterText !== undefined
-    ? settings.frontCoverFooterText
-    : (settings.frontCoverFooterText || '');
+  const footerText =
+    isCustom && settings.frontCoverFooterText !== undefined
+      ? settings.frontCoverFooterText
+      : settings.frontCoverFooterText || '';
 
   const customImage = settings.frontCoverCustomImage;
   const imagePosition = settings.frontCoverImagePosition || 'replace-qr';
@@ -354,7 +404,7 @@ async function renderFrontCoverPage(
 
   // 1. Bottom Section (Footer Attribution)
   let bottomReservedH = 0;
-  const footerLines = (showFooter && footerText) ? footerText.split('\n') : [];
+  const footerLines = showFooter && footerText ? footerText.split('\n') : [];
   const footerPt = isLandscape ? 7.5 : 8.5;
 
   let footY = Math.max(marginPtBottom + (isLandscape ? 8 : 12), isLandscape ? 28 : 36);
@@ -371,7 +421,7 @@ async function renderFrontCoverPage(
         font: regularFont,
         color: colArtist,
       });
-      footY += (footerPt + 3);
+      footY += footerPt + 3;
     }
 
     const dividerY = footY + (isLandscape ? 6 : 10);
@@ -406,7 +456,7 @@ async function renderFrontCoverPage(
       width: imgW,
       height: imgH,
     });
-    topY -= (imgH + (isLandscape ? 12 : 18));
+    topY -= imgH + (isLandscape ? 12 : 18);
   }
 
   // Title
@@ -427,7 +477,7 @@ async function renderFrontCoverPage(
     font: boldFont,
     color: colTitle,
   });
-  topY -= (titlePt + (isLandscape ? 10 : 14));
+  topY -= titlePt + (isLandscape ? 10 : 14);
 
   // Subtitle
   if (subtitle) {
@@ -441,7 +491,7 @@ async function renderFrontCoverPage(
       font: regularFont,
       color: colArtist,
     });
-    topY -= (subPt + (isLandscape ? 8 : 10));
+    topY -= subPt + (isLandscape ? 8 : 10);
   }
 
   // Dedication
@@ -457,7 +507,7 @@ async function renderFrontCoverPage(
       font: regularFont,
       color: colArtist,
     });
-    topY -= (dedPt + (isLandscape ? 10 : 14));
+    topY -= dedPt + (isLandscape ? 10 : 14);
   }
 
   // URL
@@ -472,7 +522,7 @@ async function renderFrontCoverPage(
       font: regularFont,
       color: colArtist,
     });
-    topY -= (urlPt + (isLandscape ? 16 : 24));
+    topY -= urlPt + (isLandscape ? 16 : 24);
   }
 
   // 3. Middle Section: QR Code or Custom Image
@@ -549,14 +599,18 @@ async function renderBackCoverPage(
   colTitle: RGB,
   colArtist: RGB,
   colSectionLine: RGB,
-  ptPerPx: number
+  ptPerPx: number,
 ) {
   const isCustom = settings.backCoverType === 'custom';
   const isLandscape = settings.orientation === 'landscape';
 
-  const bTitle = (isCustom && settings.backCoverTitle?.trim())
-    ? settings.backCoverTitle.trim()
-    : (settings.backCoverTitle?.trim() || songbookData.title || (songbookData as any).name || 'SONGBOOK');
+  const bTitle =
+    isCustom && settings.backCoverTitle?.trim()
+      ? settings.backCoverTitle.trim()
+      : settings.backCoverTitle?.trim() ||
+        songbookData.title ||
+        (songbookData as any).name ||
+        'SONGBOOK';
 
   const { displayUrl, qrTarget } = resolveCoverUrl({
     isCustom,
@@ -568,14 +622,16 @@ async function renderBackCoverPage(
   });
 
   const subtitle = settings.backCoverSubtitle?.trim();
-  const dedicationText = settings.backCoverShowDedication !== false ? settings.backCoverDedication?.trim() : undefined;
+  const dedicationText =
+    settings.backCoverShowDedication !== false ? settings.backCoverDedication?.trim() : undefined;
 
   const showQr = settings.backCoverShowQr !== false;
 
   const showFooter = Boolean(settings.backCoverShowFooter);
-  const footerText = isCustom && settings.backCoverFooterText !== undefined
-    ? settings.backCoverFooterText
-    : (settings.backCoverFooterText || '');
+  const footerText =
+    isCustom && settings.backCoverFooterText !== undefined
+      ? settings.backCoverFooterText
+      : settings.backCoverFooterText || '';
 
   const customImage = settings.backCoverCustomImage;
   const imagePosition = settings.backCoverImagePosition || 'replace-qr';
@@ -608,7 +664,7 @@ async function renderBackCoverPage(
 
   // 1. Bottom Section (Footer Attribution)
   let bottomReservedH = 0;
-  const footerLines = (showFooter && footerText) ? footerText.split('\n') : [];
+  const footerLines = showFooter && footerText ? footerText.split('\n') : [];
   const footerPt = isLandscape ? 7.5 : 8.5;
 
   let footY = Math.max(marginPtBottom + (isLandscape ? 8 : 12), isLandscape ? 28 : 36);
@@ -626,7 +682,7 @@ async function renderBackCoverPage(
         color: colArtist,
         opacity: 0.75,
       });
-      footY += (footerPt + 3);
+      footY += footerPt + 3;
     }
 
     const dividerY = footY + (isLandscape ? 6 : 10);
@@ -660,7 +716,7 @@ async function renderBackCoverPage(
       width: imgW,
       height: imgH,
     });
-    topY -= (imgH + (isLandscape ? 12 : 18));
+    topY -= imgH + (isLandscape ? 12 : 18);
   }
 
   const titleUpper = bTitle.toUpperCase();
@@ -680,7 +736,7 @@ async function renderBackCoverPage(
     font: boldFont,
     color: colTitle,
   });
-  topY -= (titlePt + (isLandscape ? 10 : 14));
+  topY -= titlePt + (isLandscape ? 10 : 14);
 
   if (subtitle) {
     const subPt = isLandscape ? 11 : 13;
@@ -694,7 +750,7 @@ async function renderBackCoverPage(
       color: colTitle,
       opacity: 0.8,
     });
-    topY -= (subPt + (isLandscape ? 8 : 10));
+    topY -= subPt + (isLandscape ? 8 : 10);
   }
 
   if (dedicationText) {
@@ -709,7 +765,7 @@ async function renderBackCoverPage(
       font: regularFont,
       color: colArtist,
     });
-    topY -= (dedPt + (isLandscape ? 10 : 14));
+    topY -= dedPt + (isLandscape ? 10 : 14);
   }
 
   if (displayUrl) {
@@ -724,7 +780,7 @@ async function renderBackCoverPage(
       color: colTitle,
       opacity: 0.8,
     });
-    topY -= (urlPt + (isLandscape ? 16 : 24));
+    topY -= urlPt + (isLandscape ? 16 : 24);
   }
 
   // 3. Middle Section: QR Code or Custom Image
@@ -792,14 +848,14 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
   };
 
   try {
-    const { 
-      songbookData: directData, 
+    const {
+      songbookData: directData,
       songbookDataTransferred,
-      settings, 
-      fontRegularUrl, 
-      fontBoldUrl, 
-      fontItalicUrl, 
-      fontBoldItalicUrl 
+      settings,
+      fontRegularUrl,
+      fontBoldUrl,
+      fontItalicUrl,
+      fontBoldItalicUrl,
     } = payload;
 
     // 0. Bottleneck Audit: Zero-Copy Serialization Recovery
@@ -814,7 +870,11 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       throw new Error('No songbook data provided to worker.');
     }
 
-    const rawSongs = songbookData.songs || (songbookData as any).items || (songbookData as any).songbookSongs?.map((i: any) => i.song) || [];
+    const rawSongs =
+      songbookData.songs ||
+      (songbookData as any).items ||
+      (songbookData as any).songbookSongs?.map((i: any) => i.song) ||
+      [];
     const totalSongs = rawSongs.length;
     const bookTitle = songbookData.title || songbookData.name || 'Songbook';
 
@@ -831,7 +891,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     const METADATA_CHUNK = 100;
     for (let i = 0; i < rawSongs.length; i++) {
       if (i > 0 && i % METADATA_CHUNK === 0) {
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
       const s = rawSongs[i];
       songs.push({
@@ -863,22 +923,22 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     const [regularBytes, boldBytes, italicBytes, boldItalicBytes] = await Promise.all([
       fetchFontBytes(
         fontRegularUrl,
-        'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf'
+        'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf',
       ),
       fetchFontBytes(
         fontBoldUrl,
-        'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.ttf'
+        'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.ttf',
       ),
       fontItalicUrl
         ? fetchFontBytes(
             fontItalicUrl,
-            'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-italic.ttf'
+            'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-italic.ttf',
           ).catch(() => null)
         : Promise.resolve(null),
       fontBoldItalicUrl
         ? fetchFontBytes(
             fontBoldItalicUrl,
-            'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-italic.ttf'
+            'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-italic.ttf',
           ).catch(() => null)
         : Promise.resolve(null),
     ]);
@@ -886,9 +946,11 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     const regularFont = await doc.embedFont(regularBytes);
     const boldFont = await doc.embedFont(boldBytes);
     const italicFont = italicBytes ? await doc.embedFont(italicBytes) : regularFont;
-    const boldItalicFont = boldItalicBytes 
-      ? await doc.embedFont(boldItalicBytes) 
-      : (italicBytes ? await doc.embedFont(italicBytes) : boldFont);
+    const boldItalicFont = boldItalicBytes
+      ? await doc.embedFont(boldItalicBytes)
+      : italicBytes
+        ? await doc.embedFont(italicBytes)
+        : boldFont;
 
     postProgress({
       percent: 10,
@@ -904,7 +966,10 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     const mmToPt = 72 / 25.4; // 2.83464567
 
     // Page physical setup
-    const { width: pageWidth, height: pageHeight } = getPageDimensions(settings.pageFormat, settings.orientation);
+    const { width: pageWidth, height: pageHeight } = getPageDimensions(
+      settings.pageFormat,
+      settings.orientation,
+    );
     const isLandscape = settings.orientation === 'landscape';
 
     // Palette (matching preview styles exactly)
@@ -914,7 +979,10 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     const colChords = hexToPdfRgb(settings.chordsColor, '#d97706');
     const colMarker = hexToPdfRgb(settings.markerColor, '#71717a');
     const colSectionLine = hexToPdfRgb(settings.sectionLineColor, '#a1a1aa');
-    const colRefrainLine = hexToPdfRgb(settings.refrainLineColor || settings.chordsColor, '#2563eb');
+    const colRefrainLine = hexToPdfRgb(
+      settings.refrainLineColor || settings.chordsColor,
+      '#2563eb',
+    );
     const colToc = hexToPdfRgb(settings.tocColor || settings.lyricsColor, '#18181b');
     const colTocArtist = hexToPdfRgb(settings.tocArtistColor || settings.artistColor, '#52525b');
     const colTocPage = hexToPdfRgb(settings.tocPageColor, '#71717a');
@@ -954,15 +1022,20 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         colTitle,
         colArtist,
         colSectionLine,
-        ptPerPx
+        ptPerPx,
       );
     }
 
     // ----------------------------------------------------
     // 3. Table of Contents (Matching SongbookPreview.tsx TOC)
     // ----------------------------------------------------
-    if (settings.showTableOfContents !== false && settings.showToc !== false && settings.showIndex !== false && songs.length > 0) {
-      let tocItems: Array<{
+    if (
+      settings.showTableOfContents !== false &&
+      settings.showToc !== false &&
+      settings.showIndex !== false &&
+      songs.length > 0
+    ) {
+      const tocItems: Array<{
         song?: Song;
         originalIndex: number;
         title: string;
@@ -972,299 +1045,334 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         song: s,
         originalIndex: idx,
         title: s.title || `Song ${idx + 1}`,
-        artist: s.artist || s.author || ''
+        artist: s.artist || s.author || '',
       }));
 
-    if (settings.indexSortOrder === 'alphabetical') {
-      const getSortKey = (t: string) => t.trim().replace(/^["'„“\(\[\{]+/, '');
-      tocItems.sort((a, b) => getSortKey(a.title).localeCompare(getSortKey(b.title), 'cs'));
-      
-      if (settings.tocAlphabeticalGrouping) {
-        let currentLetter = '';
-        for (const item of tocItems) {
-          const cleanTitle = getSortKey(item.title);
-          const upper = cleanTitle.toUpperCase();
-          const isCh = upper.startsWith('CH');
-          const firstChar = upper.charAt(0) || '#';
-          const map: Record<string, string> = {
-            'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ý': 'Y', 'Ů': 'U',
-            'Ä': 'A', 'Ö': 'O', 'Ü': 'U', 'Ë': 'E'
-          };
-          let letter = isCh ? 'CH' : (map[firstChar] || firstChar);
-          letter = isCh ? 'CH' : (/^[A-Z0-9ČĎŇŘŠŤŽ]$/i.test(letter) ? letter : '#');
-          if (letter !== currentLetter) {
-            currentLetter = letter;
-            item.groupLetter = currentLetter;
+      if (settings.indexSortOrder === 'alphabetical') {
+        const getSortKey = (t: string) => t.trim().replace(/^["'„“\(\[\{]+/, '');
+        tocItems.sort((a, b) => getSortKey(a.title).localeCompare(getSortKey(b.title), 'cs'));
+
+        if (settings.tocAlphabeticalGrouping) {
+          let currentLetter = '';
+          for (const item of tocItems) {
+            const cleanTitle = getSortKey(item.title);
+            const upper = cleanTitle.toUpperCase();
+            const isCh = upper.startsWith('CH');
+            const firstChar = upper.charAt(0) || '#';
+            const map: Record<string, string> = {
+              Á: 'A',
+              É: 'E',
+              Í: 'I',
+              Ó: 'O',
+              Ú: 'U',
+              Ý: 'Y',
+              Ů: 'U',
+              Ä: 'A',
+              Ö: 'O',
+              Ü: 'U',
+              Ë: 'E',
+            };
+            let letter = isCh ? 'CH' : map[firstChar] || firstChar;
+            letter = isCh ? 'CH' : /^[A-Z0-9ČĎŇŘŠŤŽ]$/i.test(letter) ? letter : '#';
+            if (letter !== currentLetter) {
+              currentLetter = letter;
+              item.groupLetter = currentLetter;
+            }
           }
         }
       }
-    }
 
-    const hasFrontCover = settings.showFrontCover !== false && songs.length > 0;
-    const tocStartPageIndex = hasFrontCover ? 1 : 0;
-    const tocBaseMargins = getPageMargins(settings, tocStartPageIndex);
-    const tocMarginPtLeft = tocBaseMargins.left * mmToPt;
-    const tocMarginPtRight = tocBaseMargins.right * mmToPt;
-    const tocMarginPtTop = tocBaseMargins.top * mmToPt;
-    const tocMarginPtBottom = tocBaseMargins.bottom * mmToPt;
-    const tocPrintableWidth = pageWidth - tocMarginPtLeft - tocMarginPtRight;
-    const tocPrintableHeight = pageHeight - tocMarginPtTop - tocMarginPtBottom;
+      const hasFrontCover = settings.showFrontCover !== false && songs.length > 0;
+      const tocStartPageIndex = hasFrontCover ? 1 : 0;
+      const tocBaseMargins = getPageMargins(settings, tocStartPageIndex);
+      const tocMarginPtLeft = tocBaseMargins.left * mmToPt;
+      const tocMarginPtRight = tocBaseMargins.right * mmToPt;
+      const tocMarginPtTop = tocBaseMargins.top * mmToPt;
+      const tocMarginPtBottom = tocBaseMargins.bottom * mmToPt;
+      const tocPrintableWidth = pageWidth - tocMarginPtLeft - tocMarginPtRight;
+      const tocPrintableHeight = pageHeight - tocMarginPtTop - tocMarginPtBottom;
 
-    const safeTitleSize = Number(settings.titleFontSize) || 16;
-    const safeTocSize = Number(settings.tocFontSize) || (Number(settings.lyricsFontSize) * 0.95) || 12;
+      const safeTitleSize = Number(settings.titleFontSize) || 16;
+      const safeTocSize =
+        Number(settings.tocFontSize) || Number(settings.lyricsFontSize) * 0.95 || 12;
 
-    const tocTitlePt = Math.round(safeTitleSize * 1.15) * ptPerPx;
-    const tocTitleSubPt = Math.round(safeTitleSize * 0.85) * ptPerPx;
-    const tocItemPt = safeTocSize * ptPerPx;
+      const tocTitlePt = Math.round(safeTitleSize * 1.15) * ptPerPx;
+      const tocTitleSubPt = Math.round(safeTitleSize * 0.85) * ptPerPx;
+      const tocItemPt = safeTocSize * ptPerPx;
 
-    const rowLineHeight = 1.35;
-    const rowLineHeightPx = Math.ceil(safeTocSize * rowLineHeight);
-    const singleItemHeightPx = rowLineHeightPx + 4;
-    const singleItemHeightPt = singleItemHeightPx * ptPerPx;
-    const dividerTotalHeightPt = 7 * ptPerPx;
-    const tocLineHeight = singleItemHeightPt;
+      const rowLineHeight = 1.35;
+      const rowLineHeightPx = Math.ceil(safeTocSize * rowLineHeight);
+      const singleItemHeightPx = rowLineHeightPx + 4;
+      const singleItemHeightPt = singleItemHeightPx * ptPerPx;
+      const dividerTotalHeightPt = 7 * ptPerPx;
+      const tocLineHeight = singleItemHeightPt;
 
-    const tocCols = isLandscape ? 3 : 2;
-    const tocColGap = (tocCols >= 3 ? 28 : 36) * ptPerPx;
-    const tocColWidth = (tocPrintableWidth - (tocCols - 1) * tocColGap) / tocCols;
+      const tocCols = isLandscape ? 3 : 2;
+      const tocColGap = (tocCols >= 3 ? 28 : 36) * ptPerPx;
+      const tocColWidth = (tocPrintableWidth - (tocCols - 1) * tocColGap) / tocCols;
 
-    const hasLetterGrouping = settings.indexSortOrder === 'alphabetical' && !!settings.tocAlphabeticalGrouping;
-    const showDividers = hasLetterGrouping && (settings.tocGroupDividers !== false);
+      const hasLetterGrouping =
+        settings.indexSortOrder === 'alphabetical' && !!settings.tocAlphabeticalGrouping;
+      const showDividers = hasLetterGrouping && settings.tocGroupDividers !== false;
 
-    const headerH1Pt = (Math.ceil(Math.round(safeTitleSize * 1.15) * 1.2) + 36) * ptPerPx;
-    const headerHSubPt = (Math.ceil(Math.round(safeTitleSize * 0.85) * 1.2) + 37) * ptPerPx;
-    const bottomSafetyBufferPt = 2 * ptPerPx;
+      const headerH1Pt = (Math.ceil(Math.round(safeTitleSize * 1.15) * 1.2) + 36) * ptPerPx;
+      const headerHSubPt = (Math.ceil(Math.round(safeTitleSize * 0.85) * 1.2) + 37) * ptPerPx;
+      const bottomSafetyBufferPt = 2 * ptPerPx;
 
-    const availableHeightP1Pt = Math.max(80 * ptPerPx, tocPrintableHeight - headerH1Pt - bottomSafetyBufferPt);
-    const availableHeightSubPt = Math.max(80 * ptPerPx, tocPrintableHeight - headerHSubPt - bottomSafetyBufferPt);
+      const availableHeightP1Pt = Math.max(
+        80 * ptPerPx,
+        tocPrintableHeight - headerH1Pt - bottomSafetyBufferPt,
+      );
+      const availableHeightSubPt = Math.max(
+        80 * ptPerPx,
+        tocPrintableHeight - headerHSubPt - bottomSafetyBufferPt,
+      );
 
-    const tocPagesData: Array<{
-      items: typeof tocItems;
-      columnsData: typeof tocItems[];
-      isFirst: boolean;
-      pageIndex: number;
-    }> = [];
+      const tocPagesData: Array<{
+        items: typeof tocItems;
+        columnsData: (typeof tocItems)[];
+        isFirst: boolean;
+        pageIndex: number;
+      }> = [];
 
-    let offset = 0;
-    let tocPageNum = 1;
-    const totalItems = tocItems.length;
+      let offset = 0;
+      let tocPageNum = 1;
+      const totalItems = tocItems.length;
 
-    while (offset < totalItems) {
-      // Yield to the event loop every TOC page to keep worker responsive
-      if (tocPageNum > 1) {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
-
-      const isFirst = tocPageNum === 1;
-      const availH = isFirst ? availableHeightP1Pt : availableHeightSubPt;
-      const remaining = totalItems - offset;
-
-      const maxPossible = Math.min(remaining, Math.ceil(availH / singleItemHeightPt) * tocCols);
-      let K = maxPossible;
-
-      while (K > 1) {
-        const candidateItems = tocItems.slice(offset, offset + K);
-        const cols = balanceColumns(candidateItems, tocCols);
-        const maxColH = Math.max(...cols.map(c => getColumnHeight(c, showDividers, singleItemHeightPt, dividerTotalHeightPt)));
-
-        if (maxColH <= availH) {
-          if (offset + K < totalItems && candidateItems[candidateItems.length - 1].groupLetter && K > 1) {
-            K--;
-            continue;
-          }
-          break;
+      while (offset < totalItems) {
+        // Yield to the event loop every TOC page to keep worker responsive
+        if (tocPageNum > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
         }
-        K--;
+
+        const isFirst = tocPageNum === 1;
+        const availH = isFirst ? availableHeightP1Pt : availableHeightSubPt;
+        const remaining = totalItems - offset;
+
+        const maxPossible = Math.min(remaining, Math.ceil(availH / singleItemHeightPt) * tocCols);
+        let K = maxPossible;
+
+        while (K > 1) {
+          const candidateItems = tocItems.slice(offset, offset + K);
+          const cols = balanceColumns(candidateItems, tocCols);
+          const maxColH = Math.max(
+            ...cols.map((c) =>
+              getColumnHeight(c, showDividers, singleItemHeightPt, dividerTotalHeightPt),
+            ),
+          );
+
+          if (maxColH <= availH) {
+            if (
+              offset + K < totalItems &&
+              candidateItems[candidateItems.length - 1].groupLetter &&
+              K > 1
+            ) {
+              K--;
+              continue;
+            }
+            break;
+          }
+          K--;
+        }
+
+        const pageItems = tocItems.slice(offset, offset + K);
+        const cols = balanceColumns(pageItems, tocCols);
+
+        tocPagesData.push({
+          items: pageItems,
+          columnsData: cols,
+          isFirst,
+          pageIndex: tocPageNum,
+        });
+
+        offset += K;
+        tocPageNum++;
       }
 
-      const pageItems = tocItems.slice(offset, offset + K);
-      const cols = balanceColumns(pageItems, tocCols);
+      const tocPagesCount = tocPagesData.length;
 
-      tocPagesData.push({
-        items: pageItems,
-        columnsData: cols,
-        isFirst,
-        pageIndex: tocPageNum,
-      });
+      // Render TOC Pages
+      for (let p = 0; p < tocPagesData.length; p++) {
+        const tocPageInfo = tocPagesData[p];
+        const isFirst = tocPageInfo.isFirst;
+        const pageIndex = tocPageInfo.pageIndex;
+        const currentTocPageIndex = tocStartPageIndex + p;
+        const tocPageMargins = getPageMargins(settings, currentTocPageIndex);
+        const pMarginPtLeft = tocPageMargins.left * mmToPt;
+        const pMarginPtRight = tocPageMargins.right * mmToPt;
+        const pMarginPtTop = tocPageMargins.top * mmToPt;
+        const pMarginPtBottom = tocPageMargins.bottom * mmToPt;
+        const pPrintableWidth = pageWidth - pMarginPtLeft - pMarginPtRight;
+        const pColWidth = (pPrintableWidth - (tocCols - 1) * tocColGap) / tocCols;
 
-      offset += K;
-      tocPageNum++;
-    }
+        const page = doc.addPage([pageWidth, pageHeight]);
+        let currentY = pageHeight - pMarginPtTop;
 
-    const tocPagesCount = tocPagesData.length;
-
-    // Render TOC Pages
-    for (let p = 0; p < tocPagesData.length; p++) {
-      const tocPageInfo = tocPagesData[p];
-      const isFirst = tocPageInfo.isFirst;
-      const pageIndex = tocPageInfo.pageIndex;
-      const currentTocPageIndex = tocStartPageIndex + p;
-      const tocPageMargins = getPageMargins(settings, currentTocPageIndex);
-      const pMarginPtLeft = tocPageMargins.left * mmToPt;
-      const pMarginPtRight = tocPageMargins.right * mmToPt;
-      const pMarginPtTop = tocPageMargins.top * mmToPt;
-      const pMarginPtBottom = tocPageMargins.bottom * mmToPt;
-      const pPrintableWidth = pageWidth - pMarginPtLeft - pMarginPtRight;
-      const pColWidth = (pPrintableWidth - (tocCols - 1) * tocColGap) / tocCols;
-
-      const page = doc.addPage([pageWidth, pageHeight]);
-      let currentY = pageHeight - pMarginPtTop;
-
-      // Header Centered (matching preview)
-      if (isFirst) {
-        const titleUpper = bookTitle.toUpperCase();
-        const titleW = boldFont.widthOfTextAtSize(titleUpper, tocTitlePt);
-        page.drawText(titleUpper, {
-          x: pMarginPtLeft + (pPrintableWidth - Math.min(pPrintableWidth, titleW)) / 2,
-          y: currentY - tocTitlePt,
-          size: tocTitlePt,
-          font: boldFont,
-          color: colTitle,
-        });
-
-        const subText = `Table of Contents${tocPagesCount > 1 ? ` • Page 1 of ${tocPagesCount}` : ''}`;
-        const subPt = 9 * ptPerPx;
-        const subW = regularFont.widthOfTextAtSize(subText, subPt);
-        page.drawText(subText, {
-          x: pMarginPtLeft + (pPrintableWidth - subW) / 2,
-          y: currentY - tocTitlePt - (12 * ptPerPx) - subPt,
-          size: subPt,
-          font: regularFont,
-          color: colTocPage,
-        });
-
-        currentY -= headerH1Pt;
-      } else {
-        const titleUpper = `${bookTitle.toUpperCase()} (CONTINUED)`;
-        const titleW = boldFont.widthOfTextAtSize(titleUpper, tocTitleSubPt);
-        page.drawText(titleUpper, {
-          x: pMarginPtLeft + (pPrintableWidth - Math.min(pPrintableWidth, titleW)) / 2,
-          y: currentY - tocTitleSubPt,
-          size: tocTitleSubPt,
-          font: boldFont,
-          color: colTitle,
-        });
-
-        const subText = `Table of Contents • Page ${pageIndex} of ${tocPagesCount}`;
-        const subPt = 9 * ptPerPx;
-        const subW = regularFont.widthOfTextAtSize(subText, subPt);
-        page.drawText(subText, {
-          x: pMarginPtLeft + (pPrintableWidth - subW) / 2,
-          y: currentY - tocTitleSubPt - (10 * ptPerPx) - subPt,
-          size: subPt,
-          font: regularFont,
-          color: colTocPage,
-        });
-
-        currentY -= headerHSubPt;
-      }
-
-      // Distribute pageItems across tocCols with proper column balancing
-      const columnsData = tocPageInfo.columnsData || balanceColumns(tocPageInfo.items, tocCols);
-      const hasLetterGrouping = settings.indexSortOrder === 'alphabetical' && !!settings.tocAlphabeticalGrouping;
-      const letterColPt = hasLetterGrouping ? 1.85 * tocItemPt : 0;
-      const numColWidth = (songs.length >= 100 ? 2.8 : songs.length >= 10 ? 2.1 : 1.5) * tocItemPt;
-      const colPadLeft = 2 * ptPerPx;
-
-      for (let c = 0; c < tocCols; c++) {
-        const colItems = columnsData[c] || [];
-        const colX = pMarginPtLeft + c * (pColWidth + tocColGap);
-        let rowY = currentY;
-        for (let itemIdx = 0; itemIdx < colItems.length; itemIdx++) {
-          const item = colItems[itemIdx];
-
-          if (showDividers && item.groupLetter && itemIdx > 0) {
-            const divPad = 3.5 * ptPerPx;
-            rowY -= divPad;
-            page.drawLine({
-              start: { x: colX + colPadLeft, y: rowY },
-              end: { x: colX + pColWidth - (2 * ptPerPx), y: rowY },
-              thickness: 0.5,
-              color: colSectionLine,
-              opacity: 0.35,
-            });
-            rowY -= divPad;
-          }
-
-          if (hasLetterGrouping && item.groupLetter) {
-            // Draw group letter in its dedicated letter slot with safe left clearance
-            page.drawText(item.groupLetter, {
-              x: colX + colPadLeft,
-              y: rowY - tocItemPt,
-              size: tocItemPt * 1.05,
-              font: boldFont,
-              color: colTitle,
-            });
-          }
-
-          // Song Number right aligned within its column block (after letter slot)
-          const numStartX = colX + colPadLeft + letterColPt;
-          const numStr = `${item.originalIndex + 1}.`;
-          const numW = boldFont.widthOfTextAtSize(numStr, tocItemPt);
-          page.drawText(numStr, {
-            x: numStartX + numColWidth - numW - (3 * ptPerPx),
-            y: rowY - tocItemPt,
-            size: tocItemPt,
+        // Header Centered (matching preview)
+        if (isFirst) {
+          const titleUpper = bookTitle.toUpperCase();
+          const titleW = boldFont.widthOfTextAtSize(titleUpper, tocTitlePt);
+          page.drawText(titleUpper, {
+            x: pMarginPtLeft + (pPrintableWidth - Math.min(pPrintableWidth, titleW)) / 2,
+            y: currentY - tocTitlePt,
+            size: tocTitlePt,
             font: boldFont,
             color: colTitle,
           });
 
-          // Song Title & Artist (after number block)
-          const titleStartX = numStartX + numColWidth;
-          const titleStr = item.title;
-          const artistStr = item.artist ? ` - ${item.artist}` : '';
-          const maxTextW = pColWidth - (titleStartX - colX) - (4 * ptPerPx);
-
-          let displayTitle = titleStr;
-          let titleW = boldFont.widthOfTextAtSize(displayTitle, tocItemPt);
-          const artistPt = tocItemPt * 0.92;
-          let displayArtist = artistStr;
-          let artistW = displayArtist ? regularFont.widthOfTextAtSize(displayArtist, artistPt) : 0;
-
-          // If combined text overflows column width, smoothly truncate
-          if (titleW + artistW > maxTextW) {
-            if (displayArtist) {
-              while (displayArtist.length > 3 && titleW + regularFont.widthOfTextAtSize(displayArtist + '...', artistPt) > maxTextW) {
-                displayArtist = displayArtist.slice(0, -1);
-              }
-              displayArtist += '...';
-              artistW = regularFont.widthOfTextAtSize(displayArtist, artistPt);
-            }
-            if (titleW + artistW > maxTextW) {
-              displayArtist = '';
-              artistW = 0;
-              while (displayTitle.length > 3 && boldFont.widthOfTextAtSize(displayTitle + '...', tocItemPt) > maxTextW) {
-                displayTitle = displayTitle.slice(0, -1);
-              }
-              displayTitle += '...';
-              titleW = boldFont.widthOfTextAtSize(displayTitle, tocItemPt);
-            }
-          }
-
-          // Draw Title
-          page.drawText(displayTitle, {
-            x: titleStartX,
-            y: rowY - tocItemPt,
-            size: tocItemPt,
-            font: boldFont,
-            color: colToc,
+          const subText = `Table of Contents${tocPagesCount > 1 ? ` • Page 1 of ${tocPagesCount}` : ''}`;
+          const subPt = 9 * ptPerPx;
+          const subW = regularFont.widthOfTextAtSize(subText, subPt);
+          page.drawText(subText, {
+            x: pMarginPtLeft + (pPrintableWidth - subW) / 2,
+            y: currentY - tocTitlePt - 12 * ptPerPx - subPt,
+            size: subPt,
+            font: regularFont,
+            color: colTocPage,
           });
 
-          // Draw Artist
-          if (displayArtist) {
-            page.drawText(displayArtist, {
-              x: titleStartX + titleW,
-              y: rowY - tocItemPt,
-              size: artistPt,
-              font: regularFont,
-              color: colTocArtist,
-            });
-          }
+          currentY -= headerH1Pt;
+        } else {
+          const titleUpper = `${bookTitle.toUpperCase()} (CONTINUED)`;
+          const titleW = boldFont.widthOfTextAtSize(titleUpper, tocTitleSubPt);
+          page.drawText(titleUpper, {
+            x: pMarginPtLeft + (pPrintableWidth - Math.min(pPrintableWidth, titleW)) / 2,
+            y: currentY - tocTitleSubPt,
+            size: tocTitleSubPt,
+            font: boldFont,
+            color: colTitle,
+          });
 
-          rowY -= tocLineHeight;
+          const subText = `Table of Contents • Page ${pageIndex} of ${tocPagesCount}`;
+          const subPt = 9 * ptPerPx;
+          const subW = regularFont.widthOfTextAtSize(subText, subPt);
+          page.drawText(subText, {
+            x: pMarginPtLeft + (pPrintableWidth - subW) / 2,
+            y: currentY - tocTitleSubPt - 10 * ptPerPx - subPt,
+            size: subPt,
+            font: regularFont,
+            color: colTocPage,
+          });
+
+          currentY -= headerHSubPt;
+        }
+
+        // Distribute pageItems across tocCols with proper column balancing
+        const columnsData = tocPageInfo.columnsData || balanceColumns(tocPageInfo.items, tocCols);
+        const hasLetterGrouping =
+          settings.indexSortOrder === 'alphabetical' && !!settings.tocAlphabeticalGrouping;
+        const letterColPt = hasLetterGrouping ? 1.85 * tocItemPt : 0;
+        const numColWidth =
+          (songs.length >= 100 ? 2.8 : songs.length >= 10 ? 2.1 : 1.5) * tocItemPt;
+        const colPadLeft = 2 * ptPerPx;
+
+        for (let c = 0; c < tocCols; c++) {
+          const colItems = columnsData[c] || [];
+          const colX = pMarginPtLeft + c * (pColWidth + tocColGap);
+          let rowY = currentY;
+          for (let itemIdx = 0; itemIdx < colItems.length; itemIdx++) {
+            const item = colItems[itemIdx];
+
+            if (showDividers && item.groupLetter && itemIdx > 0) {
+              const divPad = 3.5 * ptPerPx;
+              rowY -= divPad;
+              page.drawLine({
+                start: { x: colX + colPadLeft, y: rowY },
+                end: { x: colX + pColWidth - 2 * ptPerPx, y: rowY },
+                thickness: 0.5,
+                color: colSectionLine,
+                opacity: 0.35,
+              });
+              rowY -= divPad;
+            }
+
+            if (hasLetterGrouping && item.groupLetter) {
+              // Draw group letter in its dedicated letter slot with safe left clearance
+              page.drawText(item.groupLetter, {
+                x: colX + colPadLeft,
+                y: rowY - tocItemPt,
+                size: tocItemPt * 1.05,
+                font: boldFont,
+                color: colTitle,
+              });
+            }
+
+            // Song Number right aligned within its column block (after letter slot)
+            const numStartX = colX + colPadLeft + letterColPt;
+            const numStr = `${item.originalIndex + 1}.`;
+            const numW = boldFont.widthOfTextAtSize(numStr, tocItemPt);
+            page.drawText(numStr, {
+              x: numStartX + numColWidth - numW - 3 * ptPerPx,
+              y: rowY - tocItemPt,
+              size: tocItemPt,
+              font: boldFont,
+              color: colTitle,
+            });
+
+            // Song Title & Artist (after number block)
+            const titleStartX = numStartX + numColWidth;
+            const titleStr = item.title;
+            const artistStr = item.artist ? ` - ${item.artist}` : '';
+            const maxTextW = pColWidth - (titleStartX - colX) - 4 * ptPerPx;
+
+            let displayTitle = titleStr;
+            let titleW = boldFont.widthOfTextAtSize(displayTitle, tocItemPt);
+            const artistPt = tocItemPt * 0.92;
+            let displayArtist = artistStr;
+            let artistW = displayArtist
+              ? regularFont.widthOfTextAtSize(displayArtist, artistPt)
+              : 0;
+
+            // If combined text overflows column width, smoothly truncate
+            if (titleW + artistW > maxTextW) {
+              if (displayArtist) {
+                while (
+                  displayArtist.length > 3 &&
+                  titleW + regularFont.widthOfTextAtSize(displayArtist + '...', artistPt) > maxTextW
+                ) {
+                  displayArtist = displayArtist.slice(0, -1);
+                }
+                displayArtist += '...';
+                artistW = regularFont.widthOfTextAtSize(displayArtist, artistPt);
+              }
+              if (titleW + artistW > maxTextW) {
+                displayArtist = '';
+                artistW = 0;
+                while (
+                  displayTitle.length > 3 &&
+                  boldFont.widthOfTextAtSize(displayTitle + '...', tocItemPt) > maxTextW
+                ) {
+                  displayTitle = displayTitle.slice(0, -1);
+                }
+                displayTitle += '...';
+                titleW = boldFont.widthOfTextAtSize(displayTitle, tocItemPt);
+              }
+            }
+
+            // Draw Title
+            page.drawText(displayTitle, {
+              x: titleStartX,
+              y: rowY - tocItemPt,
+              size: tocItemPt,
+              font: boldFont,
+              color: colToc,
+            });
+
+            // Draw Artist
+            if (displayArtist) {
+              page.drawText(displayArtist, {
+                x: titleStartX + titleW,
+                y: rowY - tocItemPt,
+                size: artistPt,
+                font: regularFont,
+                color: colTocArtist,
+              });
+            }
+
+            rowY -= tocLineHeight;
+          }
         }
       }
-    }
     }
 
     // ----------------------------------------------------
@@ -1275,7 +1383,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       // Yield to the event loop every few songs to keep the worker responsive to cancellation
       // and allow progress messages to be dispatched smoothly
       if (sIdx > 0 && sIdx % CHUNK_SIZE === 0) {
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
 
       const song = songs[sIdx];
@@ -1294,7 +1402,12 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       const sections: SongSection[] = parseSongContent(songText);
 
       // Compute Smart Fit scale (vertical height budget, chords summing, max font bounds)
-      const scale = computeSmartFitScale(sections, settings, Boolean(song.title), Boolean(song.artist));
+      const scale = computeSmartFitScale(
+        sections,
+        settings,
+        Boolean(song.title),
+        Boolean(song.artist),
+      );
 
       // Font sizes matching CSS preview variables exactly:
       // --title-size: settings.titleFontSize px
@@ -1338,7 +1451,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           // When Book Mode is off, page numbers are always on the right side of the page.
           const isRightSpread = songDocPageIndex % 2 === 0;
           const isRight = settings.bookMode ? isRightSpread : true;
-          badgeX = isRight ? (pageWidth - songMarginPtRight - badgeSize) : songMarginPtLeft;
+          badgeX = isRight ? pageWidth - songMarginPtRight - badgeSize : songMarginPtLeft;
         }
 
         const badgeY = currentY - badgeSize;
@@ -1346,7 +1459,8 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         // Use relative SVG path (0 to badgeSize) and pass (x, y) to drawSvgPath so Y-inversion maps accurately
         const r = badgeR;
         const s = badgeSize;
-        const badgePath = `M ${r} 0 ` +
+        const badgePath =
+          `M ${r} 0 ` +
           `L ${s - r} 0 ` +
           `A ${r} ${r} 0 0 1 ${s} ${r} ` +
           `L ${s} ${s - r} ` +
@@ -1382,7 +1496,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       const wTitle = boldFont.widthOfTextAtSize(titleStr, titlePt);
       const wArtist = artistStr ? boldFont.widthOfTextAtSize(artistSuffix, artistPt) : 0;
       const totalHeaderW = wTitle + wArtist;
-      const headerMaxW = printableWidth - (64 * ptPerPx);
+      const headerMaxW = printableWidth - 64 * ptPerPx;
 
       if (totalHeaderW <= headerMaxW) {
         // Fits comfortably on a single centered line
@@ -1405,10 +1519,11 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           });
         }
 
-        currentY -= Math.max(titlePt, artistPt) + (22 * ptPerPx);
+        currentY -= Math.max(titlePt, artistPt) + 22 * ptPerPx;
       } else {
         // Wrap title and artist on two centered lines
-        const titleX = songMarginPtLeft + (printableWidth - Math.min(printableWidth - 20, wTitle)) / 2;
+        const titleX =
+          songMarginPtLeft + (printableWidth - Math.min(printableWidth - 20, wTitle)) / 2;
         page.drawText(titleStr, {
           x: titleX,
           y: currentY - titlePt,
@@ -1416,10 +1531,11 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           font: boldFont,
           color: colTitle,
         });
-        currentY -= titlePt + (4 * ptPerPx);
+        currentY -= titlePt + 4 * ptPerPx;
 
         if (artistStr) {
-          const artistX = songMarginPtLeft + (printableWidth - Math.min(printableWidth - 20, wArtist)) / 2;
+          const artistX =
+            songMarginPtLeft + (printableWidth - Math.min(printableWidth - 20, wArtist)) / 2;
           page.drawText(artistStr, {
             x: artistX,
             y: currentY - artistPt,
@@ -1427,15 +1543,15 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
             font: boldFont,
             color: colArtist,
           });
-          currentY -= artistPt + (20 * ptPerPx);
+          currentY -= artistPt + 20 * ptPerPx;
         } else {
-          currentY -= (20 * ptPerPx);
+          currentY -= 20 * ptPerPx;
         }
       }
 
       // 4C. Columns and Smart Column Balancing
       const colCount = getOptimalColumnCount(sections, settings);
-      const colGap = colCount > 1 ? (24 * ptPerPx) : 0;
+      const colGap = colCount > 1 ? 24 * ptPerPx : 0;
       const colWidth = (printableWidth - (colCount - 1) * colGap) / colCount;
 
       const availColHeightPt = currentY - songMarginPtBottom;
@@ -1444,7 +1560,12 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       // Smart column balance plan (determines inter-section breaks & orphan guards)
       const columnPlan = computeSmartColumnBalance(sections, settings, availColHeightPx, scale);
       const partitionedCols = partitionSectionsIntoColumns(sections, columnPlan, colCount);
-      const sectionFillingPlan = computeSmartSectionFilling(partitionedCols, settings, availColHeightPx, scale);
+      const sectionFillingPlan = computeSmartSectionFilling(
+        partitionedCols,
+        settings,
+        availColHeightPx,
+        scale,
+      );
 
       // Section markers column width calculation
       const hasAnyMarkers = sections.some((s) => Boolean(s.marker && s.marker.trim()));
@@ -1461,19 +1582,27 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         }
       }
       // Guaranteed column width accommodating the widest marker plus spacing before lyrics
-      const markerWidthPt = hasAnyMarkers ? Math.max(maxMarkerW + (8 * ptPerPx), 1.85 * lyricsPt) : 0;
+      const markerWidthPt = hasAnyMarkers ? Math.max(maxMarkerW + 8 * ptPerPx, 1.85 * lyricsPt) : 0;
 
       // Section lines setup (0.22em border, 0.20rem padding-left)
       const showSectionLines = settings.showSectionLines !== false;
       const sectionBorderW = Math.max(1.2, 0.22 * lyricsPt);
-      const sectionPaddingLeft = (0.20 * 16) * ptPerPx;
-      const sectionLeftInset = showSectionLines ? (sectionBorderW + sectionPaddingLeft + (2 * ptPerPx)) : 0;
+      const sectionPaddingLeft = 0.2 * 16 * ptPerPx;
+      const sectionLeftInset = showSectionLines
+        ? sectionBorderW + sectionPaddingLeft + 2 * ptPerPx
+        : 0;
 
       // Vertical line dimensions
       const chordHeightPt = chordsPt;
       const lyricHeightPt = lyricsPt;
       const chordSpacingPt = 2 * ptPerPx;
-      const pdfLineMarginPx = computeSmartFitLineMargin(sections, settings, Boolean(song.title), Boolean(song.artist), scale);
+      const pdfLineMarginPx = computeSmartFitLineMargin(
+        sections,
+        settings,
+        Boolean(song.title),
+        Boolean(song.artist),
+        scale,
+      );
       const sectionGapPt = (settings.sectionMargin ?? 12) * ptPerPx;
 
       const colStartY = currentY;
@@ -1508,7 +1637,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           if (line.isEmpty) {
             secEstimatedH += 9 * ptPerPx;
           } else if (line.isRepetitionLine) {
-            secEstimatedH += chordHeightPt + (4 * ptPerPx);
+            secEstimatedH += chordHeightPt + 4 * ptPerPx;
           } else if (line.hasChords && settings.showChords) {
             secEstimatedH += chordHeightPt + chordSpacingPt + lyricHeightPt + lineMarginBottomPt;
           } else {
@@ -1518,13 +1647,17 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         secEstimatedH += colSectionGapPt;
 
         // If plan says avoidBreakInside and section doesn't fit in current column, advance
-        if (plan?.avoidBreakInside && (colY - secEstimatedH < songMarginPtBottom) && currentCol < colCount - 1) {
+        if (
+          plan?.avoidBreakInside &&
+          colY - secEstimatedH < songMarginPtBottom &&
+          currentCol < colCount - 1
+        ) {
           currentCol++;
           colY = colStartY;
           didBreakColumn = true;
         }
 
-        const isFirstInThisCol = (currentCol !== lastCol) || Math.abs(colY - colStartY) <= 2;
+        const isFirstInThisCol = currentCol !== lastCol || Math.abs(colY - colStartY) <= 2;
 
         // Uniform section separation spacing (no dividers or ornaments)
         if (!isFirstInThisCol) {
@@ -1541,7 +1674,8 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           const reqLineH = lyricHeightPt + lineMarginBottomPt;
           if (colY - reqLineH < songMarginPtBottom) {
             if (showSectionLines && secSegmentStartY > colY) {
-              const borderColX = songMarginPtLeft + currentCol * (colWidth + colGap) + (sectionBorderW / 2);
+              const borderColX =
+                songMarginPtLeft + currentCol * (colWidth + colGap) + sectionBorderW / 2;
               page.drawLine({
                 start: { x: borderColX, y: secSegmentStartY },
                 end: { x: borderColX, y: colY },
@@ -1556,7 +1690,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
             } else {
               page = doc.addPage([pageWidth, pageHeight]);
               currentCol = 0;
-              colY = pageHeight - songMarginPtTop - (20 * ptPerPx);
+              colY = pageHeight - songMarginPtTop - 20 * ptPerPx;
               secSegmentStartY = colY;
             }
           }
@@ -1564,7 +1698,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           const lineStartX = colBaseX + sectionLeftInset;
           const cleanMarker = section.marker.replace(/^\[(.*)\]$/, '$1').trim();
           const markerW = regularFont.widthOfTextAtSize(cleanMarker, markerPt);
-          const markerDrawX = lineStartX + markerWidthPt - markerW - (4 * ptPerPx);
+          const markerDrawX = lineStartX + markerWidthPt - markerW - 4 * ptPerPx;
           const lyricBaseY = colY - lyricsPt;
 
           page.drawText(cleanMarker, {
@@ -1583,18 +1717,19 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           const isFirstNonEmpty = lIdx === firstNonEmptyIndex;
 
           const reqLineH = lineData.isEmpty
-            ? (9 * ptPerPx)
+            ? 9 * ptPerPx
             : lineData.isRepetitionLine
-            ? chordHeightPt + (4 * ptPerPx)
-            : lineData.hasChords && settings.showChords
-            ? chordHeightPt + chordSpacingPt + lyricHeightPt + lineMarginBottomPt
-            : lyricHeightPt + lineMarginBottomPt;
+              ? chordHeightPt + 4 * ptPerPx
+              : lineData.hasChords && settings.showChords
+                ? chordHeightPt + chordSpacingPt + lyricHeightPt + lineMarginBottomPt
+                : lyricHeightPt + lineMarginBottomPt;
 
           // If line overflows column, advance to next column or continuation page
           if (colY - reqLineH < songMarginPtBottom) {
             // Finish section border line on current column before moving
             if (showSectionLines && secSegmentStartY > colY) {
-              const borderColX = songMarginPtLeft + currentCol * (colWidth + colGap) + (sectionBorderW / 2);
+              const borderColX =
+                songMarginPtLeft + currentCol * (colWidth + colGap) + sectionBorderW / 2;
               page.drawLine({
                 start: { x: borderColX, y: secSegmentStartY },
                 end: { x: borderColX, y: colY },
@@ -1610,10 +1745,10 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
             } else {
               page = doc.addPage([pageWidth, pageHeight]);
               currentCol = 0;
-              colY = pageHeight - songMarginPtTop - (22 * ptPerPx);
+              colY = pageHeight - songMarginPtTop - 22 * ptPerPx;
               page.drawText(`${titleStr} (continued)`, {
                 x: songMarginPtLeft,
-                y: colY + (4 * ptPerPx),
+                y: colY + 4 * ptPerPx,
                 size: Math.max(9, titlePt * 0.75),
                 font: boldFont,
                 color: colTitle,
@@ -1636,10 +1771,11 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
             const cleanMarker = section.marker.replace(/^\[(.*)\]$/, '$1').trim();
             const markerW = regularFont.widthOfTextAtSize(cleanMarker, markerPt);
             // Right-align marker with clean margin before lyrics
-            const markerDrawX = lineStartX + markerWidthPt - markerW - (4 * ptPerPx);
-            const lyricBaseY = (lineData.hasChords && settings.showChords && !lineData.isRepetitionLine)
-              ? (colY - chordHeightPt - chordSpacingPt - lyricsPt)
-              : (colY - lyricsPt);
+            const markerDrawX = lineStartX + markerWidthPt - markerW - 4 * ptPerPx;
+            const lyricBaseY =
+              lineData.hasChords && settings.showChords && !lineData.isRepetitionLine
+                ? colY - chordHeightPt - chordSpacingPt - lyricsPt
+                : colY - lyricsPt;
 
             page.drawText(cleanMarker, {
               x: Math.max(lineStartX, markerDrawX),
@@ -1653,7 +1789,10 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           const chunksOriginX = lineStartX + markerWidthPt;
 
           // Case 2: Repetition line or chords-only line (e.g. Intro, Outro, Solo, [R:], etc.)
-          if (lineData.isRepetitionLine || !lineData.chunks.some((c) => c.text && c.text.trim().length > 0 && !c.isSectionRef)) {
+          if (
+            lineData.isRepetitionLine ||
+            !lineData.chunks.some((c) => c.text && c.text.trim().length > 0 && !c.isSectionRef)
+          ) {
             let curX = chunksOriginX;
             for (const chunk of lineData.chunks) {
               if (chunk.isSectionRef) {
@@ -1667,7 +1806,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
                     font: regularFont,
                     color: colMarker,
                   });
-                  curX += regularFont.widthOfTextAtSize(textToDraw, lyricsPt) + (6 * ptPerPx);
+                  curX += regularFont.widthOfTextAtSize(textToDraw, lyricsPt) + 6 * ptPerPx;
                 }
               } else if (chunk.chord && settings.showChords) {
                 // Chords rendered directly WITHOUT square brackets!
@@ -1679,7 +1818,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
                   font: chordsFontToUse,
                   color: colChords,
                 });
-                curX += chordsFontToUse.widthOfTextAtSize(chordText, chordsPt) + (6 * ptPerPx);
+                curX += chordsFontToUse.widthOfTextAtSize(chordText, chordsPt) + 6 * ptPerPx;
               } else if (chunk.text && chunk.text.trim()) {
                 page.drawText(chunk.text, {
                   x: curX,
@@ -1688,10 +1827,10 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
                   font: regularFont,
                   color: colLyrics,
                 });
-                curX += regularFont.widthOfTextAtSize(chunk.text, lyricsPt) + (4 * ptPerPx);
+                curX += regularFont.widthOfTextAtSize(chunk.text, lyricsPt) + 4 * ptPerPx;
               }
             }
-            colY -= (Math.max(chordsPt, lyricsPt) + (5 * ptPerPx));
+            colY -= Math.max(chordsPt, lyricsPt) + 5 * ptPerPx;
             continue;
           }
 
@@ -1707,15 +1846,16 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
               const hasChord = Boolean(chunk.chord);
               const chordStr = chunk.chord || '';
               const isSectionRef = chunk.isSectionRef;
-              const textStr = isSectionRef ? `[${(chunk.text || '').replace(/^\[(.*)\]$/, '$1').trim()}]` : (chunk.text || '');
+              const textStr = isSectionRef
+                ? `[${(chunk.text || '').replace(/^\[(.*)\]$/, '$1').trim()}]`
+                : chunk.text || '';
 
               // Compute widths: chords receive a small right padding unless it is the last chunk
               const chordW = hasChord
-                ? chordsFontToUse.widthOfTextAtSize(chordStr, chordsPt) + (isLastChunk ? 0 : (2.5 * ptPerPx))
+                ? chordsFontToUse.widthOfTextAtSize(chordStr, chordsPt) +
+                  (isLastChunk ? 0 : 2.5 * ptPerPx)
                 : 0;
-              const textW = textStr
-                ? lyricsFontToUse.widthOfTextAtSize(textStr, lyricsPt)
-                : 0;
+              const textW = textStr ? lyricsFontToUse.widthOfTextAtSize(textStr, lyricsPt) : 0;
 
               // Chunk width is max(chordW, textW) so chords and lyrics never collide horizontally!
               const chunkW = Math.max(chordW, textW);
@@ -1743,7 +1883,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
               curX += chunkW;
             }
 
-            colY -= (chordHeightPt + chordSpacingPt + lyricHeightPt + lineMarginBottomPt);
+            colY -= chordHeightPt + chordSpacingPt + lyricHeightPt + lineMarginBottomPt;
           } else {
             // Case 4: Lyrics only (no chords on line or chords hidden)
             const lyricBaseY = colY - lyricsPt;
@@ -1751,7 +1891,9 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
 
             for (const chunk of lineData.chunks) {
               const isSectionRef = chunk.isSectionRef;
-              const textStr = isSectionRef ? `[${(chunk.text || '').replace(/^\[(.*)\]$/, '$1').trim()}]` : (chunk.text || '');
+              const textStr = isSectionRef
+                ? `[${(chunk.text || '').replace(/^\[(.*)\]$/, '$1').trim()}]`
+                : chunk.text || '';
               if (textStr) {
                 page.drawText(textStr, {
                   x: curX,
@@ -1764,13 +1906,14 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
               }
             }
 
-            colY -= (lyricHeightPt + lineMarginBottomPt);
+            colY -= lyricHeightPt + lineMarginBottomPt;
           }
         }
 
         // Finish vertical section accent line for this column
         if (showSectionLines && secSegmentStartY > colY) {
-          const borderColX = songMarginPtLeft + currentCol * (colWidth + colGap) + (sectionBorderW / 2);
+          const borderColX =
+            songMarginPtLeft + currentCol * (colWidth + colGap) + sectionBorderW / 2;
           page.drawLine({
             start: { x: borderColX, y: secSegmentStartY },
             end: { x: borderColX, y: colY + lineMarginBottomPt },
@@ -1781,42 +1924,41 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
       }
     }
 
-    
-      // ----------------------------------------------------------------------
-      // BACK COVER PAGE (OPTIONAL)
-      // ----------------------------------------------------------------------
-      if (settings.showBackCover !== false && songs.length > 0) {
-        postProgress({
-          percent: 95,
-          phase: 'finalizing',
-          message: 'Generating back cover page...',
-          totalSongs
-        });
-        const backCoverPageIndex = doc.getPageCount();
-        const backMargins = getPageMargins(settings, backCoverPageIndex);
-        const backPtLeft = backMargins.left * mmToPt;
-        const backPtRight = backMargins.right * mmToPt;
-        const backPtTop = backMargins.top * mmToPt;
-        const backPtBottom = backMargins.bottom * mmToPt;
+    // ----------------------------------------------------------------------
+    // BACK COVER PAGE (OPTIONAL)
+    // ----------------------------------------------------------------------
+    if (settings.showBackCover !== false && songs.length > 0) {
+      postProgress({
+        percent: 95,
+        phase: 'finalizing',
+        message: 'Generating back cover page...',
+        totalSongs,
+      });
+      const backCoverPageIndex = doc.getPageCount();
+      const backMargins = getPageMargins(settings, backCoverPageIndex);
+      const backPtLeft = backMargins.left * mmToPt;
+      const backPtRight = backMargins.right * mmToPt;
+      const backPtTop = backMargins.top * mmToPt;
+      const backPtBottom = backMargins.bottom * mmToPt;
 
-        await renderBackCoverPage(
-          doc,
-          songbookData,
-          settings,
-          boldFont,
-          regularFont,
-          pageWidth,
-          pageHeight,
-          backPtLeft,
-          backPtRight,
-          backPtTop,
-          backPtBottom,
-          colTitle,
-          colArtist,
-          colSectionLine,
-          ptPerPx
-        );
-      }
+      await renderBackCoverPage(
+        doc,
+        songbookData,
+        settings,
+        boldFont,
+        regularFont,
+        pageWidth,
+        pageHeight,
+        backPtLeft,
+        backPtRight,
+        backPtTop,
+        backPtBottom,
+        colTitle,
+        colArtist,
+        colSectionLine,
+        ptPerPx,
+      );
+    }
 
     postProgress({
       percent: 95,
@@ -1828,7 +1970,10 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     // 5. Save and return PDF bytes
 
     const pdfBytes = await doc.save();
-    const cleanBookTitle = bookTitle.trim().replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '_');
+    const cleanBookTitle = bookTitle
+      .trim()
+      .replace(/[/\\?%*:|"<>]/g, '-')
+      .replace(/\s+/g, '_');
     const filename = `${cleanBookTitle || 'Kytario_Songbook'}.pdf`;
 
     postProgress({
@@ -1851,7 +1996,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
           sizeBytes: pdfBytes.byteLength,
         },
       } as WorkerOutMessage,
-      [pdfBytes.buffer]
+      [pdfBytes.buffer],
     );
   } catch (err: any) {
     console.error('PDF Worker generation error:', err);

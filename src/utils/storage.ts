@@ -131,14 +131,16 @@ async function idbDelete(key: string): Promise<boolean> {
 /**
  * Persist generated PDF state to IndexedDB
  */
-export async function saveGeneratedPdfToStorage(pdfInfo: {
-  blob: Blob;
-  filename: string;
-  pageCount: number;
-  sizeFormatted: string;
-  generatedAt: number;
-  fingerprint: string;
-} | null): Promise<boolean> {
+export async function saveGeneratedPdfToStorage(
+  pdfInfo: {
+    blob: Blob;
+    filename: string;
+    pageCount: number;
+    sizeFormatted: string;
+    generatedAt: number;
+    fingerprint: string;
+  } | null,
+): Promise<boolean> {
   if (!pdfInfo) {
     return await idbDelete('cachedPdf');
   }
@@ -179,7 +181,9 @@ export async function loadGeneratedPdfFromStorage(): Promise<{
  */
 export async function saveCachedSongbookToStorage(songbook: any): Promise<void> {
   if (!songbook) {
-    try { localStorage.removeItem('kytario-cached-songbook'); } catch {}
+    try {
+      localStorage.removeItem('kytario-cached-songbook');
+    } catch {}
     await idbDelete('cachedSongbook');
     return;
   }
@@ -194,11 +198,15 @@ export async function saveCachedSongbookToStorage(songbook: any): Promise<void> 
     try {
       localStorage.setItem('kytario-cached-songbook', JSON.stringify(songbook));
     } catch {
-      try { localStorage.removeItem('kytario-cached-songbook'); } catch {}
+      try {
+        localStorage.removeItem('kytario-cached-songbook');
+      } catch {}
     }
   } else {
     // Large songbook: clean localStorage so IndexedDB is used cleanly
-    try { localStorage.removeItem('kytario-cached-songbook'); } catch {}
+    try {
+      localStorage.removeItem('kytario-cached-songbook');
+    } catch {}
   }
 }
 

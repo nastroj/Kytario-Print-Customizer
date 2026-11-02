@@ -12,7 +12,12 @@ interface PasteImportPanelProps {
  * Paste-JSON import panel with an accessible labelled textarea and a
  * live character-count hint.
  */
-export function PasteImportPanel({ value, onChange, onSubmit, isProcessing }: PasteImportPanelProps) {
+export function PasteImportPanel({
+  value,
+  onChange,
+  onSubmit,
+  isProcessing,
+}: PasteImportPanelProps) {
   const isEmpty = value.trim().length === 0;
 
   return (

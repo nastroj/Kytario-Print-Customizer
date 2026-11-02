@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, CheckCircle2, AlertCircle, X, ChevronDown, ChevronUp, FileDown, Sparkles, RotateCw } from 'lucide-react';
+import {
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  ChevronDown,
+  ChevronUp,
+  FileDown,
+  Sparkles,
+  RotateCw,
+} from 'lucide-react';
 import { GenerationProgress, GeneratedFileInfo } from '../hooks/useBackgroundPdfGenerator';
 
 interface BackgroundPdfProgressModalProps {
@@ -79,7 +89,11 @@ export const BackgroundPdfProgressModal: React.FC<BackgroundPdfProgressModalProp
                 title={isMinimized ? 'Expand progress' : 'Minimize to corner'}
                 aria-label={isMinimized ? 'Expand progress' : 'Minimize to corner'}
               >
-                {isMinimized ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {isMinimized ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
               </button>
               <button
                 type="button"
@@ -103,9 +117,7 @@ export const BackgroundPdfProgressModal: React.FC<BackgroundPdfProgressModalProp
                   <span className="font-medium text-zinc-700 truncate max-w-[70%]">
                     {progress.message}
                   </span>
-                  <span className="font-bold text-amber-600 tabular-nums">
-                    {progress.percent}%
-                  </span>
+                  <span className="font-bold text-amber-600 tabular-nums">{progress.percent}%</span>
                 </div>
 
                 {/* Progress bar */}
@@ -119,7 +131,8 @@ export const BackgroundPdfProgressModal: React.FC<BackgroundPdfProgressModalProp
 
               {/* Non-blocking friendly tip */}
               <p className="text-[10px] text-zinc-400 leading-relaxed">
-                Running in the background. You can freely adjust settings or browse preview while this generates.
+                Running in the background. You can freely adjust settings or browse preview while
+                this generates.
               </p>
 
               {/* Cancel Button */}
@@ -239,9 +252,7 @@ export const BackgroundPdfProgressModal: React.FC<BackgroundPdfProgressModalProp
 
           <div className="flex-1 min-w-0">
             <h4 className="text-xs font-bold text-rose-600">PDF Generation Failed</h4>
-            <p className="text-[11px] text-zinc-600 mt-0.5 leading-relaxed">
-              {error}
-            </p>
+            <p className="text-[11px] text-zinc-600 mt-0.5 leading-relaxed">{error}</p>
           </div>
 
           <button

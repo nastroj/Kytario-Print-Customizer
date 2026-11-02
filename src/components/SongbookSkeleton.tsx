@@ -27,13 +27,13 @@ export const SongbookSkeleton: React.FC<SongbookSkeletonProps> = ({
   const songCols = 2;
 
   return (
-    <div 
+    <div
       id="songbook-preview-skeleton"
       className="flex flex-col items-center select-none pointer-events-none animate-in fade-in duration-200"
       aria-label="Calculating preview layout"
     >
       {/* SKELETON PAGE 1: Table of Contents / Index Overview */}
-      <div 
+      <div
         className="mx-auto mb-6 sm:mb-10 shrink-0"
         style={{
           width: isScaled ? `${scaledWidth}px` : 'fit-content',
@@ -42,10 +42,10 @@ export const SongbookSkeleton: React.FC<SongbookSkeletonProps> = ({
           position: 'relative',
         }}
       >
-        <div 
+        <div
           className="bg-white shadow-md px-[5mm] py-[6mm] flex flex-col overflow-hidden origin-top-left border border-black/5/50"
-          style={{ 
-            width: cssWidth, 
+          style={{
+            width: cssWidth,
             height: cssHeight,
             minHeight: cssHeight,
             transform: isScaled ? `scale(${effectiveScale})` : 'none',
@@ -62,18 +62,18 @@ export const SongbookSkeleton: React.FC<SongbookSkeletonProps> = ({
           </div>
 
           {/* Table of Contents Columns Skeleton */}
-          <div 
+          <div
             className="flex-1 grid gap-x-8 gap-y-2 animate-pulse"
-            style={{ 
+            style={{
               gridTemplateColumns: `repeat(${tocColumns}, minmax(0, 1fr))`,
             }}
           >
             {Array.from({ length: isLandscape ? 18 : 22 }).map((_, idx) => (
               <div key={idx} className="flex items-center gap-2 py-1">
                 <div className="w-5 h-3.5 bg-zinc-300/70 rounded shrink-0" />
-                <div 
-                  className="h-3.5 bg-zinc-200/90 rounded" 
-                  style={{ width: `${60 + ((idx * 17) % 35)}%` }} 
+                <div
+                  className="h-3.5 bg-zinc-200/90 rounded"
+                  style={{ width: `${60 + ((idx * 17) % 35)}%` }}
                 />
               </div>
             ))}
@@ -89,7 +89,7 @@ export const SongbookSkeleton: React.FC<SongbookSkeletonProps> = ({
 
       {/* SKELETON PAGE 2: Song Content Page */}
       {pageCount >= 2 && (
-        <div 
+        <div
           className="mx-auto mb-6 sm:mb-10 shrink-0"
           style={{
             width: isScaled ? `${scaledWidth}px` : 'fit-content',
@@ -98,10 +98,10 @@ export const SongbookSkeleton: React.FC<SongbookSkeletonProps> = ({
             position: 'relative',
           }}
         >
-          <div 
+          <div
             className="bg-white shadow-md px-[5mm] py-[6mm] flex flex-col overflow-hidden origin-top-left border border-black/5/50"
-            style={{ 
-              width: cssWidth, 
+            style={{
+              width: cssWidth,
               height: cssHeight,
               minHeight: cssHeight,
               transform: isScaled ? `scale(${effectiveScale})` : 'none',
@@ -127,7 +127,7 @@ export const SongbookSkeleton: React.FC<SongbookSkeletonProps> = ({
             </div>
 
             {/* Multi-Column Song Verses & Chords Skeleton */}
-            <div 
+            <div
               className="flex-1 grid gap-x-6 gap-y-4 animate-pulse"
               style={{ gridTemplateColumns: `repeat(${songCols}, minmax(0, 1fr))` }}
             >

@@ -46,7 +46,8 @@ describe('safeParseSongbookJson', () => {
   });
 
   it('recovers truncated files by balancing brackets (Attempt 3)', () => {
-    const truncated = '{"name":"Cut off book","songs":[{"title":"One","content":"aaa"},{"title":"Two","cont';
+    const truncated =
+      '{"name":"Cut off book","songs":[{"title":"One","content":"aaa"},{"title":"Two","cont';
     const { data, isRepaired } = safeParseSongbookJson(truncated);
     expect(isRepaired).toBe(true);
     expect(data.songs.length).toBeGreaterThanOrEqual(1);
@@ -60,7 +61,8 @@ describe('safeParseSongbookJson', () => {
   });
 
   it('falls back to corrupted-text scanning with a "Recovered" title (Attempt 5)', () => {
-    const garbage = 'NETWORK ERROR {{{ bad json ... {"title":"Survivor","content":"lyric"} ... totally broken ]]]';
+    const garbage =
+      'NETWORK ERROR {{{ bad json ... {"title":"Survivor","content":"lyric"} ... totally broken ]]]';
     const { data, isRepaired, recoveredCount } = safeParseSongbookJson(garbage);
     expect(isRepaired).toBe(true);
     expect(recoveredCount).toBe(1);

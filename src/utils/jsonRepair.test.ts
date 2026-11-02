@@ -96,13 +96,16 @@ describe('balanceJsonBrackets', () => {
 
 describe('tryParseSequenceOrNdjson', () => {
   it('parses a bare comma-separated sequence of objects', () => {
-    const result = tryParseSequenceOrNdjson('{"title":"A","content":"x"},{"title":"B","content":"y"}');
+    const result = tryParseSequenceOrNdjson(
+      '{"title":"A","content":"x"},{"title":"B","content":"y"}',
+    );
     expect(result).toHaveLength(2);
     expect(result?.[1].title).toBe('B');
   });
 
   it('parses newline-delimited JSON when wrapping fails', () => {
-    const ndjson = '{"title":"A","content":"line with unescaped \n break"}\n{"title":"B","content":"y"}';
+    const ndjson =
+      '{"title":"A","content":"line with unescaped \n break"}\n{"title":"B","content":"y"}';
     const result = tryParseSequenceOrNdjson(ndjson);
     expect(result).not.toBeNull();
     expect(result!.length).toBeGreaterThanOrEqual(1);

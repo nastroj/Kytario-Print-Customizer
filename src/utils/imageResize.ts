@@ -5,7 +5,7 @@
 export async function resizeAndCompressImage(
   file: File,
   maxDimension = 1200,
-  quality = 0.85
+  quality = 0.85,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

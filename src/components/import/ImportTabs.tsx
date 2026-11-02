@@ -32,33 +32,39 @@ export function ImportTabs({ activeTab, onTabChange }: ImportTabsProps) {
     upload: null,
   });
 
-  const focusTab = useCallback((index: number) => {
-    const clamped = (index + TABS.length) % TABS.length;
-    const tab = TABS[clamped];
-    tabRefs.current[tab.id]?.focus();
-    onTabChange(tab.id);
-  }, [onTabChange]);
+  const focusTab = useCallback(
+    (index: number) => {
+      const clamped = (index + TABS.length) % TABS.length;
+      const tab = TABS[clamped];
+      tabRefs.current[tab.id]?.focus();
+      onTabChange(tab.id);
+    },
+    [onTabChange],
+  );
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent, currentIndex: number) => {
-    switch (e.key) {
-      case 'ArrowRight':
-        e.preventDefault();
-        focusTab(currentIndex + 1);
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        focusTab(currentIndex - 1);
-        break;
-      case 'Home':
-        e.preventDefault();
-        focusTab(0);
-        break;
-      case 'End':
-        e.preventDefault();
-        focusTab(TABS.length - 1);
-        break;
-    }
-  }, [focusTab]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent, currentIndex: number) => {
+      switch (e.key) {
+        case 'ArrowRight':
+          e.preventDefault();
+          focusTab(currentIndex + 1);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          focusTab(currentIndex - 1);
+          break;
+        case 'Home':
+          e.preventDefault();
+          focusTab(0);
+          break;
+        case 'End':
+          e.preventDefault();
+          focusTab(TABS.length - 1);
+          break;
+      }
+    },
+    [focusTab],
+  );
 
   return (
     <div
@@ -72,7 +78,9 @@ export function ImportTabs({ activeTab, onTabChange }: ImportTabsProps) {
         return (
           <button
             key={tab.id}
-            ref={(el) => { tabRefs.current[tab.id] = el; }}
+            ref={(el) => {
+              tabRefs.current[tab.id] = el;
+            }}
             role="tab"
             id={`import-tab-${tab.id}`}
             aria-selected={isSelected}

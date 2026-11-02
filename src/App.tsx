@@ -1,25 +1,73 @@
-import React, { useState, useEffect, useDeferredValue, useTransition, useRef, useCallback, useMemo, startTransition, Suspense, lazy } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useDeferredValue,
+  useTransition,
+  useRef,
+  useCallback,
+  useMemo,
+  startTransition,
+  Suspense,
+  lazy,
+} from 'react';
 import { Sidebar } from './components/Sidebar';
 // Code-splitting: the heavy preview module (layout engine + page rendering, ~2.2k lines)
 // is loaded on demand instead of blocking the initial import-screen bundle.
-const SongbookPreview = lazy(() => import('./components/SongbookPreview').then(m => ({ default: m.SongbookPreview })));
+const SongbookPreview = lazy(() =>
+  import('./components/SongbookPreview').then((m) => ({ default: m.SongbookPreview })),
+);
 import { ProgressBar } from './components/ProgressBar';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { KytarioLogo } from './components/KytarioLogo';
 import { getChangedSettingsList } from './components/UnappliedSettingsBanner';
 import { Song, SongbookData, PrintSettings, ZoomMode } from './types';
-import { FileJson, Upload, Clipboard, CheckCircle2, Music, FileText, AlertCircle, SlidersHorizontal, FolderOpen, FileDown, Loader2, Globe, ExternalLink, AlertTriangle, Minus, Plus, RotateCcw, Maximize2, BookOpen, Archive, FileArchive, ListFilter } from 'lucide-react';
+import {
+  FileJson,
+  Upload,
+  Clipboard,
+  CheckCircle2,
+  Music,
+  FileText,
+  AlertCircle,
+  SlidersHorizontal,
+  FolderOpen,
+  FileDown,
+  Loader2,
+  Globe,
+  ExternalLink,
+  AlertTriangle,
+  Minus,
+  Plus,
+  RotateCcw,
+  Maximize2,
+  BookOpen,
+  Archive,
+  FileArchive,
+  ListFilter,
+} from 'lucide-react';
 import { safeParseSongbookJson, normalizeSongbookData, normalizeSingleSong } from './utils';
 import { isZipFile, parseKytarioZip, ZipParseResult } from './utils/zipParser';
 import { readFileAsText } from './utils/fileIO';
-import { fetchSongbookFromKytario, cleanKytarioUrl, KytarioErrorDetails, getStoredProxyUrl, setStoredProxyUrl } from './utils/api';
+import {
+  fetchSongbookFromKytario,
+  cleanKytarioUrl,
+  KytarioErrorDetails,
+  getStoredProxyUrl,
+  setStoredProxyUrl,
+} from './utils/api';
 import { APP_CONFIG } from './config';
 import { DEFAULT_PRINT_SETTINGS, STORAGE_KEYS } from './config/constants';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
 // Modal-only components: loaded on demand so they stay out of the initial chunk.
-const BackgroundPdfProgressModal = lazy(() => import('./components/BackgroundPdfProgressModal').then(m => ({ default: m.BackgroundPdfProgressModal })));
-const SongSelectionModal = lazy(() => import('./components/SongSelectionModal').then(m => ({ default: m.SongSelectionModal })));
+const BackgroundPdfProgressModal = lazy(() =>
+  import('./components/BackgroundPdfProgressModal').then((m) => ({
+    default: m.BackgroundPdfProgressModal,
+  })),
+);
+const SongSelectionModal = lazy(() =>
+  import('./components/SongSelectionModal').then((m) => ({ default: m.SongSelectionModal })),
+);
 import { saveCachedSongbookToStorage, loadCachedSongbookFromStorage } from './utils/storage';
 import { ZipProjectSelectModal } from './components/ZipProjectSelectModal';
 import { ImportTabs, type ImportTabId } from './components/import/ImportTabs';
@@ -78,13 +126,17 @@ export default function App() {
   useEffect(() => {
     let mounted = true;
     if (!songbookData) {
-      loadCachedSongbookFromStorage().then((data) => {
-        if (mounted && data && (data.songs || data.items || data.sections)) {
-          setSongbookData(data);
-        }
-      }).catch(() => {});
+      loadCachedSongbookFromStorage()
+        .then((data) => {
+          if (mounted && data && (data.songs || data.items || data.sections)) {
+            setSongbookData(data);
+          }
+        })
+        .catch(() => {});
     }
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Persist songbook changes to both IndexedDB and localStorage safely
@@ -116,9 +168,13 @@ export default function App() {
   // Automatically initialize selectedSongIds when songbook songs load
   useEffect(() => {
     if (songbookData?.songs && songbookData.songs.length > 0) {
-      setSelectedSongIds(prev => {
+      setSelectedSongIds((prev) => {
         if (prev.size === 0) {
-          return new Set(songbookData.songs!.map((s, idx) => s.id !== undefined && s.id !== null ? s.id : idx + 1));
+          return new Set(
+            songbookData.songs!.map((s, idx) =>
+              s.id !== undefined && s.id !== null ? s.id : idx + 1,
+            ),
+          );
         }
         return prev;
       });
@@ -126,25 +182,28 @@ export default function App() {
   }, [songbookData]);
 
   // Transition-wrapped and debounced state updater for selectedSongIds
-  const updateSelectedSongIds = useCallback((
-    updater: Set<string | number> | ((prev: Set<string | number>) => Set<string | number>),
-    debounceMs = 0
-  ) => {
-    if (debounceMs > 0) {
-      if (songSelectionDebounceTimerRef.current) {
-        clearTimeout(songSelectionDebounceTimerRef.current);
-      }
-      songSelectionDebounceTimerRef.current = setTimeout(() => {
+  const updateSelectedSongIds = useCallback(
+    (
+      updater: Set<string | number> | ((prev: Set<string | number>) => Set<string | number>),
+      debounceMs = 0,
+    ) => {
+      if (debounceMs > 0) {
+        if (songSelectionDebounceTimerRef.current) {
+          clearTimeout(songSelectionDebounceTimerRef.current);
+        }
+        songSelectionDebounceTimerRef.current = setTimeout(() => {
+          startSongSelectionTransition(() => {
+            setSelectedSongIds(updater);
+          });
+        }, debounceMs);
+      } else {
         startSongSelectionTransition(() => {
           setSelectedSongIds(updater);
         });
-      }, debounceMs);
-    } else {
-      startSongSelectionTransition(() => {
-        setSelectedSongIds(updater);
-      });
-    }
-  }, []);
+      }
+    },
+    [],
+  );
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -204,7 +263,10 @@ export default function App() {
 
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
   const [isLoadingJson, setIsLoadingJson] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info';
+  } | null>(null);
   const [showAutoSaveIndicator, setShowAutoSaveIndicator] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -217,16 +279,23 @@ export default function App() {
     } catch (e) {}
   }, []);
 
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    if (toastTimerRef.current) {
-      clearTimeout(toastTimerRef.current);
-    }
-    setToast({ message, type });
-    toastTimerRef.current = setTimeout(() => {
-      setToast(null);
-    }, 3500);
-  }, []);
-  const [loadingStatus, setLoadingStatus] = useState<{ title: string; subtitle?: string; progress?: number }>({
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+      setToast({ message, type });
+      toastTimerRef.current = setTimeout(() => {
+        setToast(null);
+      }, 3500);
+    },
+    [],
+  );
+  const [loadingStatus, setLoadingStatus] = useState<{
+    title: string;
+    subtitle?: string;
+    progress?: number;
+  }>({
     title: 'Loading songbook...',
     subtitle: 'Processing songs and Table of Contents...',
   });
@@ -279,8 +348,10 @@ export default function App() {
     showToast('Settings reset to defaults', 'info');
   }, [showToast]);
 
-
-  const updateTimersRef = useRef<{ applyTimer?: ReturnType<typeof setTimeout>; finishTimer?: ReturnType<typeof setTimeout> }>({});
+  const updateTimersRef = useRef<{
+    applyTimer?: ReturnType<typeof setTimeout>;
+    finishTimer?: ReturnType<typeof setTimeout>;
+  }>({});
 
   // Background Web Worker PDF Generation Engine
   const {
@@ -298,15 +369,18 @@ export default function App() {
   } = useBackgroundPdfGenerator();
 
   // Compute a stable fingerprint of the songbook data & applied settings
-  const computeFingerprint = useCallback((data: SongbookData | null, appliedSettings: PrintSettings): string => {
-    if (!data) return '';
-    return JSON.stringify({
-      title: data.title,
-      songCount: data.songs?.length,
-      songIds: data.songs?.map((s) => s.id || s.title),
-      appliedSettings,
-    });
-  }, []);
+  const computeFingerprint = useCallback(
+    (data: SongbookData | null, appliedSettings: PrintSettings): string => {
+      if (!data) return '';
+      return JSON.stringify({
+        title: data.title,
+        songCount: data.songs?.length,
+        songIds: data.songs?.map((s) => s.id || s.title),
+        appliedSettings,
+      });
+    },
+    [],
+  );
 
   const currentFingerprint = useMemo(() => {
     return computeFingerprint(songbookData, settings);
@@ -325,36 +399,39 @@ export default function App() {
     workerCachedPdf &&
     !isGeneratingWorkerPdf &&
     !hasUnappliedSettings &&
-    workerCachedPdf.fingerprint === currentFingerprint
+    workerCachedPdf.fingerprint === currentFingerprint,
   );
 
   // Background Web Worker PDF Download (or instant cached re-download)
-  const handleDownloadPdf = useCallback(async (forceRegenerate: boolean = false) => {
-    if (!songbookData) return;
+  const handleDownloadPdf = useCallback(
+    async (forceRegenerate: boolean = false) => {
+      if (!songbookData) return;
 
-    // If PDF is already ready and no forced regeneration requested, download cached blob instantly
-    if (!forceRegenerate && isPdfReady && downloadWorkerCachedPdf()) {
-      showToast(`Downloading ready PDF (${workerCachedPdf?.filename || 'Songbook'})`, 'success');
-      return;
-    }
+      // If PDF is already ready and no forced regeneration requested, download cached blob instantly
+      if (!forceRegenerate && isPdfReady && downloadWorkerCachedPdf()) {
+        showToast(`Downloading ready PDF (${workerCachedPdf?.filename || 'Songbook'})`, 'success');
+        return;
+      }
 
-    // Otherwise, generate fresh PDF via Web Worker with current state fingerprint
-    try {
-      showToast('Starting PDF generation... compiling pages in background thread.', 'info');
-      await generateWorkerPdf(songbookData, settings, currentFingerprint);
-    } catch (err: any) {
-      showToast(err?.message || 'Background PDF generation failed', 'error');
-    }
-  }, [
-    songbookData,
-    settings,
-    isPdfReady,
-    downloadWorkerCachedPdf,
-    workerCachedPdf,
-    generateWorkerPdf,
-    currentFingerprint,
-    showToast,
-  ]);
+      // Otherwise, generate fresh PDF via Web Worker with current state fingerprint
+      try {
+        showToast('Starting PDF generation... compiling pages in background thread.', 'info');
+        await generateWorkerPdf(songbookData, settings, currentFingerprint);
+      } catch (err: any) {
+        showToast(err?.message || 'Background PDF generation failed', 'error');
+      }
+    },
+    [
+      songbookData,
+      settings,
+      isPdfReady,
+      downloadWorkerCachedPdf,
+      workerCachedPdf,
+      generateWorkerPdf,
+      currentFingerprint,
+      showToast,
+    ],
+  );
 
   const handleOpenResetModal = useCallback(() => {
     setIsConfirmResetOpen(true);
@@ -386,7 +463,7 @@ export default function App() {
       if (!target) return;
 
       // Ignore click if the element is no longer connected to the document DOM
-      // (React often unmounts or re-renders elements clicked inside the sidebar or modals synchronously, 
+      // (React often unmounts or re-renders elements clicked inside the sidebar or modals synchronously,
       // which causes target.closest() to return null even though the click was inside).
       if (!target.isConnected || !document.body.contains(target)) {
         return;
@@ -394,7 +471,8 @@ export default function App() {
 
       // Close Song Navigation drawer if click was outside the popover and its toggle button
       if (isSongNavOpen) {
-        const isInsideSongNav = target.closest('#song-nav-modal') || target.closest('#floating-nav-btn');
+        const isInsideSongNav =
+          target.closest('#song-nav-modal') || target.closest('#floating-nav-btn');
         if (!isInsideSongNav) {
           setIsSongNavOpen(false);
         }
@@ -402,7 +480,8 @@ export default function App() {
 
       // Close Mobile Settings sidebar if click was outside the sidebar container and its toggle button
       if (isMobileSidebarOpen) {
-        const isInsideMobileSidebar = target.closest('#mobile-settings-sidebar') || target.closest('#floating-settings-btn');
+        const isInsideMobileSidebar =
+          target.closest('#mobile-settings-sidebar') || target.closest('#floating-settings-btn');
         if (!isInsideMobileSidebar) {
           setIsMobileSidebarOpen(false);
         }
@@ -464,7 +543,7 @@ export default function App() {
       const key = STORAGE_KEYS.SETTINGS;
       try {
         localStorage.setItem(key, JSON.stringify(safeSettings));
-        
+
         // Show automated auto-save indicator briefly
         setShowAutoSaveIndicator(true);
         setTimeout(() => {
@@ -477,129 +556,147 @@ export default function App() {
       // 4. Keep the updating status active until layout rendering completes, then dismiss
       updateTimersRef.current.finishTimer = setTimeout(() => {
         setIsUpdatingLayout(false);
-        showToast("Settings successfully applied!");
+        showToast('Settings successfully applied!');
       }, 650);
     }, 120);
   };
 
-  const animateSongbookLoad = useCallback((
-    data: SongbookData,
-    options: {
-      startProgress?: number;
-      isRepaired?: boolean;
-      recoveredCount?: number;
-      sourceType: 'file' | 'url' | 'paste';
-      sourceLabel?: string;
-    }
-  ) => {
-    setIsLoadingJson(true);
-    const songs = data.songs || data.items || [];
-    if (songs.length === 0) {
-      setIsLoadingJson(false);
-      setErrorMessage(
-        options.sourceType === 'url'
-          ? 'No songs found in the Kytario response. The songbook might be private or the URL might be incorrect.'
-          : 'No songs found in the provided JSON.'
-      );
-      return;
-    }
+  const animateSongbookLoad = useCallback(
+    (
+      data: SongbookData,
+      options: {
+        startProgress?: number;
+        isRepaired?: boolean;
+        recoveredCount?: number;
+        sourceType: 'file' | 'url' | 'paste';
+        sourceLabel?: string;
+      },
+    ) => {
+      setIsLoadingJson(true);
+      const songs = data.songs || data.items || [];
+      if (songs.length === 0) {
+        setIsLoadingJson(false);
+        setErrorMessage(
+          options.sourceType === 'url'
+            ? 'No songs found in the Kytario response. The songbook might be private or the URL might be incorrect.'
+            : 'No songs found in the provided JSON.',
+        );
+        return;
+      }
 
-    // Explicitly verify the presence and format of the urlToken field
-    const candidateToken = data.urlToken || data.slug || data.shortUrl;
-    if (!candidateToken || !String(candidateToken).trim()) {
-      setWarningMessage('Warning: The "urlToken" field is missing or empty. Generated covers or QR codes might be incomplete.');
-    } else if (!/^[a-zA-Z0-9_\-\./]+$/.test(String(candidateToken).trim())) {
-      setWarningMessage('Warning: The "urlToken" field format appears invalid (contains unsupported characters). Generated covers or QR codes might be incomplete.');
-    }
+      // Explicitly verify the presence and format of the urlToken field
+      const candidateToken = data.urlToken || data.slug || data.shortUrl;
+      if (!candidateToken || !String(candidateToken).trim()) {
+        setWarningMessage(
+          'Warning: The "urlToken" field is missing or empty. Generated covers or QR codes might be incomplete.',
+        );
+      } else if (!/^[a-zA-Z0-9_\-\./]+$/.test(String(candidateToken).trim())) {
+        setWarningMessage(
+          'Warning: The "urlToken" field format appears invalid (contains unsupported characters). Generated covers or QR codes might be incomplete.',
+        );
+      }
 
-    const startProgress = options.startProgress ?? 20;
-    const targetSongProgress = 90; // Formatting songs advances progress to 90%
-    const progressRange = targetSongProgress - startProgress;
-    
-    let currentSong = 0;
-    const totalSongs = songs.length;
-    // 12-16 update steps so the user sees smooth, detailed progression
-    const steps = Math.min(15, totalSongs);
-    const chunkSize = Math.max(1, Math.ceil(totalSongs / steps));
+      const startProgress = options.startProgress ?? 20;
+      const targetSongProgress = 90; // Formatting songs advances progress to 90%
+      const progressRange = targetSongProgress - startProgress;
 
-    const stepProgress = () => {
-      currentSong = Math.min(currentSong + chunkSize, totalSongs);
-      const ratio = currentSong / totalSongs;
-      const percent = Math.round(startProgress + ratio * progressRange);
-      const currentTitle = songs[currentSong - 1]?.title;
-      const songSuffix = currentTitle ? `: ${currentTitle}` : '';
+      let currentSong = 0;
+      const totalSongs = songs.length;
+      // 12-16 update steps so the user sees smooth, detailed progression
+      const steps = Math.min(15, totalSongs);
+      const chunkSize = Math.max(1, Math.ceil(totalSongs / steps));
 
-      setLoadingStatus({
-        title: 'Processing songs...',
-        subtitle: `Formatting song ${currentSong} of ${totalSongs}${songSuffix}`,
-        progress: percent,
-      });
+      const stepProgress = () => {
+        currentSong = Math.min(currentSong + chunkSize, totalSongs);
+        const ratio = currentSong / totalSongs;
+        const percent = Math.round(startProgress + ratio * progressRange);
+        const currentTitle = songs[currentSong - 1]?.title;
+        const songSuffix = currentTitle ? `: ${currentTitle}` : '';
 
-      if (currentSong < totalSongs) {
-        requestAnimationFrame(() => setTimeout(stepProgress, 35));
-      } else {
-        // Formatting is complete! Now transition to layout rendering at 95%
         setLoadingStatus({
-          title: 'Preparing preview...',
-          subtitle: 'Rendering layouts & page breaks...',
-          progress: 95,
+          title: 'Processing songs...',
+          subtitle: `Formatting song ${currentSong} of ${totalSongs}${songSuffix}`,
+          progress: percent,
         });
 
-        // Small timeout allows browser to paint the 95% state before heavy layout calculation
-        setTimeout(() => {
-          setSongbookData(data);
-          if (options.sourceType === 'url') {
-            setDraftSettings(prev => ({
-              ...prev,
-              frontCoverTitle: undefined,
-              backCoverTitle: undefined,
-            }));
-            setSettings(prev => ({
-              ...prev,
-              frontCoverTitle: undefined,
-              backCoverTitle: undefined,
-            }));
-          }
-          if (options.isRepaired) {
-            setRecoveryNotice(`Successfully parsed and recovered ${options.recoveredCount} songs from formatted/truncated JSON data.`);
-          }
-
-          // Next animation frame after songbookData mounts
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              // Layout is mounted, now advance to 100%!
-              setLoadingStatus({
-                title: 'Ready!',
-                subtitle: 'Layout complete',
-                progress: 100,
-              });
-
-              // Give user 2000ms to clearly see the progress bar reach the 100% end
-              setTimeout(() => {
-                setIsLoadingJson(false);
-                const songCount = songs.length;
-                const songsWithContent = songs.filter(s => s.content && s.content.trim().length > 0).length;
-                const bookTitle = data.title || options.sourceLabel || 'Songbook';
-
-                if (options.sourceType === 'url') {
-                  if (songsWithContent === 0 && songCount > 0) {
-                    showToast(`Imported ${songCount} titles, but lyrics were not found. Try a different URL?`, 'info');
-                  } else {
-                    showToast(`Successfully imported "${bookTitle}" from Kytario (${songsWithContent}/${songCount} songs with lyrics)!`);
-                  }
-                } else {
-                  showToast(`Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`);
-                }
-                setSelectedSongIds(new Set(songs.map(s => s.id!)));
-              }, 800);
-            }, 100);
+        if (currentSong < totalSongs) {
+          requestAnimationFrame(() => setTimeout(stepProgress, 35));
+        } else {
+          // Formatting is complete! Now transition to layout rendering at 95%
+          setLoadingStatus({
+            title: 'Preparing preview...',
+            subtitle: 'Rendering layouts & page breaks...',
+            progress: 95,
           });
-        }, 80);
-      }
-    };
 
-    requestAnimationFrame(() => setTimeout(stepProgress, 40));
-  }, [showToast]);
+          // Small timeout allows browser to paint the 95% state before heavy layout calculation
+          setTimeout(() => {
+            setSongbookData(data);
+            if (options.sourceType === 'url') {
+              setDraftSettings((prev) => ({
+                ...prev,
+                frontCoverTitle: undefined,
+                backCoverTitle: undefined,
+              }));
+              setSettings((prev) => ({
+                ...prev,
+                frontCoverTitle: undefined,
+                backCoverTitle: undefined,
+              }));
+            }
+            if (options.isRepaired) {
+              setRecoveryNotice(
+                `Successfully parsed and recovered ${options.recoveredCount} songs from formatted/truncated JSON data.`,
+              );
+            }
+
+            // Next animation frame after songbookData mounts
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                // Layout is mounted, now advance to 100%!
+                setLoadingStatus({
+                  title: 'Ready!',
+                  subtitle: 'Layout complete',
+                  progress: 100,
+                });
+
+                // Give user 2000ms to clearly see the progress bar reach the 100% end
+                setTimeout(() => {
+                  setIsLoadingJson(false);
+                  const songCount = songs.length;
+                  const songsWithContent = songs.filter(
+                    (s) => s.content && s.content.trim().length > 0,
+                  ).length;
+                  const bookTitle = data.title || options.sourceLabel || 'Songbook';
+
+                  if (options.sourceType === 'url') {
+                    if (songsWithContent === 0 && songCount > 0) {
+                      showToast(
+                        `Imported ${songCount} titles, but lyrics were not found. Try a different URL?`,
+                        'info',
+                      );
+                    } else {
+                      showToast(
+                        `Successfully imported "${bookTitle}" from Kytario (${songsWithContent}/${songCount} songs with lyrics)!`,
+                      );
+                    }
+                  } else {
+                    showToast(
+                      `Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`,
+                    );
+                  }
+                  setSelectedSongIds(new Set(songs.map((s) => s.id!)));
+                }, 800);
+              }, 100);
+            });
+          }, 80);
+        }
+      };
+
+      requestAnimationFrame(() => setTimeout(stepProgress, 40));
+    },
+    [showToast],
+  );
 
   const processJsonString = (rawString: string, fileName?: string) => {
     setErrorMessage(null);
@@ -627,19 +724,19 @@ export default function App() {
         console.error('JSON parse error:', err);
         setIsLoadingJson(false);
         setErrorMessage(
-          err.message || 'Could not parse JSON. Please check that it is valid Kytario songbook data.'
+          err.message ||
+            'Could not parse JSON. Please check that it is valid Kytario songbook data.',
         );
       }
     }, 100);
   };
-
 
   const processUploadedFiles = async (fileList: FileList | File[]) => {
     const files = Array.from(fileList);
     if (files.length === 0) return;
 
     // 1. Check if any file is a ZIP archive (e.g. Kytario export ZIP)
-    const zipFile = files.find(f => isZipFile(f));
+    const zipFile = files.find((f) => isZipFile(f));
     if (zipFile) {
       setIsLoadingJson(true);
       setLoadingStatus({
@@ -690,7 +787,9 @@ export default function App() {
             const text = await readFileAsText(file);
             const parsed = JSON.parse(text);
             if (Array.isArray(parsed)) {
-              combinedSongs.push(...parsed.map((s, idx) => normalizeSingleSong(s, combinedSongs.length + idx)));
+              combinedSongs.push(
+                ...parsed.map((s, idx) => normalizeSingleSong(s, combinedSongs.length + idx)),
+              );
             } else if (parsed.song) {
               combinedSongs.push(normalizeSingleSong(parsed.song, combinedSongs.length));
             } else if (parsed.name || parsed.title || parsed.content || parsed.sections) {
@@ -705,7 +804,7 @@ export default function App() {
 
         if (unreadableFiles.length > 0) {
           setWarningMessage(
-            `${unreadableFiles.length} file${unreadableFiles.length === 1 ? '' : 's'} could not be read as valid song JSON and ${unreadableFiles.length === 1 ? 'was' : 'were'} skipped: ${unreadableFiles.slice(0, 5).join(', ')}${unreadableFiles.length > 5 ? '…' : ''}`
+            `${unreadableFiles.length} file${unreadableFiles.length === 1 ? '' : 's'} could not be read as valid song JSON and ${unreadableFiles.length === 1 ? 'was' : 'were'} skipped: ${unreadableFiles.slice(0, 5).join(', ')}${unreadableFiles.length > 5 ? '…' : ''}`,
           );
         }
 
@@ -749,19 +848,23 @@ export default function App() {
     }
   };
 
-  const handleAcceptedFiles = useCallback((files: File[]) => {
-    setErrorMessage(null);
-    setRecoveryNotice(null);
-    setWarningMessage(null);
-    processUploadedFiles(files);
-  }, [processUploadedFiles]);
+  const handleAcceptedFiles = useCallback(
+    (files: File[]) => {
+      setErrorMessage(null);
+      setRecoveryNotice(null);
+      setWarningMessage(null);
+      processUploadedFiles(files);
+    },
+    [processUploadedFiles],
+  );
 
-  const handleUploadValidationErrors = useCallback((errors: { fileName: string; reason: string }[]) => {
-    const summary = errors
-      .map((e) => `${e.fileName}: ${e.reason}`)
-      .join(' ');
-    setErrorMessage(`Some files were rejected. ${summary}`);
-  }, []);
+  const handleUploadValidationErrors = useCallback(
+    (errors: { fileName: string; reason: string }[]) => {
+      const summary = errors.map((e) => `${e.fileName}: ${e.reason}`).join(' ');
+      setErrorMessage(`Some files were rejected. ${summary}`);
+    },
+    [],
+  );
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -785,7 +888,7 @@ export default function App() {
   const handleSelectZipProject = (selectedSlug: string | 'all', onlyPublic: boolean) => {
     if (!pendingZipResult) return;
     const { result, fileName } = pendingZipResult;
-    
+
     // Close modal immediately to allow UI to update
     setPendingZipResult(null);
 
@@ -802,8 +905,8 @@ export default function App() {
 
       if (selectedSlug === 'all') {
         const allSongs: Song[] = [];
-        result.projects.forEach(p => {
-          p.songs.forEach(s => {
+        result.projects.forEach((p) => {
+          p.songs.forEach((s) => {
             if (onlyPublic && s.isPrivate) return;
             allSongs.push({
               ...s,
@@ -818,13 +921,14 @@ export default function App() {
           songs: allSongs,
         };
       } else {
-        const selectedProject = result.projects.find(p => p.slug === selectedSlug) || result.projects[0];
+        const selectedProject =
+          result.projects.find((p) => p.slug === selectedSlug) || result.projects[0];
         if (!selectedProject) {
           setIsLoadingJson(false);
           return;
         }
 
-        const songs = selectedProject.songs.filter(s => !onlyPublic || !s.isPrivate);
+        const songs = selectedProject.songs.filter((s) => !onlyPublic || !s.isPrivate);
 
         targetSongbook = {
           title: selectedProject.name,
@@ -854,7 +958,7 @@ export default function App() {
     if (cleanUrl !== kytarioUrl) {
       setKytarioUrl(cleanUrl);
     }
-    
+
     setErrorMessage(null);
     setKytarioFetchDetails(null);
     setRecoveryNotice(null);
@@ -968,12 +1072,12 @@ export default function App() {
 
         {/* Full-screen Loading Spinner Overlay while parsing and preparing songbook */}
         <ProgressBar
-        active={isLoadingJson}
-        statusText={loadingStatus.title}
-        subText={loadingStatus.subtitle}
-        progress={loadingStatus.progress}
-        variant="overlay"
-      />
+          active={isLoadingJson}
+          statusText={loadingStatus.title}
+          subText={loadingStatus.subtitle}
+          progress={loadingStatus.progress}
+          variant="overlay"
+        />
 
         <div className="max-w-xl w-full bg-white rounded-2xl shadow-lg border border-black/5 p-5 sm:p-8 space-y-5 sm:space-y-6">
           <div className="text-center space-y-2">
@@ -981,13 +1085,16 @@ export default function App() {
               <KytarioLogo className="w-14 h-14 sm:w-16 sm:h-16" />
             </div>
             <div className="flex items-center justify-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Kytario Print Customizer</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">
+                Kytario Print Customizer
+              </h1>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200">
                 v{APP_CONFIG.APP_VERSION}
               </span>
             </div>
             <p className="text-zinc-500 text-xs sm:text-sm max-w-sm mx-auto">
-              Transform your Kytario songbook into print-ready PDF pages with automatic Table of Contents and clean formatting.
+              Transform your Kytario songbook into print-ready PDF pages with automatic Table of
+              Contents and clean formatting.
             </p>
             <div className="pt-1 flex justify-center">
               <PWAInstallButton variant="primary" />
@@ -996,12 +1103,20 @@ export default function App() {
 
           <ImportTabs
             activeTab={activeTab}
-            onTabChange={(tab) => { setActiveTab(tab); setErrorMessage(null); setKytarioFetchDetails(null); }}
+            onTabChange={(tab) => {
+              setActiveTab(tab);
+              setErrorMessage(null);
+              setKytarioFetchDetails(null);
+            }}
           />
 
           {/* Global import error live region for screen readers */}
           {errorMessage && (
-            <div role="alert" aria-live="assertive" className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-red-700 text-xs sm:text-sm">
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-red-700 text-xs sm:text-sm"
+            >
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
               <div className="flex-1 leading-relaxed">{errorMessage}</div>
             </div>
@@ -1025,7 +1140,10 @@ export default function App() {
             {activeTab === 'url' && (
               <UrlImportPanel
                 url={kytarioUrl}
-                onUrlChange={(v) => { setKytarioUrl(v); if (kytarioFetchDetails) setKytarioFetchDetails(null); }}
+                onUrlChange={(v) => {
+                  setKytarioUrl(v);
+                  if (kytarioFetchDetails) setKytarioFetchDetails(null);
+                }}
                 onSubmit={handleKytarioUrlSubmit}
                 onBlurNormalize={() => {
                   const cleaned = cleanKytarioUrl(kytarioUrl);
@@ -1047,7 +1165,10 @@ export default function App() {
                   setCustomProxyInput('');
                   showToast('Custom proxy cleared', 'info');
                 }}
-                onSwitchToPasteTab={() => { setActiveTab('paste'); setKytarioFetchDetails(null); }}
+                onSwitchToPasteTab={() => {
+                  setActiveTab('paste');
+                  setKytarioFetchDetails(null);
+                }}
               />
             )}
 
@@ -1104,12 +1225,14 @@ export default function App() {
       />
 
       <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden print:h-auto print:min-h-0 print:overflow-visible print:block print:p-0 print:m-0">
-
         {/* Confirmation Dialog for Changing Songbook */}
         <ResetSongbookDialog
           isOpen={isConfirmResetOpen}
           onCancel={handleCloseResetModal}
-          onConfirm={() => { handleCloseResetModal(); resetSongbook(); }}
+          onConfirm={() => {
+            handleCloseResetModal();
+            resetSongbook();
+          }}
         />
 
         {recoveryNotice && (
@@ -1171,39 +1294,39 @@ export default function App() {
         />
 
         {isSongSelectionOpen && (
-        <Suspense fallback={null}>
-          <SongSelectionModal
-            isOpen={isSongSelectionOpen}
-            songs={songbookData?.songs || []}
-            selectedSongIds={selectedSongIds}
-            onApply={(newSelectedIds) => {
-              updateSelectedSongIds(newSelectedIds);
-              showToast(`Updating preview with ${newSelectedIds.size} visible songs...`, 'info');
-              setIsSongSelectionOpen(false);
-            }}
-            onCancel={() => setIsSongSelectionOpen(false)}
-          />
-        </Suspense>
+          <Suspense fallback={null}>
+            <SongSelectionModal
+              isOpen={isSongSelectionOpen}
+              songs={songbookData?.songs || []}
+              selectedSongIds={selectedSongIds}
+              onApply={(newSelectedIds) => {
+                updateSelectedSongIds(newSelectedIds);
+                showToast(`Updating preview with ${newSelectedIds.size} visible songs...`, 'info');
+                setIsSongSelectionOpen(false);
+              }}
+              onCancel={() => setIsSongSelectionOpen(false)}
+            />
+          </Suspense>
         )}
 
         {/* Background Web Worker PDF Generation Status Modal */}
         <Suspense fallback={null}>
-        <BackgroundPdfProgressModal
-          isGenerating={isGeneratingWorkerPdf}
-          progress={workerPdfProgress}
-          error={workerPdfError}
-          lastGenerated={workerPdfLastGenerated}
-          isPdfReady={isPdfReady}
-          onDownloadAgain={() => handleDownloadPdf(false)}
-          onRegenerate={() => handleDownloadPdf(true)}
-          onCancel={cancelWorkerPdf}
-          onClearError={clearWorkerPdfError}
-          onClearLastGenerated={clearWorkerPdfLastGenerated}
-        />
+          <BackgroundPdfProgressModal
+            isGenerating={isGeneratingWorkerPdf}
+            progress={workerPdfProgress}
+            error={workerPdfError}
+            lastGenerated={workerPdfLastGenerated}
+            isPdfReady={isPdfReady}
+            onDownloadAgain={() => handleDownloadPdf(false)}
+            onRegenerate={() => handleDownloadPdf(true)}
+            onCancel={cancelWorkerPdf}
+            onClearError={clearWorkerPdfError}
+            onClearLastGenerated={clearWorkerPdfLastGenerated}
+          />
         </Suspense>
 
         {/* Floating Bottom Menu - Unified Toolbar in Exact Requested Order */}
-        <div 
+        <div
           className="fixed left-1/2 -translate-x-1/2 z-40 w-full max-w-[calc(100vw-1rem)] flex items-center justify-center print:hidden select-none pointer-events-none px-2"
           style={{ bottom: 'max(0.75rem, calc(0.5rem + env(safe-area-inset-bottom, 0px)))' }}
         >
@@ -1235,13 +1358,15 @@ export default function App() {
 
             {/* 3. Fit View */}
             <button
-              onClick={() => setZoomMode((prev) => prev === 'fit-width' ? 'fit-page' : 'fit-width')}
+              onClick={() =>
+                setZoomMode((prev) => (prev === 'fit-width' ? 'fit-page' : 'fit-width'))
+              }
               className={`flex flex-col items-center justify-center w-9 sm:w-10 h-9 sm:h-10 rounded-xl transition-colors cursor-pointer shrink-0 ${
                 zoomMode === 'fit-width' || zoomMode === 'fit-page'
                   ? 'text-zinc-950 font-bold bg-zinc-200'
                   : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200'
               }`}
-              title={zoomMode === 'fit-width' ? "Switch to Fit Page" : "Switch to Fit Width"}
+              title={zoomMode === 'fit-width' ? 'Switch to Fit Page' : 'Switch to Fit Width'}
             >
               <Maximize2 className="w-4 h-4" />
               <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Fit</span>
@@ -1267,7 +1392,9 @@ export default function App() {
               title="Import Songbook (load different JSON)"
             >
               <FolderOpen className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Import</span>
+              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">
+                Import
+              </span>
             </button>
 
             {/* 6. Settings */}
@@ -1275,10 +1402,16 @@ export default function App() {
               id="floating-settings-btn"
               onClick={handleOpenMobileSidebar}
               className="flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors relative cursor-pointer shrink-0"
-              title={hasUnappliedSettings ? `Settings (${unappliedChanges.length} unapplied changes pending)` : "Open Settings"}
+              title={
+                hasUnappliedSettings
+                  ? `Settings (${unappliedChanges.length} unapplied changes pending)`
+                  : 'Open Settings'
+              }
             >
               <SlidersHorizontal className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Settings</span>
+              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">
+                Settings
+              </span>
               {hasUnappliedSettings && (
                 <span className="absolute top-0.5 right-1.5 flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
@@ -1317,7 +1450,9 @@ export default function App() {
                   </span>
                 )}
               </div>
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Songs</span>
+              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">
+                Songs
+              </span>
             </button>
 
             {/* 9. Export PDF */}
@@ -1329,7 +1464,11 @@ export default function App() {
                   ? 'text-emerald-800 font-bold bg-emerald-100 hover:bg-emerald-200'
                   : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200'
               }`}
-              title={isPdfReady ? "PDF is ready! Click to download again instantly" : "Export and download as PDF"}
+              title={
+                isPdfReady
+                  ? 'PDF is ready! Click to download again instantly'
+                  : 'Export and download as PDF'
+              }
             >
               {isDownloadingPdf || isGeneratingWorkerPdf ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1356,18 +1495,20 @@ export default function App() {
         {/* Unified Top-Right Notification Toast Container */}
         {toast && (
           <div className="fixed top-4 right-4 z-[100] print:hidden animate-in fade-in slide-in-from-top-3 duration-300">
-            <div className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-medium ${
-              toast.type === 'error'
-                ? 'bg-red-950 text-white border-red-800/60'
-                : 'bg-zinc-950 text-white border-white/15'
-            }`}>
+            <div
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-medium ${
+                toast.type === 'error'
+                  ? 'bg-red-950 text-white border-red-800/60'
+                  : 'bg-zinc-950 text-white border-white/15'
+              }`}
+            >
               {toast.type === 'error' ? (
                 <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               ) : (
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               )}
               <span>{toast.message}</span>
-              <button 
+              <button
                 onClick={() => setToast(null)}
                 className="ml-2 text-zinc-400 hover:text-white transition-colors p-1 cursor-pointer"
                 title="Dismiss"

@@ -12,7 +12,10 @@ import { fixUnescapedControlCharsInJson, removeTrailingCommas } from './jsonRepa
  */
 export function normalizeSingleSong(s: any, idx = 0): Song {
   let content = '';
-  if (Array.isArray(s.sections) && s.sections.some((sec: any) => sec && Array.isArray(sec.tokens))) {
+  if (
+    Array.isArray(s.sections) &&
+    s.sections.some((sec: any) => sec && Array.isArray(sec.tokens))
+  ) {
     content = convertKytarioSectionsToChordpro(s.sections);
   }
 
@@ -43,22 +46,9 @@ export function normalizeSingleSong(s: any, idx = 0): Song {
   // In Kytario, s.interpreter is the performer/band (e.g. Jaroslav Ježek, Nirvana, Lucie),
   // while s.author is the composer/lyricist (e.g. Jiří Voskovec, Jan Werich).
   const artist =
-    s.interpreter ||
-    s.artist ||
-    s.author ||
-    s.composer ||
-    s.performer ||
-    s.band ||
-    s.group ||
-    '';
+    s.interpreter || s.artist || s.author || s.composer || s.performer || s.band || s.group || '';
 
-  const author =
-    s.author ||
-    s.composer ||
-    s.artist ||
-    s.interpreter ||
-    s.performer ||
-    '';
+  const author = s.author || s.composer || s.artist || s.interpreter || s.performer || '';
 
   return {
     id: s.id ? `${s.id}` : `song-${idx + 1}-${Math.random().toString(36).substring(2, 7)}`,
@@ -105,9 +95,17 @@ export function extractSongsFromAny(data: any, seen = new Set()): Song[] {
   if (typeof data !== 'object') return [];
 
   // 2. Check if the current object IS a song
-  const hasTitle = !!(data.title || data.name || data.songName || data.song_title || data.song_name || data.headline || data.title_name);
-  
-  const contentValue = 
+  const hasTitle = !!(
+    data.title ||
+    data.name ||
+    data.songName ||
+    data.song_title ||
+    data.song_name ||
+    data.headline ||
+    data.title_name
+  );
+
+  const contentValue =
     data.content ||
     data.lyrics ||
     data.text ||
@@ -120,13 +118,19 @@ export function extractSongsFromAny(data: any, seen = new Set()): Song[] {
     data.tab ||
     data.lines;
 
-  const hasTokenSections = Array.isArray(data.sections) && data.sections.some((sec: any) => sec && Array.isArray(sec.tokens) && sec.tokens.length > 0);
+  const hasTokenSections =
+    Array.isArray(data.sections) &&
+    data.sections.some((sec: any) => sec && Array.isArray(sec.tokens) && sec.tokens.length > 0);
 
-  const hasContent = hasTokenSections || !!(
-    (typeof contentValue === 'string' && contentValue.trim().length > 0) ||
-    (Array.isArray(contentValue) && contentValue.length > 0) ||
-    (typeof contentValue === 'object' && contentValue !== null && Object.keys(contentValue).length > 0)
-  );
+  const hasContent =
+    hasTokenSections ||
+    !!(
+      (typeof contentValue === 'string' && contentValue.trim().length > 0) ||
+      (Array.isArray(contentValue) && contentValue.length > 0) ||
+      (typeof contentValue === 'object' &&
+        contentValue !== null &&
+        Object.keys(contentValue).length > 0)
+    );
 
   // A song is identified if it has content OR a title.
   // We prioritize objects with content to avoid treating entire sections as single songs if they have a title.
@@ -134,7 +138,7 @@ export function extractSongsFromAny(data: any, seen = new Set()): Song[] {
     songs.push(normalizeSingleSong(data, songs.length));
     return songs;
   }
-  
+
   // If it ONLY has content, it's probably a song without a title
   if (hasContent && !hasTitle) {
     songs.push(normalizeSingleSong(data, songs.length));
@@ -160,7 +164,7 @@ export function extractSongsFromAny(data: any, seen = new Set()): Song[] {
     'result',
     'results',
     'collection',
-    'song_items'
+    'song_items',
   ];
 
   let hasNestedSongs = false;
@@ -212,7 +216,6 @@ export function extractSongsFromAny(data: any, seen = new Set()): Song[] {
 
   return songs;
 }
-
 
 /**
  * Fallback scanner that isolates and parses individual song JSON objects from raw text
@@ -282,8 +285,12 @@ export function recoverSongsFromCorruptedText(raw: string): Song[] {
     } catch {
       // Regex field extraction fallback for this single object
       const titleM = slice.match(/"(?:title|name)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i);
-      const contentM = slice.match(/"(?:content|lyrics|text|chords)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i);
-      const artistM = slice.match(/"(?:artist|author|interpreter)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i);
+      const contentM = slice.match(
+        /"(?:content|lyrics|text|chords)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i,
+      );
+      const artistM = slice.match(
+        /"(?:artist|author|interpreter)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i,
+      );
       if (titleM || contentM) {
         songs.push(
           normalizeSingleSong(
@@ -292,8 +299,8 @@ export function recoverSongsFromCorruptedText(raw: string): Song[] {
               content: contentM ? contentM[1] : undefined,
               artist: artistM ? artistM[1] : undefined,
             },
-            songs.length
-          )
+            songs.length,
+          ),
         );
       }
     }

@@ -14,16 +14,22 @@ export function cleanSongbookTitle(rawTitle: string): string {
   text = text.replace(/\s*(?:\||-|–|—)\s*(?:Digitální zpěvník|Digital Songbook).*$/i, '').trim();
 
   // Strip parenthesized or bracketed terms like "(Songbook)" or "[Zpěvník]"
-  text = text.replace(/\s*[\(\[](?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\)\]]/i, '').trim();
+  text = text
+    .replace(/\s*[\(\[](?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\)\]]/i, '')
+    .trim();
 
   // Strip leading prefixes like "Songbook Písničky", "Songbook: Písničky", "Songbook - Písničky", "Zpěvník Písničky"
-  const strippedLeading = text.replace(/^(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\s:\-–—]+/i, '').trim();
+  const strippedLeading = text
+    .replace(/^(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\s:\-–—]+/i, '')
+    .trim();
   if (strippedLeading) {
     text = strippedLeading;
   }
 
   // Strip trailing "Songbook" / "Zpěvník" if preceded by space/dash
-  const strippedTrailing = text.replace(/[\s:\-–—]+(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)$/i, '').trim();
+  const strippedTrailing = text
+    .replace(/[\s:\-–—]+(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)$/i, '')
+    .trim();
   if (strippedTrailing) {
     text = strippedTrailing;
   }
@@ -61,9 +67,16 @@ export function normalizeSongbookData(raw: any, rawJsonText?: string): SongbookD
   if (!title) title = 'Songbook';
 
   const urlInfo = extractSongbookUrlAndSlug(raw, rawJsonText);
-  const urlToken = (typeof raw === 'object' && raw !== null) 
-    ? (raw.urlToken || raw.url_token || raw.slugToken || raw.slug_token || raw.slug || raw.songbookSongs?.[0]?.song?.project?.urlToken || urlInfo.slug)
-    : urlInfo.slug;
+  const urlToken =
+    typeof raw === 'object' && raw !== null
+      ? raw.urlToken ||
+        raw.url_token ||
+        raw.slugToken ||
+        raw.slug_token ||
+        raw.slug ||
+        raw.songbookSongs?.[0]?.song?.project?.urlToken ||
+        urlInfo.slug
+      : urlInfo.slug;
 
   return {
     ...(typeof raw === 'object' && !Array.isArray(raw) ? raw : {}),

@@ -57,9 +57,12 @@ export function ResetSongbookDialog({ isOpen, onCancel, onConfirm }: ResetSongbo
         onKeyDown={handleKeyDown}
         className="relative bg-white rounded-2xl shadow-2xl border border-black/10 max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 z-10"
       >
-        <h3 id="reset-songbook-title" className="text-base font-bold text-zinc-900">Change Songbook?</h3>
+        <h3 id="reset-songbook-title" className="text-base font-bold text-zinc-900">
+          Change Songbook?
+        </h3>
         <p id="reset-songbook-description" className="text-xs sm:text-sm text-zinc-600">
-          Are you sure you want to change the songbook? Any unsaved layout adjustments or current songbook data will be cleared and you will return to the upload screen.
+          Are you sure you want to change the songbook? Any unsaved layout adjustments or current
+          songbook data will be cleared and you will return to the upload screen.
         </p>
         <div className="flex justify-end gap-2.5 pt-2">
           <button

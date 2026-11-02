@@ -19,7 +19,8 @@ export const CURATED_FONTS: CuratedFont[] = [
     categoryLabel: 'Sans-Serif',
     description: 'Modern, balanced & crisp',
     googleFontFamily: 'Inter:ital,wght@0,400;0,600;0,700;1,400;1,700',
-    cssStack: '"Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    cssStack:
+      '"Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
   {
     id: 'Roboto',
@@ -37,7 +38,8 @@ export const CURATED_FONTS: CuratedFont[] = [
     categoryLabel: 'Sans-Serif',
     description: 'Warm, open & friendly print',
     googleFontFamily: 'Open+Sans:ital,wght@0,400;0,600;0,700;1,400;1,700',
-    cssStack: '"Open Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+    cssStack:
+      '"Open Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
   },
   {
     id: 'Lato',
@@ -55,7 +57,8 @@ export const CURATED_FONTS: CuratedFont[] = [
     categoryLabel: 'Sans-Serif',
     description: 'Geometric display & bold titles',
     googleFontFamily: 'Montserrat:ital,wght@0,400;0,600;0,700;1,400;1,700',
-    cssStack: '"Montserrat", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+    cssStack:
+      '"Montserrat", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
   },
   {
     id: 'Rubik',
@@ -165,7 +168,7 @@ export function getFontById(id?: string): CuratedFont {
     return CURATED_FONTS[0];
   }
   const match = CURATED_FONTS.find(
-    (f) => f.id.toLowerCase() === id.toLowerCase() || f.name.toLowerCase() === id.toLowerCase()
+    (f) => f.id.toLowerCase() === id.toLowerCase() || f.name.toLowerCase() === id.toLowerCase(),
   );
   return match || CURATED_FONTS[0];
 }
