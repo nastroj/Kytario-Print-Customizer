@@ -40,16 +40,21 @@ export interface ParsedLine {
   isRepetitionLine?: boolean;
   /** Length of the visible lyric text with chord markup stripped, precomputed once at parse time. */
   textLen: number;
+  /** Total rendered width of the line's chords in character units (chord length + 2), precomputed at parse time. */
+  chordsWidth: number;
+  /** Sum of per-chunk max(text width, chord width) for normal lines; sum of text+chord widths for repetition lines. Precomputed at parse time. */
+  renderedWidth: number;
 }
 
 /**
  * Returns the length of a line's visible lyric text (chord/section markup like
  * "[C]" or "{G}" removed). Uses the value precomputed during parsing instead of
  * re-running a global regex over the raw line on every layout/scale iteration.
+ * Falls back to measuring the raw text so ad-hoc line objects keep working.
  */
-export function getLyricsTextLength(line: { raw: string; textLen?: number }): number {
+export function getLyricsTextLength(line: { raw: string; textLen: number }): number {
   if (typeof line.textLen === 'number') return line.textLen;
-  return line.raw ? line.raw.replace(chordMarkupRegex, '').length : 0;
+  return measureLyricsLength(line.raw);
 }
 
 export interface SongSection {
@@ -133,8 +138,61 @@ export function getPageMargins(
   return { top, bottom, left, right, inner, outer };
 }
 
+/**
+ * LRU cache of parsed song content. Insertion order in a Map doubles as the
+ * recency order: on a hit we delete + re-insert so the entry moves to the
+ * "most recently used" end, and on overflow we evict only the least-recently
+ * used entries (one quarter of the cache) instead of clearing everything,
+ * which previously forced a full re-parse of every remaining song.
+ */
 const songContentCache = new Map<string, SongSection[]>();
 const MAX_CACHE_SIZE = 1000;
+
+function cachePut(key: string, value: SongSection[]): void {
+  if (songContentCache.size >= MAX_CACHE_SIZE && !songContentCache.has(key)) {
+    const evictCount = Math.max(1, Math.floor(MAX_CACHE_SIZE / 4));
+    let evicted = 0;
+    for (const oldKey of songContentCache.keys()) {
+      songContentCache.delete(oldKey);
+      if (++evicted >= evictCount) break;
+    }
+  }
+  songContentCache.set(key, value);
+}
+
+/** Average glyph width as a fraction of font size (monospace-ish approximation). */
+export const AVG_CHAR_WIDTH_FACTOR = 0.48;
+/** Same factor tuned for the slightly wider column-balancing estimator. */
+export const BALANCE_CHAR_WIDTH_FACTOR = 0.54;
+/** Minimum smart-fit scale floor independent of base font size. */
+export const MIN_SCALE_FLOOR = 0.48;
+
+/** Splits a line into plain text and bracketed/braced tokens (kept in the result). */
+const chordSplitRegex = /(\{[^}]+\}|\[[^[\]]+\])/g;
+/** Matches repetition/bar notation like "|:" ":|" "| |". */
+const repBarRegex = /:\|\|:|:\|\s*\|:/g;
+/** Matches leading whitespace of a string. */
+const leadingWhitespaceRegex = /^(\s*)(.*)$/;
+/** ChordPro closing directives (end_of_chorus etc.). */
+const cpCloseDirectiveRegex =
+  /^\{(?:end_of_chorus|eoc|end_of_bridge|eob|end_of_verse|eov|end_of_tab|eot)\}/i;
+/** ChordPro opening/comment directives used as section headers. */
+const cpOpenDirectiveRegex =
+  /^\{(?:(?:c|comment):\s*([^}]+)|(start_of_chorus|soc|start_of_bridge|sob|start_of_verse|sov|start_of_tab|sot))\}(?:\s*(.*)|$)/i;
+/** Markdown-style decorated headers ("### Bridge", "**Bridge**", "--- Bridge ---"). */
+const mdHeaderRegex =
+  /^(?:#{1,4}|\*{1,2}|-{2,4}|={2,4})\s*([A-Za-z0-9\u00C0-\u024F\s\.:]+?)\s*(?:#{1,4}|\*{1,2}|-{2,4}|={2,4})?$/;
+/** Bracketed section marker at line start ("[REF]", "[1.] verse"). */
+const bracketHeaderRegex = /^\[([^\]]+)\](?:\s*(.*)|$)/;
+/** Parenthesized section marker at line start ("(REF)", "(1.) verse"). */
+const parenHeaderRegex = /^\(([^\)]+)\)(?:\s*(.*)|$)/;
+/** Standalone bracketed section reference ("[REF]"). */
+const standaloneBracketRefRegex = /^\[([^\]]+)\]$/;
+/** Section prefix markers at line start ("1.", "Bridge:", "R:", "Mezihra:"). */
+const markerPatternRegex =
+  /^((?:(?:\d+[\.\:]|\(\d+\))(?:\s*(?:VERSE|SLOKA))?[\.\:]?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|PREF|PRE-REF|PRE-CHORUS|OUTRO|OUT|SPC|VERSE|SLOKA|INTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|PREF\d*[\.\:]?|OUT\d*[\.\:]?|SPC\d*[\.\:]?|B[\.\:]|M[\.\:]))(?:\s+|(?=\[)|(?=\{)|$)/i;
+/** Refrain detection on an uppercased marker. */
+const refrainMarkerRegex = /^R\d*[\.:]?$/;
 
 export const sectionRefRegex =
   /^(?:(?:\d+[\.\:]?|\(\d+\))(?:\s*(?:VERSE|SLOKA))?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|PREF|PRE-REF|PRE-CHORUS|OUTRO|OUT|SPC|VERSE|SLOKA|INTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|PREF\d*[\.\:]?|OUT\d*[\.\:]?|SPC\d*[\.\:]?|B[\.\:]|M[\.\:])$/i;
@@ -146,11 +204,29 @@ export const sectionRefRegex =
  */
 const chordMarkupRegex = /\[[^\]]*\]|\{[^}]*\}/g;
 
+/** Matches one or more bracketed/braced tokens (global variant for match/replace). */
+const chordTokensGlobalRegex = /\{[^\}]+\}|\[[^\]]+\]/g;
+/** Fast test for any bracketed/braced token character in a line. */
+const hasChordTokenRegex = /[[{]/;
+
 /** Matches literal [ or ] characters in section markers. */
 const markerBracketsRegex = /[\[\]]/g;
 
 /** Matches a line wrapped in [ ... ] so it can be unwrapped to its inner text. */
 const wrappedMarkerRegex = /^\[(.*)\]$/;
+
+/** ChordPro opening/comment directives used as section headers (no tail capture). */
+const cpOpenDirectiveNoTailRegex =
+  /^\{(?:(?:c|comment):\s*([^}]+)|(start_of_chorus|soc|start_of_bridge|sob|start_of_verse|sov|start_of_tab|sot))\}/i;
+/** Strips repetition/bar/punctuation/count characters from notation lines. */
+const repNotationCharsRegex = /[|:\\/!.()\[\]{}\s0-9xX%*\-+~]/g;
+/** Musical label prefixes allowed on chords-only lines ("Intro:", "Mezihra", ...). */
+const musicLabelRegex =
+  /^(?:Intro|Outro|OUT|Solo|SPC|Mezihra|Bridge|BRD|Coda|R|Ref|PREF|Pre-Ref|Pre-Chorus|Refrén|Refrain|Chorus|Verse|Sloka|Riff|Interlude|Předehra|Dohra|Kytara|Guitar|Instr|Instrumental|Theme|Lead|Break|Takt|Bar|Akordy|Chords)[0-9]*[\.:]?$/i;
+/** Kytario spacing tags ({-}, {--}, {---} and bracket variants). */
+const spacingTagRegex = /\{-{1,3}\}|\[-{1,3}\]/g;
+/** Bracketed tokens used when splitting lines on section references. */
+const bracketTokenScanRegex = /\[([^\]]+)\]/g;
 
 /** Fast, allocation-free length of visible text with chord markup removed. */
 function measureLyricsLength(raw: string): number {
@@ -166,21 +242,11 @@ function measureLyricsLength(raw: string): number {
 export function isSectionHeaderLine(trimmedLine: string): boolean {
   if (!trimmedLine) return false;
   if (trimmedLine.startsWith('- ')) return true;
-  if (
-    /^\{(?:(?:c|comment):\s*([^}]+)|(start_of_chorus|soc|start_of_bridge|sob|start_of_verse|sov|start_of_tab|sot))\}/i.test(
-      trimmedLine,
-    )
-  )
-    return true;
-  if (
-    /^(?:#{1,4}|\*{1,2}|-{2,4}|={2,4})\s*([A-Za-z0-9\u00C0-\u024F\s\.:]+?)\s*(?:#{1,4}|\*{1,2}|-{2,4}|={2,4})?$/.test(
-      trimmedLine,
-    )
-  )
-    return true;
-  const bracketMatch = trimmedLine.match(/^\[([^\]]+)\](?:\s*(.*)|$)/);
+  if (cpOpenDirectiveNoTailRegex.test(trimmedLine)) return true;
+  if (mdHeaderRegex.test(trimmedLine)) return true;
+  const bracketMatch = trimmedLine.match(bracketHeaderRegex);
   if (bracketMatch && sectionRefRegex.test(bracketMatch[1].trim())) return true;
-  const parenMatch = trimmedLine.match(/^\(([^\)]+)\)(?:\s*(.*)|$)/);
+  const parenMatch = trimmedLine.match(parenHeaderRegex);
   if (parenMatch && sectionRefRegex.test(parenMatch[1].trim())) return true;
   const markerPattern =
     /^((?:(?:\d+[\.\:]|\(\d+\))(?:\s*(?:VERSE|SLOKA))?[\.\:]?|(?:REFR[EÉ]N|REFRAIN|REF|CHORUS|BRIDGE|BRD|PREF|PRE-REF|PRE-CHORUS|OUTRO|OUT|SPC|VERSE|SLOKA|INTRO|SOLO|CODA|MEZIHRA|MEDZIHRA|PŘEDEHRA|PREDOHRA|DOHRA|INTERLUDE|RIFF)(?:\s*\d+)?[\.\:]?|R\d*[\.\:]?|BRD\d*[\.\:]?|PREF\d*[\.\:]?|OUT\d*[\.\:]?|SPC\d*[\.\:]?|B[\.\:]|M[\.\:]))(?:\s+|(?=\[)|(?=\{)|$)/i;
@@ -197,8 +263,9 @@ export function splitLineOnSectionRefs(line: string): string[] {
     return [line];
   }
 
-  // Find all [bracketed] occurrences
-  const regex = /\[([^\]]+)\]/g;
+  // Find all [bracketed] occurrences (hoisted regex; reset lastIndex for reentrancy)
+  const regex = bracketTokenScanRegex;
+  regex.lastIndex = 0;
   let match: RegExpExecArray | null;
   const splitIndices: { start: number; end: number; text: string }[] = [];
 
@@ -250,8 +317,11 @@ export function splitLineOnSectionRefs(line: string): string[] {
 export function isRepetitionOrChordsOnlyLine(line: string): boolean {
   if (!line || !line.trim()) return false;
 
+  // Fast path: no bracket/brace characters at all -> cannot be a chords-only line
+  if (!hasChordTokenRegex.test(line)) return false;
+
   // Extract all bracketed/braced contents
-  const matches = line.match(/\{[^\}]+\}|\[[^\]]+\]/g);
+  const matches = line.match(chordTokensGlobalRegex);
   if (!matches) return false;
 
   // Check if at least one match is an actual chord (not a section reference)
@@ -262,20 +332,17 @@ export function isRepetitionOrChordsOnlyLine(line: string): boolean {
   if (!hasActualChords) return false;
 
   // Strip all chord and section ref brackets
-  const withoutChords = line.replace(/\{[^\}]+\}|\[[^\]]+\]/g, '').trim();
+  const withoutChords = line.replace(chordTokensGlobalRegex, '').trim();
   if (!withoutChords) return true; // Only chords and whitespace
 
   // Check if what remains outside chords consists strictly of repetition / bar / tempo / count notation
   // e.g. |: :| | || //: :// 1. 2. (4x) 2x %
-  const stripped = withoutChords.replace(/[|:\\/!.\(\)\[\]\{\}\s0-9xX%*\-+~]/g, '');
+  const stripped = withoutChords.replace(repNotationCharsRegex, '');
   if (stripped.length === 0) return true;
 
   // Also check if what remains is a musical label prefix or note
   // e.g. Intro:, Solo:, Riff:, Mezihra:, Předehra:, Dohra:, Bridge:, BRD:, SPC:, OUT:, PREF:, Interlude:, Sloka:, Verse:, Chorus:
-  const strippedNoLabels = stripped.replace(
-    /^(?:Intro|Outro|OUT|Solo|SPC|Mezihra|Bridge|BRD|Coda|R|Ref|PREF|Pre-Ref|Pre-Chorus|Refrén|Refrain|Chorus|Verse|Sloka|Riff|Interlude|Předehra|Dohra|Kytara|Guitar|Instr|Instrumental|Theme|Lead|Break|Takt|Bar|Akordy|Chords)[0-9]*[\.:]?$/i,
-    '',
-  );
+  const strippedNoLabels = stripped.replace(musicLabelRegex, '');
   return strippedNoLabels.length === 0;
 }
 
@@ -290,12 +357,12 @@ export function parseChordLine(line: string): ChordChunk[] {
   // Pre-process Kytario spacing tags into physical spaces only if present
   let processedLine = line;
   if (line.includes('{-') || line.includes('[-')) {
-    processedLine = line.replace(/\{-{1,3}\}|\[-{1,3}\]/g, (m) => ' '.repeat(m.length - 2));
+    processedLine = line.replace(spacingTagRegex, (m) => ' '.repeat(m.length - 2));
   }
 
   // Handle repetition / chords-only lines where chords and repetition marks are inline
   if (isRepetitionOrChordsOnlyLine(processedLine)) {
-    const parts = processedLine.split(/(\{[^\}]+\}|\[[^\]]+\])/g);
+    const parts = processedLine.split(chordSplitRegex);
     const chunks: ChordChunk[] = [];
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
@@ -311,10 +378,7 @@ export function parseChordLine(line: string): ChordChunk[] {
           chunks.push({ chord: inner, text: '' });
         }
       } else {
-        const normalized = part
-          .replace(/:\|\|:/g, ':| |:')
-          .replace(/:\|\s*\|:/g, ':| |:')
-          .trim();
+        const normalized = part.replace(repBarRegex, ':| |:').trim();
         if (normalized.length > 0) {
           chunks.push({ chord: null, text: normalized });
         }
@@ -323,7 +387,7 @@ export function parseChordLine(line: string): ChordChunk[] {
     return chunks;
   }
 
-  const parts = processedLine.split(/(\{[^\}]+\}|\[[^\]]+\])/g);
+  const parts = processedLine.split(chordSplitRegex);
   const chunks: ChordChunk[] = [];
 
   let currentChord: string | null = null;
@@ -353,7 +417,7 @@ export function parseChordLine(line: string): ChordChunk[] {
     } else {
       if (currentChord !== null || part.length > 0) {
         // Extract leading spaces to ensure text following a spaced chord starts *after* the chord's visual width
-        const match = part.match(/^(\s*)(.*)$/);
+        const match = part.match(leadingWhitespaceRegex);
         const leadingSpaces = match ? match[1] : '';
         const restText = match ? match[2] : '';
 
