@@ -11,8 +11,10 @@ function preprocessJsonText(raw: string): string {
   if (!raw) return '';
   let cleaned = String(raw).trim();
 
-  // 1. Remove UTF-8 BOM and non-standard invisible whitespace/separators
-  cleaned = cleaned.replace(/^[\uFEFF\u200B\u200C\u200D\u00A0\s]+/u, '').trim();
+  // 1. Remove UTF-8 BOM and non-standard invisible whitespace/separators.
+  // Written as an alternation rather than a character class: \u00A0 plus \s would
+  // otherwise form a joined grapheme sequence that ESLint's no-misleading-character-class flags.
+  cleaned = cleaned.replace(/^(?:\uFEFF|\u200B|\u200C|\u200D|\u00A0|\s)+/, '').trim();
 
   // 2. Remove Markdown code block wrappers if present (e.g. ```json ... ```)
   const codeBlockMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
