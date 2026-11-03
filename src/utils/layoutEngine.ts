@@ -22,6 +22,7 @@ import { parseSongContent, getLyricsTextLength } from './songParser';
 
 export { MIN_READABLE_LYRICS_FONT_SIZE, MIN_READABLE_CHORDS_FONT_SIZE } from './layoutConstants';
 
+ */
 /**
  * Internal helper to calculate the estimated height of a single song line.
  * All width aggregates (textLen / chordsWidth / renderedWidth) are precomputed
@@ -1052,6 +1053,7 @@ export function getDisplayColor(colorHex: string): string {
 }
 
 /**
+
  * Computes enhanced line margin / vertical spacing when smartFit auto-scale is enabled
  * and the song easily fits on the page (leaving spare vertical space).
  */
