@@ -115,7 +115,9 @@ export function extractKytarioSlug(input: string): string {
 
   if (segments.length === 0) return '';
 
-  const ignore = new Set([
+  // Known Kytario URL prefixes: locale codes, API paths and section slugs that are
+  // never a songbook/project token by themselves.
+  const ignoredSegments = new Set([
     'api',
     'v1',
     'v2',
@@ -124,15 +126,16 @@ export function extractKytarioSlug(input: string): string {
     'songbooks',
     'zpevnik',
     'zpevniky',
-    'project',
-    'projects',
+    'pisnicka',
+    'pisnicky',
     'sections',
     'export',
     'shared',
     'cs',
-    'en',
     'sk',
+    'en',
     'de',
+    'pl',
     'user',
     'users',
     'print',
@@ -150,30 +153,41 @@ export function extractKytarioSlug(input: string): string {
     'customizer',
   ]);
 
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i].toLowerCase();
-    if (
-      (seg === 'songbooks' ||
-        seg === 'songbook' ||
-        seg === 'zpevnik' ||
-        seg === 'zpevniky' ||
-        seg === 'projects' ||
-        seg === 'project' ||
-        seg === 'shared') &&
-      i + 1 < segments.length
-    ) {
-      const next = segments[i + 1];
-      if (!ignore.has(next.toLowerCase()) && !/^index(?:-\d+)?$/i.test(next)) {
-        return next;
-      }
-    }
-  }
+  // Prefix segments after which the NEXT segment is always the real songbook/project token.
+  const prefixSegments = new Set([
+    'songbook',
+    'songbooks',
+    'zpevnik',
+    'zpevniky',
+    'pisnicka',
+    'pisnicky',
+    'project',
+    'projects',
+    'projekty',
+    'projekt',
+    'shared',
+  ]);
 
-  const valid = segments.filter(
-    (s) => !ignore.has(s.toLowerCase()) && !/^index(?:-\d+)?$/i.test(s),
-  );
-  if (valid.length > 0) {
-    return valid[0];
+  // Walk the path from the end backwards so patterns like
+  // kytario.com/<lang>/projekty/<slug>, kytario.com/projects/<slug> or
+  // kytario.com/pisnicky/<slug> resolve to the actual slug instead of an
+  // intermediate word such as "projekty" or "pisnicky".
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const seg = segments[i].toLowerCase();
+    if (/^index(?:-\d+)?$/i.test(seg)) continue;
+    if (prefixSegments.has(seg)) {
+      // The token follows the prefix segment.
+      if (i + 1 < segments.length) {
+        const next = segments[i + 1];
+        if (!ignoredSegments.has(next.toLowerCase()) && !/^index(?:-\d+)?$/i.test(next)) {
+          return next;
+        }
+      }
+      continue;
+    }
+    if (!ignoredSegments.has(seg)) {
+      return segments[i];
+    }
   }
 
   return '';
@@ -799,21 +813,31 @@ export function extractSongbookTokensFromProjectHtml(
     }
   }
 
-  const linkRegex = /\/(?:songbooks?|zpevnik|zpevniky|shared)\/([a-zA-Z0-9_\-]+)/gi;
+  // Fallback: collect songbook tokens referenced by links in the HTML. Generic
+  // "Songbook" names are only used as a last resort so that any real name found
+  // elsewhere (e.g. in the embedded JSON payload) wins during de-duplication.
+  const linkRegex =
+    /\/(?:songbooks?|zpevnik|zpevniky|pisnicky|projekty|projects|project|shared)\/([a-zA-Z0-9_\-]+)/gi;
   let m;
   while ((m = linkRegex.exec(html)) !== null) {
     const tok = m[1];
     if (tok && tok !== 'cs' && tok !== 'en' && tok !== 'sk' && tok !== 'de') {
-      results.push({ token: tok, name: 'Songbook' });
+      results.push({ token: tok, name: '' });
     }
   }
 
-  const seen = new Set<string>();
-  return results.filter((r) => {
-    if (seen.has(r.token)) return false;
-    seen.add(r.token);
-    return true;
-  });
+  const byToken = new Map<string, string>();
+  for (const r of results) {
+    const existing = byToken.get(r.token);
+    if (existing === undefined || (!existing && r.name)) {
+      byToken.set(r.token, r.name);
+    }
+  }
+
+  return Array.from(byToken.entries()).map(([token, name]) => ({
+    token,
+    name: name || 'Songbook',
+  }));
 }
 
 /**
@@ -932,24 +956,45 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
   }
 
   // If it's a project URL/token, let the client resolve it if possible (static host fallback)
-  const isProjectUrl = /projekty|projects/i.test(cleanUrl);
+  let isProjectUrl = /projekty|projects|projekt\b|\bproject\b/i.test(cleanUrl);
   if (isProjectUrl && token) {
     try {
-      const pageUrl = `https://kytario.com/cs/projekty/${token}`;
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(6000) });
-      if (res.ok) {
-        const wrapper = await res.json();
-        if (wrapper && wrapper.contents) {
-          const songbooks = extractSongbookTokensFromProjectHtml(wrapper.contents);
-          if (songbooks.length > 0) {
-            console.log(
-              `[Client] Resolved project "${token}" to songbook: "${songbooks[0].token}"`,
-            );
-            token = songbooks[0].token;
-            cleanUrl = `https://kytario.com/cs/${token}`;
+      const pageUrls = [
+        `https://kytario.com/cs/projekty/${token}`,
+        `https://kytario.com/projects/${token}`,
+        `https://kytario.com/${token}`,
+      ];
+      let projectContents = '';
+      for (const pageUrl of pageUrls) {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
+        try {
+          const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(6000) });
+          if (res.ok) {
+            const wrapper = await res.json();
+            if (wrapper && wrapper.contents) {
+              projectContents = wrapper.contents;
+              break;
+            }
           }
+        } catch {
+          // Try next project page variant
         }
+      }
+      if (projectContents) {
+        const songbooks = extractSongbookTokensFromProjectHtml(projectContents);
+        if (songbooks.length > 0) {
+          console.log(
+            `[Client] Resolved project "${token}" to songbook: "${songbooks[0].token}"`,
+          );
+          token = songbooks[0].token;
+          cleanUrl = `https://kytario.com/cs/${token}`;
+        } else {
+          // Not a project page after all (e.g. kytario.com/<url> where <url>
+          // happens to contain the word "project") – treat it as a songbook.
+          isProjectUrl = false;
+        }
+      } else {
+        isProjectUrl = false;
       }
     } catch (e: any) {
       console.warn('[Client] Project resolution fallback error:', e?.message);
