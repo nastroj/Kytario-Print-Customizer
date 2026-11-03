@@ -1,4 +1,5 @@
 import { cleanSongbookTitle } from './normalizeSongbook';
+import { formatCoverDisplayUrl } from './urlSlug';
 
 export interface KytarioErrorDetails {
   isCorsOrStaticHost: boolean;
