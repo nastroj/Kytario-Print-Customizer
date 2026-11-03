@@ -157,15 +157,16 @@ async function createServer() {
       'songbooks',
       'zpevnik',
       'zpevniky',
-      'project',
-      'projects',
+      'pisnicka',
+      'pisnicky',
       'sections',
       'export',
       'shared',
       'cs',
-      'en',
       'sk',
+      'en',
       'de',
+      'pl',
       'user',
       'users',
       'print',
@@ -183,30 +184,41 @@ async function createServer() {
       'customizer',
     ]);
 
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i].toLowerCase();
-      if (
-        (seg === 'songbooks' ||
-          seg === 'songbook' ||
-          seg === 'zpevnik' ||
-          seg === 'zpevniky' ||
-          seg === 'projects' ||
-          seg === 'project' ||
-          seg === 'shared') &&
-        i + 1 < segments.length
-      ) {
-        const next = segments[i + 1];
-        if (!ignore.has(next.toLowerCase()) && !/^index(?:-\d+)?$/i.test(next)) {
-          return next;
-        }
-      }
-    }
+    // Prefix segments after which the NEXT segment is always the real songbook/project token.
+    const prefixSegments = new Set([
+      'songbook',
+      'songbooks',
+      'zpevnik',
+      'zpevniky',
+      'pisnicka',
+      'pisnicky',
+      'project',
+      'projects',
+      'projekty',
+      'projekt',
+      'shared',
+    ]);
 
-    const valid = segments.filter(
-      (s) => !ignore.has(s.toLowerCase()) && !/^index(?:-\d+)?$/i.test(s),
-    );
-    if (valid.length > 0) {
-      return valid[0];
+    // Walk the path from the end backwards so patterns like
+    // kytario.com/<lang>/projekty/<slug>, kytario.com/projects/<slug> or
+    // kytario.com/pisnicky/<slug> resolve to the actual slug instead of an
+    // intermediate word such as "projekty" or "pisnicky".
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const seg = segments[i].toLowerCase();
+      if (/^index(?:-\d+)?$/i.test(seg)) continue;
+      if (prefixSegments.has(seg)) {
+        // The token follows the prefix segment.
+        if (i + 1 < segments.length) {
+          const next = segments[i + 1];
+          if (!ignore.has(next.toLowerCase()) && !/^index(?:-\d+)?$/i.test(next)) {
+            return next;
+          }
+        }
+        continue;
+      }
+      if (!ignore.has(seg)) {
+        return segments[i];
+      }
     }
 
     return '';
@@ -585,22 +597,31 @@ async function createServer() {
       }
     }
 
-    // Also search for links containing /songbooks/ or /zpevnik/ as fallback
-    const linkRegex = /\/(?:songbooks?|zpevnik|zpevniky|shared)\/([a-zA-Z0-9_\-]+)/gi;
+    // Fallback: collect songbook tokens referenced by links in the HTML. Generic
+    // "Songbook" names are only used as a last resort so that any real name found
+    // elsewhere (e.g. in the embedded JSON payload) wins during de-duplication.
+    const linkRegex =
+      /\/(?:songbooks?|zpevnik|zpevniky|pisnicky|projekty|projects|project|shared)\/([a-zA-Z0-9_\-]+)/gi;
     let m;
     while ((m = linkRegex.exec(html)) !== null) {
       const tok = m[1];
       if (tok && tok !== 'cs' && tok !== 'en' && tok !== 'sk' && tok !== 'de') {
-        results.push({ token: tok, name: 'Songbook' });
+        results.push({ token: tok, name: '' });
       }
     }
 
-    const seen = new Set<string>();
-    return results.filter((r) => {
-      if (seen.has(r.token)) return false;
-      seen.add(r.token);
-      return true;
-    });
+    const byToken = new Map<string, string>();
+    for (const r of results) {
+      const existing = byToken.get(r.token);
+      if (existing === undefined || (!existing && r.name)) {
+        byToken.set(r.token, r.name);
+      }
+    }
+
+    return Array.from(byToken.entries()).map(([token, name]) => ({
+      token,
+      name: name || 'Songbook',
+    }));
   }
 
   async function fetchKytarioWebpageTitle(token: string, rawUrl?: string): Promise<string | null> {
@@ -890,7 +911,8 @@ async function createServer() {
     );
 
     // 1. Resolve project to its underlying first songbook if it is a project page
-    const isProjectUrl = /projekty|projects/i.test(rawInput);
+    let isProjectUrl = /projekty|projects|projekt\b|\bproject\b/i.test(rawInput);
+    let projectSongbookName: string | null = null;
     if (isProjectUrl && candidateTokens.length > 0) {
       for (const tok of candidateTokens) {
         try {
@@ -900,6 +922,7 @@ async function createServer() {
             `https://kytario.com/projects/${tok}`,
             `https://kytario.com/sk/projekty/${tok}`,
             `https://kytario.com/en/projects/${tok}`,
+            `https://kytario.com/${tok}`,
           ];
           let projectHtml = '';
           for (const pUrl of projectWebpages) {
@@ -918,11 +941,17 @@ async function createServer() {
                 `[Proxy] Successfully resolved project "${tok}" to songbook "${projectSongbooks[0].token}" (${projectSongbooks[0].name})`,
               );
               token = projectSongbooks[0].token;
+              projectSongbookName = projectSongbooks[0].name || null;
               break;
             }
+            // Page fetched but contains no songbooks – treat the input as a plain songbook URL.
+            isProjectUrl = false;
+          } else {
+            isProjectUrl = false;
           }
         } catch (e: any) {
           console.warn(`[Proxy] Project resolution error:`, e?.message);
+          isProjectUrl = false;
         }
       }
     }
@@ -1016,6 +1045,14 @@ async function createServer() {
                   data.title = webTitle;
                   data.name = webTitle;
                   data.songbookTitle = webTitle;
+                } else if (projectSongbookName && projectSongbookName !== 'Songbook') {
+                  // Project pages carry the songbook name in their embedded JSON payload.
+                  console.log(
+                    `[Proxy] Enriched songbook title from project page: "${projectSongbookName}"`,
+                  );
+                  data.title = projectSongbookName;
+                  data.name = projectSongbookName;
+                  data.songbookTitle = projectSongbookName;
                 }
               } catch (e) {
                 // Ignore title enrichment failure
