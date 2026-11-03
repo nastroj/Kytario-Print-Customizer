@@ -13,6 +13,8 @@ import {
   AVG_CHAR_WIDTH_FACTOR,
   BALANCE_CHAR_WIDTH_FACTOR,
   MIN_SCALE_FLOOR,
+  MIN_READABLE_LYRICS_FONT_SIZE,
+  MIN_READABLE_CHORDS_FONT_SIZE,
   markerBracketsRegex,
   wrappedMarkerRegex,
 } from './layoutConstants';
@@ -112,6 +114,7 @@ export function getOptimalColumnCount(
  * calculating vertical height of sections including chords and empty line buffers.
  * Specifically ensures songs with fewer lines are rendered with a larger font size to fill the page,
  * while enforcing a strict minimum font size constraint to maintain readability.
+ */
 export function computeSmartFitScale(
   sections: SongSection[],
   settings: {
@@ -1049,6 +1052,7 @@ export function getDisplayColor(colorHex: string): string {
   return colorHex;
 }
 
+/**
 
  * Computes enhanced line margin / vertical spacing when smartFit auto-scale is enabled
  * and the song easily fits on the page (leaving spare vertical space).
