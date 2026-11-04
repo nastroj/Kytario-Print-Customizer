@@ -19,7 +19,9 @@ export interface AppConfig {
 }
 
 export const APP_CONFIG: AppConfig = {
-  APP_VERSION: '1.9.1',
+  // Version comes from package.json via Vite's `define` (see vite.config.ts),
+  // so it can never drift out of sync. Falls back only if undefined at build time.
+  APP_VERSION: import.meta.env.APP_VERSION ?? '0.0.0',
   // Set to true to enable and show the Debug HUD and the debug icon in the toolbar
   ENABLE_DEBUG_HUD: false,
 };

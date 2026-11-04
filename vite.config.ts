@@ -12,6 +12,11 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  // Single source of truth for the version: package.json.
+  // Injected into the app as APP_VERSION so src/config.ts never goes stale.
+  const pkgVersion: string = JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')
+  ).version;
   const envBase = (
     process.env.BASE_PATH ||
     env.BASE_PATH ||
@@ -25,6 +30,9 @@ export default defineConfig(({ command, mode }) => {
   const base = command === 'serve' ? '/' : rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
   const disableHmr = process.env.DISABLE_HMR === 'true' || env.DISABLE_HMR === 'true';
   return {
+    define: {
+      'import.meta.env.APP_VERSION': JSON.stringify(pkgVersion),
+    },
     base,
     plugins: [
       react(),
