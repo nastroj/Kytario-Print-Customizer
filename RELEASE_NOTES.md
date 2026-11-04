@@ -1,5 +1,15 @@
 # Release Notes
 
+## v1.9.3 - 2026-11-05
+
+### Single Source of Truth for Version Display
+
+- **Version Display Fix**: The in-app version badge (sidebar and header) was hardcoded to `1.9.1` in `src/config.ts` and drifted out of sync with the actual release. It is now sourced directly from `package.json` via Vite's `define` configuration, so the displayed version can never drift again — bumping the package version automatically updates the UI.
+- **Build-Time Injection**: Added `APP_VERSION` injection in `vite.config.ts` with a safe `0.0.0` fallback if undefined at build time, keeping local builds and GitHub Pages deployments consistent.
+- **Documentation Sync**: Updated README and Release Notes to reflect the deployed 1.9.3 state on GitHub Pages.
+
+---
+
 ## v1.9.1 - 2026-11-04
 
 ### Accurate Page Heading Extraction, Cover Display Link Fix & Contributor Metadata Isolation

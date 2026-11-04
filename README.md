@@ -1,16 +1,21 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.9.1  
+**Version:** 1.9.3  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.9.1 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.9.3 is live on GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
 
 ---
 
-## 🌟 What's New in v1.9.1
+## 🌟 What's New in v1.9.3
+
+- **Single Source of Truth for Version Display**: The in-app version badge was previously hardcoded (`1.9.1`) and drifted out of sync with real releases. It is now injected at build time from `package.json` via Vite's `define`, so the displayed UI version can never drift again.
+- **Documentation Sync**: README and Release Notes updated to match the deployed 1.9.3 site on GitHub Pages.
+
+### Carried over from v1.9.1
 
 - **Accurate Page Heading Title Extraction**: Songbook titles are authoritatively extracted directly from the primary `<h1>` heading on `kytario.com/<slug>` and `<slug>/index-1` metadata, cleanly stripped of site prefixes. Songbooks whose names match their slug (such as *PRO RADOST* from `bodg`) are preserved without false-positive rejection.
 - **True Cover Page URLs & QR Code Links**: Imported Kytario songbooks strictly preserve the user-requested URL above cover QR codes (displayed with `https://` cleanly stripped, e.g. `kytario.com/kytarove-sedanky-brno`) rather than resolving to non-existent contributor profile paths.
@@ -134,7 +139,7 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 
    ```bash
    git add .
-   git commit -m "chore: release v1.9.1"
+   git commit -m "chore: release v1.9.3"
    git push origin main
    ```
 
@@ -174,6 +179,12 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 ---
 
 ## 📝 Release History
+
+### v1.9.3 (2026-11-05)
+
+- **Version Display Fix**: Replaced the hardcoded `1.9.1` string in `src/config.ts` with a build-time `APP_VERSION` value injected from `package.json` through Vite's `define` (single source of truth), so the sidebar/header badge always matches the released version.
+- **Safe Fallback**: Falls back to `0.0.0` if the define is undefined at build time, keeping local and CI builds consistent.
+- **Documentation Sync**: Updated README and Release Notes to reflect the deployed 1.9.3 state.
 
 ### v1.9.1 (2026-11-04)
 
