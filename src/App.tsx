@@ -1023,6 +1023,9 @@ export default function App() {
       if (cleanUrl && /^https?:\/\//i.test(cleanUrl)) {
         rawData.url = cleanUrl;
         rawData.shortUrl = formatCoverDisplayUrl(cleanUrl);
+      } else if (cleanUrl && /^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/i.test(cleanUrl)) {
+        rawData.url = `https://${cleanUrl}`;
+        rawData.shortUrl = formatCoverDisplayUrl(cleanUrl);
       } else if (resolvedSlug) {
         rawData.url = rawData.url || `https://kytario.com/${resolvedSlug}`;
         rawData.shortUrl = rawData.shortUrl || formatCoverDisplayUrl(rawData.url);

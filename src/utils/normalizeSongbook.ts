@@ -10,7 +10,7 @@ import {
   type RawSongbookLike,
 } from '../types/rawSongbook';
 import { extractSongsFromAny } from './normalizeSong';
-import { extractSongbookUrlAndSlug } from './urlSlug';
+import { extractSongbookUrlAndSlug, formatCoverDisplayUrl } from './urlSlug';
 
 export function cleanSongbookTitle(rawTitle: string): string {
   if (!rawTitle || typeof rawTitle !== 'string') return '';
@@ -77,33 +77,45 @@ function firstRawPath(obj: RawSongbookLike | undefined, paths: readonly string[]
 export function normalizeSongbookData(raw: RawSongbookLike, rawJsonText?: string): SongbookData {
   if (!raw) return { title: 'Untitled Songbook', songs: [] };
 
+  const rawRec = isRecord(raw) ? raw : null;
+  const existingUrl = rawRec && typeof rawRec.url === 'string' && rawRec.url.trim() ? rawRec.url.trim() : '';
+  const existingShortUrl = rawRec && typeof rawRec.shortUrl === 'string' && rawRec.shortUrl.trim() ? rawRec.shortUrl.trim() : '';
+  const existingSlug = rawRec && typeof rawRec.slug === 'string' && rawRec.slug.trim() ? rawRec.slug.trim() : '';
+  const existingUrlToken = rawRec && typeof rawRec.urlToken === 'string' && rawRec.urlToken.trim() ? rawRec.urlToken.trim() : '';
+
   const songs = extractSongsFromAny(raw);
   const urlInfo = extractSongbookUrlAndSlug(raw, rawJsonText);
-  const urlToken = isRecord(raw)
-    ? firstRawString(raw, [
-        'urlToken',
-        'url_token',
-        'slugToken',
-        'slug_token',
-        'slug',
-      ]) || urlInfo.slug
-    : urlInfo.slug;
+  const urlToken =
+    existingUrlToken ||
+    existingSlug ||
+    (rawRec
+      ? firstRawString(rawRec, [
+          'urlToken',
+          'url_token',
+          'slugToken',
+          'slug_token',
+          'slug',
+        ]) || urlInfo.slug
+      : urlInfo.slug);
+
+  const finalUrl = existingUrl || urlInfo.url;
+  const finalShortUrl = existingShortUrl || (finalUrl ? formatCoverDisplayUrl(finalUrl) : urlInfo.shortUrl);
+  const finalSlug = existingSlug || existingUrlToken || urlToken || urlInfo.slug;
 
   let title = '';
-  if (isRecord(raw)) {
+  if (rawRec) {
     const candidates = [
-      firstRawPath(raw, [['title']]),
-      firstRawPath(raw, [['songbookTitle']]),
-      firstRawPath(raw, [['songbook', 'title']]),
-      firstRawPath(raw, [['data', 'title']]),
-      firstRawPath(raw, [['payload', 'title']]),
-      firstRawPath(raw, [['name']]),
-      firstRawPath(raw, [['songbook_name']]),
-      firstRawPath(raw, [['songbook', 'name']]),
-      firstRawPath(raw, [['data', 'songbook', 'name']]),
-      firstRawPath(raw, [['data', 'name']]),
-      firstRawPath(raw, [['payload', 'name']]),
-      firstRawPath(raw, [['songbookSongs', '0', 'song', 'project', 'name']]),
+      firstRawPath(rawRec, [['title']]),
+      firstRawPath(rawRec, [['songbookTitle']]),
+      firstRawPath(rawRec, [['songbook', 'title']]),
+      firstRawPath(rawRec, [['data', 'title']]),
+      firstRawPath(rawRec, [['payload', 'title']]),
+      firstRawPath(rawRec, [['name']]),
+      firstRawPath(rawRec, [['songbook_name']]),
+      firstRawPath(rawRec, [['songbook', 'name']]),
+      firstRawPath(rawRec, [['data', 'songbook', 'name']]),
+      firstRawPath(rawRec, [['data', 'name']]),
+      firstRawPath(rawRec, [['payload', 'name']]),
     ].filter(Boolean);
 
     for (const cand of candidates) {
@@ -121,10 +133,6 @@ export function normalizeSongbookData(raw: RawSongbookLike, rawJsonText?: string
         ) {
           continue;
         }
-        // Ignore candidate if it matches the urlToken / slug case-insensitively (e.g. "BODG" vs "bodg")
-        if (urlToken && lower === urlToken.trim().toLowerCase()) {
-          continue;
-        }
         title = cleaned;
         break;
       }
@@ -136,13 +144,13 @@ export function normalizeSongbookData(raw: RawSongbookLike, rawJsonText?: string
   }
 
   return {
-    ...(isRecord(raw) ? raw : {}),
+    ...(rawRec || {}),
     title,
     name: title,
-    urlToken,
-    url: urlInfo.url,
-    shortUrl: urlInfo.shortUrl,
-    slug: urlInfo.slug,
+    urlToken: finalSlug,
+    url: finalUrl,
+    shortUrl: finalShortUrl,
+    slug: finalSlug,
     songs,
   } as SongbookData;
 }

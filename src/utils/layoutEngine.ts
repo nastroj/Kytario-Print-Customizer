@@ -21,8 +21,6 @@ import {
 import { parseSongContent, getLyricsTextLength } from './songParser';
 
 export { MIN_READABLE_LYRICS_FONT_SIZE, MIN_READABLE_CHORDS_FONT_SIZE } from './layoutConstants';
-
- */
 /**
  * Internal helper to calculate the estimated height of a single song line.
  * All width aggregates (textLen / chordsWidth / renderedWidth) are precomputed

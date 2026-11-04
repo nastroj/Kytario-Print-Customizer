@@ -1,5 +1,18 @@
 # Release Notes
 
+## v1.9.1 - 2026-11-04
+
+### Accurate Page Heading Extraction, Cover Display Link Fix & Contributor Metadata Isolation
+
+- **Authoritative Page Heading Extraction**: Songbook titles are now extracted authoritatively from the primary `<h1>` heading of Kytario pages at `kytario.com/<input url>` (with fallback to `kytario.com/<input url>/index-1` metadata), cleanly stripped of site prefixes. Songbooks whose names match their slug (such as *PRO RADOST* from `bodg`) are preserved rather than rejected.
+- **Accurate Cover Page URL & QR Code Links**: Imported Kytario songbooks strictly preserve the user-requested URL above cover QR codes (displayed with `https://` cleanly stripped, e.g. `kytario.com/kytarove-sedanky-brno`) rather than resolving to non-existent contributor profile paths.
+- **Contributor Project Isolation**: Eliminated cross-contamination where individual song contributor metadata (e.g. author `project.urlToken` like `vaclav-dressler-49` or song creator project names) hijacked top-level songbook URLs and titles.
+- **Guarded Playlist vs. Full Songbook Imports**: Entire songbooks containing playlists now import all songs without being replaced or truncated by sub-playlists unless explicitly requested via `?playlist=`.
+- **Scoped Project Resolution**: Restricts project resolution strictly to `/projekty/` and `/projects/` routes.
+- **Production Asset Audit**: Pruned obsolete test scripts and verified clean TypeScript compilation.
+
+---
+
 ## v1.9.0 - 2026-11-02
 
 ### Modular Architecture, Code-Splitting, Draft Settings Tracking & URL Resolution Fixes

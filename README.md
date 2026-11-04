@@ -1,21 +1,23 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.9.0  
+**Version:** 1.9.1  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.9.0 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.9.1 is ready for deployment to GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
 
 ---
 
-## 🌟 What's New in v1.9.0
+## 🌟 What's New in v1.9.1
 
-- **Modular Architecture & Code-Splitting**: Decomposed monolithic sidebar and import panels into decoupled subcomponents and introduced lazy loading (`React.lazy`) for the heavy preview rendering engine.
-- **Draft Settings & Unapplied Changes Tracking**: Real-time settings diffing across 40+ parameters with unapplied changes indicator and one-click review/update banner.
-- **URL & Slug Resolution Fixes**: Robust Kytario URL and slug parsing with subpage ignoring (`/songs`, `/print`) and enhanced title enrichment.
-- **Concurrent Performance & Storage**: React 19 concurrent transitions and asynchronous IndexedDB caching for large songbooks (250+ songs).
+- **Accurate Page Heading Title Extraction**: Songbook titles are authoritatively extracted directly from the primary `<h1>` heading on `kytario.com/<slug>` and `<slug>/index-1` metadata, cleanly stripped of site prefixes. Songbooks whose names match their slug (such as *PRO RADOST* from `bodg`) are preserved without false-positive rejection.
+- **True Cover Page URLs & QR Code Links**: Imported Kytario songbooks strictly preserve the user-requested URL above cover QR codes (displayed with `https://` cleanly stripped, e.g. `kytario.com/kytarove-sedanky-brno`) rather than resolving to non-existent contributor profile paths.
+- **Contributor Metadata Isolation**: Eliminated cross-contamination where individual song contributor metadata (e.g. author `project.urlToken` like `vaclav-dressler-49` or song-level contributor project names) hijacked top-level songbook URLs and titles.
+- **Guarded Playlist vs. Full Songbook Imports**: Songbooks with playlist listings load their complete song collections without being accidentally truncated or renamed by sub-playlists unless explicitly requested via `?playlist=`.
+- **Scoped Project Routing**: Strictly scopes project resolution to explicit `/projekty/` and `/projects/` routes, preventing false matches on general songbook slugs.
+- **Production Asset Audit**: Pruned obsolete test scripts and standardized TypeScript and layout engine formatting.
 
 ---
 
@@ -132,7 +134,7 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 
    ```bash
    git add .
-   git commit -m "chore: release v1.9.0"
+   git commit -m "chore: release v1.9.1"
    git push origin main
    ```
 
@@ -172,6 +174,22 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 ---
 
 ## 📝 Release History
+
+### v1.9.1 (2026-11-04)
+
+- **Accurate Heading Extraction**: Prioritizes `<h1>` page headings from `http://kytario.com/<input url>` and `/index-1` metadata, ensuring proper songbook titles (e.g. *Kytarové sedánky Brno*, *PRO RADOST*) are imported.
+- **Accurate Cover Display Link**: Preserves the original requested songbook link on cover pages above the QR code (with `https://` removed) instead of resolving to invalid contributor profile slugs.
+- **Contributor Project Isolation**: Prevents song contributor project metadata (e.g. `vaclav-dressler-49` or song creator project names) from overwriting top-level songbook URLs and titles.
+- **Guarded Playlist vs. Full Songbook Imports**: Entire songbooks containing playlists now import all songs without being replaced or truncated by sub-playlists unless explicitly requested.
+- **Scoped Project Resolution**: Restricts project resolution strictly to `/projekty/` and `/projects/` routes.
+- **Production Clean-up**: Pruned obsolete test scripts and verified clean TypeScript compilation.
+
+### v1.9.0 (2026-11-02)
+
+- **Modular Architecture & Code-Splitting**: Decomposed monolithic sidebar and import panels into decoupled subcomponents with lazy loading (`React.lazy`) for the heavy preview rendering engine.
+- **Draft Settings & Unapplied Changes Tracking**: Real-time settings diffing across 40+ parameters with unapplied changes indicator and one-click review/update banner.
+- **URL & Slug Resolution Fixes**: Robust Kytario URL and slug parsing with subpage ignoring (`/songs`, `/print`) and enhanced title enrichment.
+- **Concurrent Performance & Storage**: React 19 concurrent transitions and asynchronous IndexedDB caching for large songbooks (250+ songs).
 
 ### v1.8.17 (2026-10-30)
 

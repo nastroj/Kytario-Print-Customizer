@@ -180,34 +180,29 @@ export function extractSongbookUrlAndSlug(
     (foundUrl && /^(?:https?:\/\/)?(?:www\.)?kytario\.com\/?$/i.test(foundUrl) && !foundSlug)
   ) {
     if (rawJsonText) {
-      // Strip songs/songbookSongs array bodies and "project" objects to avoid extracting inner song or author project tokens
-      let textToScan = rawJsonText
-        .replace(/"(?:songbookSongs|songs)"\s*:\s*\[[\s\S]*?\](?=,\s*"|\s*\})/g, '"songs":[]')
-        .replace(/"project"\s*:\s*\{[\s\S]*?\}/g, '');
-
-      const slugMatch = textToScan.match(
-        /"(?:urlToken|url_token|slugToken|slug_token|slug|songbookSlug|songbook_slug|zpevnikSlug|zpevnik_slug|code|shareCode|share_code|songbookCode|songbook_code)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i,
-      );
-      if (slugMatch && slugMatch[1]) {
-        try {
-          foundSlug = JSON.parse(`"${slugMatch[1]}"`).trim();
-        } catch {
-          foundSlug = slugMatch[1].trim();
-        }
-      }
-
-      if (!foundUrl) {
-        const urlMatch = textToScan.match(
-          /"(?:shortUrl|short_url|shortURL|url|songbookUrl|songbook_url|shareUrl|share_url|shareLink|share_link|link|path)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i,
-        );
-        if (urlMatch && urlMatch[1]) {
-          try {
-            foundUrl = JSON.parse(`"${urlMatch[1]}"`).trim();
-          } catch {
-            foundUrl = urlMatch[1].trim();
+      try {
+        const parsed = JSON.parse(rawJsonText);
+        if (parsed && typeof parsed === 'object') {
+          const shallow = { ...parsed };
+          delete shallow.songbookSongs;
+          delete shallow.songs;
+          delete shallow.sections;
+          delete shallow.items;
+          // Search shallow container properties
+          const shallowSlug =
+            readStringKey(shallow, slugKeys) ||
+            (shallow.songbook ? readStringKey(asRecord(shallow.songbook) || {}, slugKeys) : undefined) ||
+            (shallow.data ? readStringKey(asRecord(shallow.data) || {}, slugKeys) : undefined);
+          const shallowUrl =
+            readStringKey(shallow, urlKeys) ||
+            (shallow.songbook ? readStringKey(asRecord(shallow.songbook) || {}, urlKeys) : undefined) ||
+            (shallow.data ? readStringKey(asRecord(shallow.data) || {}, urlKeys) : undefined);
+          if (shallowSlug || shallowUrl) {
+            foundSlug = shallowSlug || foundSlug;
+            foundUrl = shallowUrl || foundUrl;
           }
         }
-      }
+      } catch {}
     }
   }
 
