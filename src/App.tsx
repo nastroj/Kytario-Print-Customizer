@@ -53,6 +53,7 @@ import {
   normalizeSingleSong,
   formatCoverDisplayUrl,
 } from './utils';
+import { peekCachedSongbookFromLocalStorage, getCachedSongbookMeta } from './utils/storage';
 import { isZipFile, parseKytarioZip, ZipParseResult } from './utils/zipParser';
 import { readFileAsText } from './utils/fileIO';
 import {
@@ -75,13 +76,14 @@ const BackgroundPdfProgressModal = lazy(() =>
 const SongSelectionModal = lazy(() =>
   import('./components/SongSelectionModal').then((m) => ({ default: m.SongSelectionModal })),
 );
-import { saveCachedSongbookToStorage, loadCachedSongbookFromStorage } from './utils/storage';
+import { saveCachedSongbookToStorage, loadCachedSongbookFromStorage, resetCachedSongbookMetaCache } from './utils/storage';
 import { ZipProjectSelectModal } from './components/ZipProjectSelectModal';
 import { ImportTabs, type ImportTabId } from './components/import/ImportTabs';
 import { UrlImportPanel } from './components/import/UrlImportPanel';
 import { PasteImportPanel } from './components/import/PasteImportPanel';
 import { FileDropzonePanel } from './components/import/FileDropzonePanel';
 import { ResetSongbookDialog } from './components/ResetSongbookDialog';
+import { LoadLastSongbookDialog } from './components/LoadLastSongbookDialog';
 import { PreviewChunkFallback } from './components/PreviewChunkFallback';
 
 const defaultSettings: PrintSettings = DEFAULT_PRINT_SETTINGS;
@@ -116,39 +118,98 @@ function getInitialSettings(): PrintSettings {
 }
 
 export default function App() {
-  const [songbookData, setSongbookData] = useState<SongbookData | null>(() => {
+  // The last used songbook is remembered, but NOT auto-loaded on reload.
+  // It stays pending until the user confirms via the "Load Last Songbook?" prompt.
+  const [pendingCachedSongbook, setPendingCachedSongbook] = useState<any>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.CACHED_SONGBBOOK);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && (parsed.songs || parsed.items || parsed.sections)) {
-          return parsed;
-        }
-      }
-    } catch (e) {}
-    return null;
+      return peekCachedSongbookFromLocalStorage();
+    } catch (e) {
+      return null;
+    }
   });
+  const [showLoadLastPrompt, setShowLoadLastPrompt] = useState(false);
+  const [lastSongbookMeta, setLastSongbookMeta] = useState<{
+    title: string;
+    songCount: number;
+  } | null>(null);
+  const loadPromptDecisionRef = useRef(false);
 
-  // Asynchronously check IndexedDB storage on mount if localStorage was empty or exceeded quota
+  const [songbookData, setSongbookData] = useState<SongbookData | null>(null);
+
+  // Resolve the remembered songbook metadata and offer to load it back after a reload
   useEffect(() => {
     let mounted = true;
-    if (!songbookData) {
-      loadCachedSongbookFromStorage()
-        .then((data) => {
-          if (mounted && data && (data.songs || data.items || data.sections)) {
-            setSongbookData(data);
-          }
-        })
-        .catch(() => {});
+    if (!songbookData && pendingCachedSongbook) {
+      getCachedSongbookMeta().then((meta) => {
+        if (mounted && meta) {
+          setLastSongbookMeta(meta);
+        }
+      });
     }
     return () => {
       mounted = false;
     };
   }, []);
 
-  // Persist songbook changes to both IndexedDB and localStorage safely
+  // Show the prompt as soon as we are on the import screen with a known cached songbook
   useEffect(() => {
-    saveCachedSongbookToStorage(songbookData).catch(() => {});
+    if (
+      !songbookData &&
+      pendingCachedSongbook &&
+      lastSongbookMeta &&
+      !loadPromptDecisionRef.current
+    ) {
+      setShowLoadLastPrompt(true);
+    }
+  }, [songbookData, pendingCachedSongbook, lastSongbookMeta]);
+
+  const handleLoadLastSongbook = useCallback(() => {
+    loadPromptDecisionRef.current = true;
+    setShowLoadLastPrompt(false);
+    if (pendingCachedSongbook) {
+      setSongbookData(pendingCachedSongbook);
+      showToast('Loaded last used songbook', 'success');
+    }
+  }, [pendingCachedSongbook, showToast]);
+
+  const handleDismissLoadLastPrompt = useCallback(() => {
+    loadPromptDecisionRef.current = true;
+    setShowLoadLastPrompt(false);
+  }, []);
+
+  const handleForgetLastSongbook = useCallback(() => {
+    loadPromptDecisionRef.current = true;
+    setShowLoadLastPrompt(false);
+    setPendingCachedSongbook(null);
+    setLastSongbookMeta(null);
+    saveCachedSongbookToStorage(null).catch(() => {});
+    resetCachedSongbookMetaCache();
+    showToast('Remembered songbook forgotten', 'info');
+  }, [showToast]);
+
+  // Persist songbook changes to both IndexedDB and localStorage safely
+  const isFirstSongbookPersistRef = useRef(true);
+  useEffect(() => {
+    // Skip the very first run when nothing is loaded yet, so the remembered
+    // songbook cache is not wiped before the user answers the load prompt.
+    if (isFirstSongbookPersistRef.current && !songbookData) {
+      isFirstSongbookPersistRef.current = false;
+      return;
+    }
+    isFirstSongbookPersistRef.current = false;
+
+    const isReplacingSongbook = songbookData !== null;
+    saveCachedSongbookToStorage(songbookData)
+      .then((ok) => {
+        // If the new songbook could not be persisted at all (e.g. QuotaExceeded),
+        // make sure the stale previous songbook cache is dropped so the next
+        // reload never resurrects the wrong data.
+        if (!ok && isReplacingSongbook) {
+          saveCachedSongbookToStorage(null).catch(() => {});
+        }
+      })
+      .catch(() => {});
+    resetCachedSongbookMetaCache();
   }, [songbookData]);
   const [pastedJson, setPastedJson] = useState('');
   const [kytarioUrl, setKytarioUrl] = useState('');
@@ -1072,21 +1133,51 @@ export default function App() {
   };
 
   const resetSongbook = () => {
-    setSongbookData(null);
+    // 1. Close the confirmation dialog and paint one frame immediately so the
+    //    button press feels instantly responsive.
+    setIsConfirmResetOpen(false);
+
+    // 2. Defer all heavy teardown work (unmounting the large preview tree,
+    //    clearing caches) to the next frames so the click handler never blocks.
+    startTransition(() => {
+      setSongbookData(null);
+    });
+
     setPastedJson('');
     setErrorMessage(null);
     setRecoveryNotice(null);
     setIsLoadingJson(false);
     setIsMobileSidebarOpen(false);
-    try {
-      localStorage.removeItem(STORAGE_KEYS.CACHED_SONGBBOOK);
-    } catch (e) {}
+
+    // The previous songbook cache is cleared asynchronously by the persist
+    // effect when `songbookData` becomes null — no synchronous localStorage
+    // removal needed here (that previously duplicated work on the critical path).
+
+    // 3. Drop any cached generated PDF of the old songbook off the critical path.
+    setTimeout(() => {
+      try {
+        cancelWorkerPdf();
+        invalidateWorkerCachedPdf();
+        clearWorkerPdfLastGenerated();
+      } catch (e) {}
+    }, 0);
+
     showToast('Songbook reset', 'info');
   };
 
   if (!songbookData) {
     return (
       <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-3 sm:p-6 relative">
+        {/* Prompt: Load the last used songbook after a page reload */}
+        <LoadLastSongbookDialog
+          isOpen={showLoadLastPrompt}
+          title={lastSongbookMeta?.title || 'Untitled Songbook'}
+          songCount={lastSongbookMeta?.songCount || 0}
+          onLoad={handleLoadLastSongbook}
+          onDismiss={handleDismissLoadLastPrompt}
+          onForget={handleForgetLastSongbook}
+        />
+
         {/* Project Selection Modal for Multi-Project ZIP Archives */}
         <ZipProjectSelectModal
           isOpen={pendingZipResult !== null}
@@ -1267,10 +1358,7 @@ export default function App() {
         <ResetSongbookDialog
           isOpen={isConfirmResetOpen}
           onCancel={handleCloseResetModal}
-          onConfirm={() => {
-            handleCloseResetModal();
-            resetSongbook();
-          }}
+          onConfirm={resetSongbook}
         />
 
         {recoveryNotice && (

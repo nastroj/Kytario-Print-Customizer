@@ -176,27 +176,35 @@ export async function loadGeneratedPdfFromStorage(): Promise<{
   return null;
 }
 
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // Keep the last songbook for one week
+
 /**
- * Persist cached songbook data to IndexedDB and localStorage safely without quota crashes
+ * Persist cached songbook data to IndexedDB and localStorage safely without quota crashes.
+ * Returns `true` when the cache write actually succeeded, `false` otherwise.
  */
-export async function saveCachedSongbookToStorage(songbook: any): Promise<void> {
+export async function saveCachedSongbookToStorage(songbook: any): Promise<boolean> {
   if (!songbook) {
     try {
       localStorage.removeItem('kytario-cached-songbook');
     } catch {}
     await idbDelete('cachedSongbook');
-    return;
+    return true;
   }
 
   // Always persist to IndexedDB asynchronously without blocking the main thread
-  await idbSet('cachedSongbook', songbook);
+  const idbOk = await idbSet('cachedSongbook', songbook);
 
   // Only store small/medium songbooks in synchronous localStorage (<= 40 songs)
   // to avoid blocking the main thread or crashing with QuotaExceededError on massive JSON payloads
   const songCount = (songbook.songs || songbook.items || []).length;
+  let lsOk = false;
   if (songCount > 0 && songCount <= 40) {
     try {
-      localStorage.setItem('kytario-cached-songbook', JSON.stringify(songbook));
+      localStorage.setItem(
+        'kytario-cached-songbook',
+        JSON.stringify({ __cachedAt: Date.now(), songbook }),
+      );
+      lsOk = true;
     } catch {
       try {
         localStorage.removeItem('kytario-cached-songbook');
@@ -207,22 +215,52 @@ export async function saveCachedSongbookToStorage(songbook: any): Promise<void> 
     try {
       localStorage.removeItem('kytario-cached-songbook');
     } catch {}
+    lsOk = true;
   }
+
+  return idbOk || lsOk;
+}
+
+/**
+ * Synchronously peek at the small localStorage mirror of the last used songbook.
+ * Used during first render so the "load last songbook?" prompt can appear instantly.
+ * Silently migrates legacy unwrapped cache entries.
+ */
+export function peekCachedSongbookFromLocalStorage(): any | null {
+  try {
+    const saved = localStorage.getItem('kytario-cached-songbook');
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    // Legacy format: raw songbook stored directly
+    if (parsed.songs || parsed.items || parsed.sections) {
+      const wrapped = { __cachedAt: 0, songbook: parsed };
+      try {
+        localStorage.setItem('kytario-cached-songbook', JSON.stringify(wrapped));
+      } catch {}
+      return parsed;
+    }
+
+    // Wrapped format with timestamp — drop stale caches
+    if (parsed.songbook && (parsed.songbook.songs || parsed.songbook.items || parsed.songbook.sections)) {
+      if (typeof parsed.__cachedAt === 'number' && Date.now() - parsed.__cachedAt > CACHE_TTL_MS) {
+        return null;
+      }
+      return parsed.songbook;
+    }
+  } catch {}
+  return null;
 }
 
 /**
  * Load cached songbook data from localStorage or IndexedDB
  */
 export async function loadCachedSongbookFromStorage(): Promise<any> {
-  try {
-    const saved = localStorage.getItem('kytario-cached-songbook');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && (parsed.songs || parsed.items || parsed.sections)) {
-        return parsed;
-      }
-    }
-  } catch {}
+  const local = peekCachedSongbookFromLocalStorage();
+  if (local) {
+    return local;
+  }
 
   try {
     const idbData = await idbGet<any>('cachedSongbook');
@@ -232,4 +270,35 @@ export async function loadCachedSongbookFromStorage(): Promise<any> {
   } catch {}
 
   return null;
+}
+
+/**
+ * Lightweight metadata about the last used songbook (title + song count),
+ * safe to read synchronously even for huge songbooks stored in IndexedDB.
+ */
+export interface CachedSongbookMeta {
+  title: string;
+  songCount: number;
+}
+
+let cachedSongbookMetaPromise: Promise<CachedSongbookMeta | null> | null = null;
+
+export function getCachedSongbookMeta(): Promise<CachedSongbookMeta | null> {
+  if (!cachedSongbookMetaPromise) {
+    cachedSongbookMetaPromise = (async () => {
+      const data = await loadCachedSongbookFromStorage();
+      if (!data) return null;
+      const songs = data.songs || data.items || [];
+      return {
+        title: typeof data.title === 'string' && data.title.trim() ? data.title.trim() : 'Untitled Songbook',
+        songCount: Array.isArray(songs) ? songs.length : 0,
+      };
+    })();
+  }
+  return cachedSongbookMetaPromise;
+}
+
+/** Invalidate the memoized metadata promise after the cache changes. */
+export function resetCachedSongbookMetaCache(): void {
+  cachedSongbookMetaPromise = null;
 }
