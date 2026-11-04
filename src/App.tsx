@@ -359,6 +359,68 @@ export default function App() {
     },
     [],
   );
+
+  // Show the prompt as soon as we are on the import screen with a known cached songbook
+  useEffect(() => {
+    if (
+      !songbookData &&
+      pendingCachedSongbook &&
+      lastSongbookMeta &&
+      !loadPromptDecisionRef.current
+    ) {
+      setShowLoadLastPrompt(true);
+    }
+  }, [songbookData, pendingCachedSongbook, lastSongbookMeta]);
+
+  const handleLoadLastSongbook = useCallback(() => {
+    loadPromptDecisionRef.current = true;
+    setShowLoadLastPrompt(false);
+    if (pendingCachedSongbook) {
+      setSongbookData(pendingCachedSongbook);
+      showToast('Loaded last used songbook', 'success');
+    }
+  }, [pendingCachedSongbook, showToast]);
+
+  const handleDismissLoadLastPrompt = useCallback(() => {
+    loadPromptDecisionRef.current = true;
+    setShowLoadLastPrompt(false);
+  }, []);
+
+  const handleForgetLastSongbook = useCallback(() => {
+    loadPromptDecisionRef.current = true;
+    setShowLoadLastPrompt(false);
+    setPendingCachedSongbook(null);
+    setLastSongbookMeta(null);
+    saveCachedSongbookToStorage(null).catch(() => {});
+    resetCachedSongbookMetaCache();
+    showToast('Remembered songbook forgotten', 'info');
+  }, [showToast]);
+
+  // Persist songbook changes to both IndexedDB and localStorage safely
+  const isFirstSongbookPersistRef = useRef(true);
+  useEffect(() => {
+    // Skip the very first run when nothing is loaded yet, so the remembered
+    // songbook cache is not wiped before the user answers the load prompt.
+    if (isFirstSongbookPersistRef.current && !songbookData) {
+      isFirstSongbookPersistRef.current = false;
+      return;
+    }
+    isFirstSongbookPersistRef.current = false;
+
+    const isReplacingSongbook = songbookData !== null;
+    saveCachedSongbookToStorage(songbookData)
+      .then((ok) => {
+        // If the new songbook could not be persisted at all (e.g. QuotaExceeded),
+        // make sure the stale previous songbook cache is dropped so the next
+        // reload never resurrects the wrong data.
+        if (!ok && isReplacingSongbook) {
+          saveCachedSongbookToStorage(null).catch(() => {});
+        }
+      })
+      .catch(() => {});
+    resetCachedSongbookMetaCache();
+  }, [songbookData]);
+
   const [loadingStatus, setLoadingStatus] = useState<{
     title: string;
     subtitle?: string;
