@@ -372,6 +372,8 @@ export default function App() {
     }
   }, [songbookData, pendingCachedSongbook, lastSongbookMeta]);
 
+  // Load the remembered songbook when the user confirms the prompt
+  const handleLoadLastSongbook = () => {
   const handleLoadLastSongbook = useCallback(() => {
     loadPromptDecisionRef.current = true;
     setShowLoadLastPrompt(false);
@@ -379,6 +381,16 @@ export default function App() {
       setSongbookData(pendingCachedSongbook);
       showToast('Loaded last used songbook', 'success');
     }
+  };
+
+  // Keep the prompt open on the import screen without loading the old songbook
+  const handleDismissLoadLastPrompt = () => {
+    loadPromptDecisionRef.current = true;
+    setShowLoadLastPrompt(false);
+  };
+
+  // Forget the remembered songbook entirely (clear cache + metadata)
+  const handleForgetLastSongbook = () => {
   }, [pendingCachedSongbook, showToast]);
 
   const handleDismissLoadLastPrompt = useCallback(() => {
@@ -394,6 +406,7 @@ export default function App() {
     saveCachedSongbookToStorage(null).catch(() => {});
     resetCachedSongbookMetaCache();
     showToast('Remembered songbook forgotten', 'info');
+  };
   }, [showToast]);
 
   // Persist songbook changes to both IndexedDB and localStorage safely
