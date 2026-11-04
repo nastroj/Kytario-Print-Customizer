@@ -8,6 +8,7 @@
 - **Accurate Cover Page URL & QR Code Links**: Imported Kytario songbooks strictly preserve the user-requested URL above cover QR codes (displayed with `https://` cleanly stripped, e.g. `kytario.com/kytarove-sedanky-brno`) rather than resolving to non-existent contributor profile paths.
 - **Contributor Project Isolation**: Eliminated cross-contamination where individual song contributor metadata (e.g. author `project.urlToken` like `vaclav-dressler-49` or song creator project names) hijacked top-level songbook URLs and titles.
 - **Guarded Playlist vs. Full Songbook Imports**: Entire songbooks containing playlists now import all songs without being replaced or truncated by sub-playlists unless explicitly requested via `?playlist=`.
+- **Displayed Song Page Navigation**: Updated the "Go to page" jump function to scroll directly to the song page number displayed on each song's badge (and Table of Contents), without counting front cover, Table of Contents, or back cover pages in the song page numbering. Added direct jump buttons for Cover and ToC.
 - **Scoped Project Resolution**: Restricts project resolution strictly to `/projekty/` and `/projects/` routes.
 - **Production Asset Audit**: Pruned obsolete test scripts and verified clean TypeScript compilation.
 

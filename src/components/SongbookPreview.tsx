@@ -32,7 +32,6 @@ import {
   Bug,
   Search,
   X,
-  ListFilter,
 } from 'lucide-react';
 
 interface SongbookPreviewProps {
@@ -922,59 +921,20 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
   const [search, setSearch] = useState('');
   const [pageInput, setPageInput] = useState('1');
 
-  const totalPages = useMemo(() => {
-    let count = 0;
-    if (settings.showFrontCover !== false && songs.length > 0) count++;
-    if (settings.showTableOfContents !== false) count += tocPages.length;
-    count += songs.length;
-    if (settings.showBackCover !== false && songs.length > 0) count++;
-    return Math.max(1, count);
-  }, [settings, songs.length, tocPages.length]);
+  // Song pages are numbered starting from 1 (matching the page number badge printed on each song page)
+  // Covers and Table of Contents (ToC) are not counted in this page number
+  const totalPages = Math.max(1, songs.length);
 
   const handleGoToPage = () => {
     const p = parseInt(pageInput, 10);
-    if (isNaN(p) || p < 1 || p > totalPages) return;
+    if (isNaN(p) || songs.length === 0) return;
 
-    let currentCounter = 1;
+    // Clamp between 1 and the total number of song pages
+    const targetPage = Math.max(1, Math.min(songs.length, p));
 
-    if (settings.showFrontCover !== false && songs.length > 0) {
-      if (p === currentCounter) {
-        onScrollTo('front-cover-page');
-        onClose?.();
-        return;
-      }
-      currentCounter++;
-    }
-
-    if (settings.showTableOfContents !== false) {
-      for (const tocPage of tocPages) {
-        if (p === currentCounter) {
-          const targetId = tocPage.isFirstPage ? 'toc-page' : `toc-page-${tocPage.pageIndex}`;
-          onScrollTo(targetId);
-          onClose?.();
-          return;
-        }
-        currentCounter++;
-      }
-    }
-
-    for (let i = 0; i < songs.length; i++) {
-      if (p === currentCounter) {
-        onScrollTo(`song-${i}`);
-        onClose?.();
-        return;
-      }
-      currentCounter++;
-    }
-
-    if (settings.showBackCover !== false && songs.length > 0) {
-      if (p === currentCounter) {
-        onScrollTo('back-cover-page');
-        onClose?.();
-        return;
-      }
-      currentCounter++;
-    }
+    // Scroll directly to the song whose printed page number matches targetPage (1-indexed)
+    onScrollTo(`song-${targetPage - 1}`);
+    onClose?.();
   };
 
   const filtered = useMemo(() => {
@@ -1025,23 +985,26 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
           )}
         </div>
 
-        {/* Big, Clear Table of Contents (ToC) Jump Button */}
-        <button
-          type="button"
-          onClick={() => {
-            onScrollTo('toc-page');
-            onClose?.();
-          }}
-          className="w-full flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/25 text-amber-950 font-bold text-xs transition-colors border border-amber-500/25 cursor-pointer shadow-2xs group"
-        >
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-amber-700 group-hover:scale-110 transition-transform" />
-            <span>Go to Table of Contents (ToC)</span>
-          </div>
-          <span className="text-[10px] font-semibold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-md">
-            View ToC
-          </span>
-        </button>
+        {/* Quick Jump Button: Table of Contents (ToC) */}
+        {settings.showTableOfContents !== false && (
+          <button
+            type="button"
+            onClick={() => {
+              onScrollTo('toc-page');
+              onClose?.();
+            }}
+            className="w-full flex items-center justify-between p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/25 text-amber-950 font-bold text-xs transition-colors border border-amber-500/25 cursor-pointer shadow-2xs group"
+            title="Jump to Table of Contents"
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <BookOpen className="w-3.5 h-3.5 text-amber-700 group-hover:scale-110 transition-transform shrink-0" />
+              <span className="truncate">Table of Contents</span>
+            </div>
+            <span className="text-[10px] font-semibold text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded-md shrink-0">
+              ToC
+            </span>
+          </button>
+        )}
 
         {/* Go to Page Input Box */}
         <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200/90 rounded-xl px-2.5 py-1.5">
@@ -1061,7 +1024,7 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
                 }
               }}
               className="w-14 bg-white border border-zinc-300 rounded-lg px-2 py-1 text-center font-mono text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900"
-              title={`Enter page number (1 to ${totalPages})`}
+              title={`Enter song page number (1 to ${totalPages})`}
             />
             <button
               type="button"
@@ -1072,26 +1035,6 @@ const QuickSongNavigator = memo(function QuickSongNavigator({
             </button>
           </div>
         </div>
-
-        {/* Manage Songs shortcut */}
-        {onOpenManageSongs && (
-          <button
-            type="button"
-            onClick={() => {
-              onClose?.();
-              onOpenManageSongs();
-            }}
-            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-zinc-700 hover:text-zinc-950 bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-200 transition-colors border border-zinc-200/80 cursor-pointer text-xs"
-          >
-            <span className="flex items-center gap-2 font-medium">
-              <ListFilter className="w-3.5 h-3.5 text-zinc-500" />
-              Manage Song Visibility
-            </span>
-            <span className="text-[10px] font-mono text-zinc-500 font-bold bg-zinc-200/70 px-1.5 py-0.5 rounded">
-              {songs.length}
-            </span>
-          </button>
-        )}
 
         {/* Filter songs input */}
         <div className="relative">
@@ -2062,13 +2005,14 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   const activeSong = songs[activeSongIndex] || songs[0] || null;
 
   const activeDebugInfo = useMemo(() => {
-    if (!activeSong) return null;
+    if (!isDebugFeatureEnabled || !activeSong) return null;
     return computeSongFitDebug(activeSong, activeSongIndex, settings);
-  }, [activeSong, activeSongIndex, settings]);
+  }, [activeSong, activeSongIndex, settings, isDebugFeatureEnabled]);
 
-  // Console log active song metrics for developer inspection
+  // Console log active song metrics for developer inspection - only if debug is enabled and not in production
   useEffect(() => {
-    if (!activeDebugInfo) return;
+    if (!isDebugFeatureEnabled || !isDebugOpen || !activeDebugInfo) return;
+    if (typeof import.meta !== 'undefined' && import.meta.env?.PROD) return;
     console.log(
       `%c[Song Fit Debug]%c #${activeDebugInfo.songIndex + 1} "${activeDebugInfo.title}" | ` +
         `Calculated Total Lines: ${activeDebugInfo.totalLines} (raw: ${activeDebugInfo.rawLinesCount}, section: ${activeDebugInfo.sectionLinesCount}, visual: ${activeDebugInfo.visualLinesAtScale}) | ` +
@@ -2077,21 +2021,21 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       'background: #1e293b; color: #38bdf8; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: inherit;',
     );
-  }, [activeDebugInfo]);
+  }, [activeDebugInfo, isDebugFeatureEnabled, isDebugOpen]);
 
-  // Global helper on window for easy DevTools interaction
+  // Global helper on window for developer inspection (only enabled in dev when debug feature is on)
   useEffect(() => {
+    if (!isDebugFeatureEnabled || (typeof import.meta !== 'undefined' && import.meta.env?.PROD)) {
+      if (typeof window !== 'undefined' && (window as any).__KYTARIO_DEBUG__) {
+        delete (window as any).__KYTARIO_DEBUG__;
+      }
+      return;
+    }
     if (typeof window !== 'undefined') {
       (window as any).__KYTARIO_DEBUG__ = {
         getActiveSong: () => activeDebugInfo,
         getAllSongs: () => songs.map((s, i) => computeSongFitDebug(s, i, settings)),
         toggleDebugView: () => {
-          if (!isDebugFeatureEnabled) {
-            console.warn(
-              '[Songbook Debug] Debug HUD is hidden because ENABLE_DEBUG_HUD is false in src/config.ts.',
-            );
-            return;
-          }
           setIsDebugOpen((prev) => {
             const next = !prev;
             try {

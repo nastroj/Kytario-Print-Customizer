@@ -26,7 +26,11 @@ export const APP_CONFIG: AppConfig = {
 
 /**
  * Returns true if the debug HUD and debug toolbar icon should be available.
+ * Strictly returns false in production builds.
  */
 export function isDebugHudConfigured(): boolean {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.PROD) {
+    return false;
+  }
   return Boolean(APP_CONFIG.ENABLE_DEBUG_HUD);
 }
