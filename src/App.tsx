@@ -76,7 +76,7 @@ const BackgroundPdfProgressModal = lazy(() =>
 const SongSelectionModal = lazy(() =>
   import('./components/SongSelectionModal').then((m) => ({ default: m.SongSelectionModal })),
 );
-import { saveCachedSongbookToStorage, loadCachedSongbookFromStorage, resetCachedSongbookMetaCache } from './utils/storage';
+import { saveCachedSongbookToStorage, resetCachedSongbookMetaCache } from './utils/storage';
 import { ZipProjectSelectModal } from './components/ZipProjectSelectModal';
 import { ImportTabs, type ImportTabId } from './components/import/ImportTabs';
 import { UrlImportPanel } from './components/import/UrlImportPanel';
@@ -151,66 +151,6 @@ export default function App() {
     };
   }, []);
 
-  // Show the prompt as soon as we are on the import screen with a known cached songbook
-  useEffect(() => {
-    if (
-      !songbookData &&
-      pendingCachedSongbook &&
-      lastSongbookMeta &&
-      !loadPromptDecisionRef.current
-    ) {
-      setShowLoadLastPrompt(true);
-    }
-  }, [songbookData, pendingCachedSongbook, lastSongbookMeta]);
-
-  const handleLoadLastSongbook = useCallback(() => {
-    loadPromptDecisionRef.current = true;
-    setShowLoadLastPrompt(false);
-    if (pendingCachedSongbook) {
-      setSongbookData(pendingCachedSongbook);
-      showToast('Loaded last used songbook', 'success');
-    }
-  }, [pendingCachedSongbook, showToast]);
-
-  const handleDismissLoadLastPrompt = useCallback(() => {
-    loadPromptDecisionRef.current = true;
-    setShowLoadLastPrompt(false);
-  }, []);
-
-  const handleForgetLastSongbook = useCallback(() => {
-    loadPromptDecisionRef.current = true;
-    setShowLoadLastPrompt(false);
-    setPendingCachedSongbook(null);
-    setLastSongbookMeta(null);
-    saveCachedSongbookToStorage(null).catch(() => {});
-    resetCachedSongbookMetaCache();
-    showToast('Remembered songbook forgotten', 'info');
-  }, [showToast]);
-
-  // Persist songbook changes to both IndexedDB and localStorage safely
-  const isFirstSongbookPersistRef = useRef(true);
-  useEffect(() => {
-    // Skip the very first run when nothing is loaded yet, so the remembered
-    // songbook cache is not wiped before the user answers the load prompt.
-    if (isFirstSongbookPersistRef.current && !songbookData) {
-      isFirstSongbookPersistRef.current = false;
-      return;
-    }
-    isFirstSongbookPersistRef.current = false;
-
-    const isReplacingSongbook = songbookData !== null;
-    saveCachedSongbookToStorage(songbookData)
-      .then((ok) => {
-        // If the new songbook could not be persisted at all (e.g. QuotaExceeded),
-        // make sure the stale previous songbook cache is dropped so the next
-        // reload never resurrects the wrong data.
-        if (!ok && isReplacingSongbook) {
-          saveCachedSongbookToStorage(null).catch(() => {});
-        }
-      })
-      .catch(() => {});
-    resetCachedSongbookMetaCache();
-  }, [songbookData]);
   const [pastedJson, setPastedJson] = useState('');
   const [kytarioUrl, setKytarioUrl] = useState('');
   const [activeTab, setActiveTab] = useState<ImportTabId>('url');
@@ -373,7 +313,6 @@ export default function App() {
   }, [songbookData, pendingCachedSongbook, lastSongbookMeta]);
 
   // Load the remembered songbook when the user confirms the prompt
-  const handleLoadLastSongbook = () => {
   const handleLoadLastSongbook = useCallback(() => {
     loadPromptDecisionRef.current = true;
     setShowLoadLastPrompt(false);
@@ -381,23 +320,15 @@ export default function App() {
       setSongbookData(pendingCachedSongbook);
       showToast('Loaded last used songbook', 'success');
     }
-  };
-
-  // Keep the prompt open on the import screen without loading the old songbook
-  const handleDismissLoadLastPrompt = () => {
-    loadPromptDecisionRef.current = true;
-    setShowLoadLastPrompt(false);
-  };
-
-  // Forget the remembered songbook entirely (clear cache + metadata)
-  const handleForgetLastSongbook = () => {
   }, [pendingCachedSongbook, showToast]);
 
+  // Keep the prompt open on the import screen without loading the old songbook
   const handleDismissLoadLastPrompt = useCallback(() => {
     loadPromptDecisionRef.current = true;
     setShowLoadLastPrompt(false);
   }, []);
 
+  // Forget the remembered songbook entirely (clear cache + metadata)
   const handleForgetLastSongbook = useCallback(() => {
     loadPromptDecisionRef.current = true;
     setShowLoadLastPrompt(false);
@@ -406,7 +337,6 @@ export default function App() {
     saveCachedSongbookToStorage(null).catch(() => {});
     resetCachedSongbookMetaCache();
     showToast('Remembered songbook forgotten', 'info');
-  };
   }, [showToast]);
 
   // Persist songbook changes to both IndexedDB and localStorage safely
