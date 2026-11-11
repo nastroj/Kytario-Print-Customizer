@@ -50,44 +50,53 @@ function preprocessJsonText(raw: string): string {
  * occurring inside JSON string literals ("...") into valid JSON escape sequences.
  */
 function fixUnescapedControlCharsInJson(str: string): string {
-  let result = '';
+  // Performance: instead of concatenating one character at a time (which creates
+  // a new intermediate string per char and degrades to O(n^2) on large payloads),
+  // we copy unchanged stretches in bulk via slice() and only push small chunks
+  // when an escape sequence must be inserted. Finally join once.
+  const parts: string[] = [];
+  let segmentStart = 0; // start of the current unchanged stretch of `str`
   let inString = false;
   let isEscaped = false;
+
+  const flushSegment = (end: number) => {
+    if (segmentStart < end) parts.push(str.slice(segmentStart, end));
+  };
 
   for (let i = 0; i < str.length; i++) {
     const char = str[i];
 
     if (inString) {
       if (isEscaped) {
-        result += char;
         isEscaped = false;
       } else if (char === '\\') {
-        result += char;
         isEscaped = true;
       } else if (char === '"') {
-        result += char;
         inString = false;
       } else if (char === '\n') {
-        result += '\\n';
+        flushSegment(i);
+        parts.push('\\n');
+        segmentStart = i + 1;
       } else if (char === '\r') {
-        if (str[i + 1] !== '\n') {
-          result += '\\n';
-        }
+        flushSegment(i);
+        if (str[i + 1] !== '\n') parts.push('\\n');
+        segmentStart = i + 1;
       } else if (char === '\t') {
-        result += '\\t';
+        flushSegment(i);
+        parts.push('\\t');
+        segmentStart = i + 1;
       } else if (char.charCodeAt(0) < 32) {
-        result += '\\u' + char.charCodeAt(0).toString(16).padStart(4, '0');
-      } else {
-        result += char;
+        flushSegment(i);
+        parts.push('\\u' + char.charCodeAt(0).toString(16).padStart(4, '0'));
+        segmentStart = i + 1;
       }
-    } else {
-      if (char === '"') {
-        inString = true;
-      }
-      result += char;
+    } else if (char === '"') {
+      inString = true;
     }
   }
-  return result;
+
+  flushSegment(str.length);
+  return parts.join('');
 }
 
 /**
