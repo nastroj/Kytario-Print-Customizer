@@ -119,8 +119,12 @@ export function extractSongsFromAny(data: JsonValue | unknown, seen = new Set<ob
         if (wrapped && wrapped.transposition !== undefined && (s as any).transposition === undefined) {
           (s as any).transposition = wrapped.transposition;
         }
-        const nested = extractSongsFromAny(s, seen);
-        songs.push(...nested);
+        // Performance: push element-by-element instead of spreading the nested
+        // array. `push(...arr)` with very large arrays can blow the argument
+        // limit and copies the whole sub-array on every merge level (O(n^2)).
+        for (const nestedSong of extractSongsFromAny(s, seen)) {
+          songs.push(nestedSong);
+        }
       }
     }
     return songs;
