@@ -206,7 +206,7 @@ function decodeHtmlEntities(str: string): string {
     .trim();
 }
 
-function sanitizeExtractedTitle(rawTitle: string, _token?: string): string | null {
+function sanitizeExtractedTitle(rawTitle: string, token?: string): string | null {
   if (!rawTitle) return null;
   let text = decodeHtmlEntities(rawTitle).trim();
 
@@ -222,7 +222,8 @@ function sanitizeExtractedTitle(rawTitle: string, _token?: string): string | nul
     lower === 'zpěvník' ||
     lower === 'zpevnik' ||
     lower === 'digital songbook' ||
-    lower === 'digitální zpěvník'
+    lower === 'digitální zpěvník' ||
+    (token && lower === token.trim().toLowerCase())
   ) {
     return null;
   }
@@ -230,16 +231,41 @@ function sanitizeExtractedTitle(rawTitle: string, _token?: string): string | nul
   return text;
 }
 
+function sanitizeExtractedHeading(rawHeading: string, token?: string): string | null {
+  if (!rawHeading) return null;
+  const text = decodeHtmlEntities(rawHeading)
+    .replace(/\s*(?:\||-|–|—)\s*Kytario.*$/i, '')
+    .trim();
+  const lower = text.toLowerCase();
+  if (
+    !text ||
+    lower === 'kytario' ||
+    lower === 'songbook' ||
+    lower === 'zpěvník' ||
+    lower === 'zpevnik' ||
+    lower === 'digital songbook' ||
+    lower === 'digitální zpěvník' ||
+    (token && lower === token.trim().toLowerCase())
+  ) {
+    return null;
+  }
+  return text;
+}
+
+export function extractProjectHeadingFromHtml(html: string, token?: string): string | null {
+  if (typeof html !== 'string') return null;
+  const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  if (!h1Match?.[1]) return null;
+  const heading = h1Match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return sanitizeExtractedHeading(heading, token);
+}
+
 export function extractTitleFromHtml(html: string, token?: string): string | null {
   if (typeof html !== 'string') return null;
 
   // 1. Page Heading <h1> (Authoritative source for Kytario songbook titles per user requirements)
-  const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-  if (h1Match && h1Match[1]) {
-    const stripped = h1Match[1].replace(/<[^>]+>/g, '').trim();
-    const clean = sanitizeExtractedTitle(stripped, token);
-    if (clean) return clean;
-  }
+  const heading = extractProjectHeadingFromHtml(html, token);
+  if (heading) return heading;
 
   // 2. OpenGraph / Twitter / Standard Meta Tags
   const metaRegex =
@@ -701,95 +727,88 @@ async function fetchViaPublicProxies(token: string, rawUrl?: string): Promise<an
   return null;
 }
 
-async function enrichTitleInClient(data: any, token: string, rawUrl?: string) {
+async function enrichTitleInClient(data: any, token: string) {
   if (!data) return;
 
   const candidateTokens = Array.from(
     new Set([token, token.toLowerCase(), token.toUpperCase()].filter(Boolean)),
   );
 
-  // 1. Primary: Webpage scraping via public proxy from http://kytario.com/<input url> and /index-1
-  const urlsToTry: string[] = [];
-  if (rawUrl && rawUrl.trim()) {
-    const cleanRaw = rawUrl.trim().split('#')[0].split('?')[0].replace(/\/index(?:-\d+)?\/?$/i, '');
-    if (/^https?:\/\//i.test(cleanRaw)) {
-      urlsToTry.push(cleanRaw);
-      urlsToTry.push(`${cleanRaw}/index-1`);
-      if (cleanRaw.startsWith('https://')) {
-        urlsToTry.push(cleanRaw.replace('https://', 'http://'));
-        urlsToTry.push(`${cleanRaw.replace('https://', 'http://')}/index-1`);
-      }
-    } else {
-      const withoutDomain = cleanRaw.replace(/^(?:https?:\/\/)?(?:www\.)?kytario\.com\/?/i, '');
-      if (withoutDomain) {
-        urlsToTry.push(`https://kytario.com/${withoutDomain}`);
-        urlsToTry.push(`https://kytario.com/${withoutDomain}/index-1`);
-        urlsToTry.push(`http://kytario.com/${withoutDomain}`);
-        urlsToTry.push(`http://kytario.com/${withoutDomain}/index-1`);
-      }
-    }
-  }
-
-  for (const tok of candidateTokens) {
-    urlsToTry.push(`https://kytario.com/${tok}`);
-    urlsToTry.push(`https://kytario.com/${tok}/index-1`);
-    urlsToTry.push(`http://kytario.com/${tok}`);
-    urlsToTry.push(`http://kytario.com/${tok}/index-1`);
-    urlsToTry.push(`https://kytario.com/cs/${tok}`);
-    urlsToTry.push(`https://kytario.com/cs/${tok}/index-1`);
-    urlsToTry.push(`https://kytario.com/sk/${tok}`);
-    urlsToTry.push(`https://kytario.com/en/${tok}`);
-    urlsToTry.push(`https://kytario.com/zpevnik/${tok}`);
-  }
-
-  const uniqueUrls = Array.from(new Set(urlsToTry));
-
-  for (const webUrl of uniqueUrls) {
-    try {
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(webUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4000) });
-      if (res.ok) {
-        const wrapper = await res.json();
-        if (wrapper && wrapper.contents) {
-          const title = extractTitleFromHtml(wrapper.contents, token);
-          if (title) {
-            data.title = title;
-            data.name = title;
-            data.songbookTitle = title;
-            return;
-          }
-        }
-      }
-    } catch {
-      // Continue
-    }
-  }
-
-  // 2. Canonical check fallback: inspect Content-Disposition on the PDF export endpoint
+  // The PDF endpoint exposes the songbook's canonical title directly.
   for (const tok of candidateTokens) {
     try {
       const pdfUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(tok)}/pdf`;
       const res = await fetch(pdfUrl, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
       if (res.ok) {
-        const cd = res.headers.get('content-disposition');
-        if (cd) {
-          const match = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="([^"]+)"/i);
-          if (match && match[1]) {
-            let filename = decodeURIComponent(match[1])
-              .replace(/\.pdf$/i, '')
-              .trim()
-              .replace(/^'+|'+$/g, '');
-            const clean = sanitizeExtractedTitle(filename, tok);
-            if (clean) {
-              data.title = clean;
-              data.name = clean;
-              data.songbookTitle = clean;
-              return;
-            }
+        const disposition = res.headers.get('content-disposition');
+        const match =
+          disposition?.match(/filename\*=UTF-8''([^;]+)/i) ||
+          disposition?.match(/filename="([^"]+)"/i);
+        if (match?.[1]) {
+          const clean = sanitizeExtractedHeading(
+            decodeURIComponent(match[1]).replace(/\.pdf$/i, ''),
+            tok,
+          );
+          if (clean) {
+            data.title = clean;
+            data.name = clean;
+            data.songbookTitle = clean;
+            return;
           }
         }
       }
-    } catch {}
+    } catch {
+      // Fall back to the exact public songbook pages below.
+    }
+  }
+
+  const urls = candidateTokens.flatMap((tok) => [
+    `https://kytario.com/${encodeURIComponent(tok)}`,
+    `https://kytario.com/${encodeURIComponent(tok)}/index-1`,
+  ]);
+  const pages = await Promise.all(
+    urls.map(async (pageUrl) => {
+      try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
+        const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(4000) });
+        if (!response.ok) return null;
+        const wrapper = await response.json();
+        if (typeof wrapper?.contents !== 'string') return null;
+        if (
+          typeof wrapper.status?.url === 'string' &&
+          !isPageForKytarioToken(wrapper.status.url, token)
+        ) {
+          return null;
+        }
+        return extractProjectHeadingFromHtml(wrapper.contents, token);
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const title = pages.find(Boolean);
+  if (title) {
+    data.title = title;
+    data.name = title;
+    data.songbookTitle = title;
+  }
+}
+
+function isPageForKytarioToken(pageUrl: string, token: string): boolean {
+  try {
+    const parsedUrl = new URL(pageUrl);
+    if (!['kytario.com', 'www.kytario.com'].includes(parsedUrl.hostname.toLowerCase())) {
+      return false;
+    }
+
+    const segments = parsedUrl.pathname.split('/').filter(Boolean);
+    if (['cs', 'sk', 'en'].includes(segments[0]?.toLowerCase())) segments.shift();
+    return (
+      segments[0]?.toLowerCase() === token.toLowerCase() &&
+      (segments.length === 1 || /^index(?:-\d+)?$/i.test(segments[1]))
+    );
+  } catch {
+    return false;
   }
 }
 
@@ -1057,18 +1076,17 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
       if (response.ok) {
         const data = await response.json();
         if (data && hasSongsPayload(data)) {
-          const resolvedToken = token || extractKytarioSlug(data.url || '') || extractKytarioSlug(data.slug || '');
-          const rawInputTrimmed = (url || '').trim();
-          let canonicalUrl = '';
-          if (/^https?:\/\//i.test(rawInputTrimmed)) {
-            canonicalUrl = cleanKytarioUrl(rawInputTrimmed.split('#')[0]);
-          } else if (/^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/i.test(rawInputTrimmed)) {
-            canonicalUrl = `https://${cleanKytarioUrl(rawInputTrimmed.split('#')[0])}`;
-          } else if (resolvedToken) {
-            canonicalUrl = `https://kytario.com/${resolvedToken}`;
-          } else if (data.url) {
-            canonicalUrl = data.url;
-          }
+          const resolvedToken =
+            data.urlToken ||
+            data.slug ||
+            extractKytarioSlug(data.url || '') ||
+            extractKytarioSlug(data.slug || '') ||
+            token;
+          const canonicalUrl = resolvedToken
+            ? `https://kytario.com/${resolvedToken}${
+                playlistToken ? `?playlist=${encodeURIComponent(playlistToken)}` : ''
+              }`
+            : data.url || '';
 
           if (resolvedToken) {
             data.urlToken = resolvedToken;
@@ -1112,19 +1130,18 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
     try {
       const clientData = await fetchViaPublicProxies(token, cleanUrl);
       if (clientData) {
-        await enrichTitleInClient(clientData, token, cleanUrl);
-        const resolvedToken = token || extractKytarioSlug(clientData.url || '') || extractKytarioSlug(clientData.slug || '');
-        const rawInputTrimmed = (url || '').trim();
-        let canonicalUrl = '';
-        if (/^https?:\/\//i.test(rawInputTrimmed)) {
-          canonicalUrl = cleanKytarioUrl(rawInputTrimmed.split('#')[0]);
-        } else if (/^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/i.test(rawInputTrimmed)) {
-          canonicalUrl = `https://${cleanKytarioUrl(rawInputTrimmed.split('#')[0])}`;
-        } else if (resolvedToken) {
-          canonicalUrl = `https://kytario.com/${resolvedToken}`;
-        } else if (clientData.url) {
-          canonicalUrl = clientData.url;
-        }
+        await enrichTitleInClient(clientData, token);
+        const resolvedToken =
+          clientData.urlToken ||
+          clientData.slug ||
+          extractKytarioSlug(clientData.url || '') ||
+          extractKytarioSlug(clientData.slug || '') ||
+          token;
+        const canonicalUrl = resolvedToken
+          ? `https://kytario.com/${resolvedToken}${
+              playlistToken ? `?playlist=${encodeURIComponent(playlistToken)}` : ''
+            }`
+          : clientData.url || '';
 
         if (resolvedToken) {
           clientData.urlToken = resolvedToken;

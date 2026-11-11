@@ -60,6 +60,7 @@ import {
   fetchSongbookFromKytario,
   cleanKytarioUrl,
   extractKytarioSlug,
+  extractPlaylistToken,
   KytarioErrorDetails,
   getStoredProxyUrl,
   setStoredProxyUrl,
@@ -1080,21 +1081,22 @@ export default function App() {
       const rawData = await fetchSongbookFromKytario(targetUrl);
       clearInterval(fetchProgressInterval);
 
-      // Guarantee that rawData carries the exact requested songbook/playlist URL, slug, and display shortUrl
-      const resolvedSlug = extractKytarioSlug(targetUrl) || extractKytarioSlug(cleanUrl);
-      if (resolvedSlug) {
-        rawData.urlToken = resolvedSlug;
-        rawData.slug = resolvedSlug;
-      }
-      if (cleanUrl && /^https?:\/\//i.test(cleanUrl)) {
-        rawData.url = cleanUrl;
-        rawData.shortUrl = formatCoverDisplayUrl(cleanUrl);
-      } else if (cleanUrl && /^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/i.test(cleanUrl)) {
-        rawData.url = `https://${cleanUrl}`;
-        rawData.shortUrl = formatCoverDisplayUrl(cleanUrl);
-      } else if (resolvedSlug) {
-        rawData.url = rawData.url || `https://kytario.com/${resolvedSlug}`;
-        rawData.shortUrl = rawData.shortUrl || formatCoverDisplayUrl(rawData.url);
+      // Keep the token resolved by the proxy (e.g. project -> songbook) over the
+      // token from the original link, which may refer to a different route.
+      const requestedSlug = extractKytarioSlug(targetUrl) || extractKytarioSlug(cleanUrl);
+      const canonicalSlug =
+        (typeof rawData.urlToken === 'string' && rawData.urlToken.trim()) ||
+        (typeof rawData.slug === 'string' && rawData.slug.trim()) ||
+        requestedSlug;
+      if (canonicalSlug) {
+        const playlistToken = extractPlaylistToken(targetUrl);
+        const songbookUrl = `https://kytario.com/${canonicalSlug}${
+          playlistToken ? `?playlist=${encodeURIComponent(playlistToken)}` : ''
+        }`;
+        rawData.urlToken = canonicalSlug;
+        rawData.slug = canonicalSlug;
+        rawData.url = songbookUrl;
+        rawData.shortUrl = formatCoverDisplayUrl(songbookUrl);
       }
 
       const data = normalizeSongbookData(rawData);

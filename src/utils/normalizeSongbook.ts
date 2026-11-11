@@ -33,14 +33,6 @@ export function cleanSongbookTitle(rawTitle: string): string {
     text = strippedLeading;
   }
 
-  // Strip trailing "Songbook" / "Zpěvník" if preceded by space/dash
-  const strippedTrailing = text
-    .replace(/[\s:\-–—]+(?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)$/i, '')
-    .trim();
-  if (strippedTrailing) {
-    text = strippedTrailing;
-  }
-
   return text || rawTitle.trim();
 }
 
