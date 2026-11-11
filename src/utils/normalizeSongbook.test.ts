@@ -43,9 +43,8 @@ describe('songbook metadata normalization', () => {
 
 describe('resolved songbook URL import metadata', () => {
   it('keeps the canonical token and name returned by the proxy', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
+    const fetchMock = vi.fn(
+      async () =>
         new Response(
           JSON.stringify({
             title: 'Canonical book',
@@ -55,13 +54,14 @@ describe('resolved songbook URL import metadata', () => {
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } },
         ),
-      ),
     );
+    vi.stubGlobal('fetch', fetchMock);
 
     const data = await fetchSongbookFromKytario('https://kytario.com/project-route');
 
     expect(data.title).toBe('Canonical book');
     expect(data.urlToken).toBe('resolved-book');
     expect(data.url).toBe('https://kytario.com/resolved-book');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

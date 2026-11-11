@@ -918,6 +918,10 @@ export async function checkSongbookExists(
       }
     }
 
+    // Static hosts cannot inspect Kytario's API directly because of browser CORS.
+    // Avoid waiting on a request that the browser will be unable to read.
+    if (isStaticHost) return { exists: true };
+
     // 2. Direct fetch attempt to kytario.com
     let saw404 = false;
     for (const token of candidateTokens) {
@@ -986,14 +990,20 @@ export function setStoredProxyUrl(url: string): void {
 export async function fetchSongbookFromKytario(url: string): Promise<any> {
   let cleanUrl = cleanKytarioUrl(url);
   let token = extractKytarioSlug(cleanUrl);
+  const configuredProxyUrl = getStoredProxyUrl();
+  const isStaticHost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname.endsWith('github.io') || window.location.protocol === 'file:');
 
   if (!token && !/^https?:\/\//i.test(cleanUrl)) {
     throw new Error('Please enter a valid Kytario songbook URL or code.');
   }
 
   // If it's an explicit project URL/token, let the client resolve it if possible (static host fallback)
-  let isProjectUrl = /(?:^|\/)(?:cs|en|sk|de)?\/?(?:projekty|projects)\/([^\/\?#]+)/i.test(cleanUrl);
-  if (isProjectUrl && token) {
+  const isProjectUrl = /(?:^|\/)(?:cs|en|sk|de)?\/?(?:projekty|projects)\/([^\/\?#]+)/i.test(
+    cleanUrl,
+  );
+  if (isProjectUrl && token && isStaticHost && !configuredProxyUrl) {
     try {
       const pageUrls = [
         `https://kytario.com/cs/projekty/${token}`,
@@ -1023,40 +1033,14 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
           );
           token = songbooks[0].token;
           cleanUrl = `https://kytario.com/cs/${token}`;
-        } else {
-          isProjectUrl = false;
         }
-      } else {
-        isProjectUrl = false;
       }
     } catch (e: any) {
       console.warn('[Client] Project resolution fallback error:', e?.message);
-      isProjectUrl = false;
     }
   }
-
-  // Quick validation control function: check if songbook exists (skip explicit project URLs, they will fall through to project resolution)
-  if (token && !isProjectUrl) {
-    const check = await checkSongbookExists(token);
-    if (!check.exists && (check.status === 404 || check.status === 400)) {
-      throw new KytarioFetchError(
-        `Songbook "${token}" was not found (404). Please check the URL or code.`,
-        {
-          isCorsOrStaticHost: false,
-          token,
-          apiUrl: `https://kytario.com/api/songbooks/${token}/sections`,
-          webUrl: `https://kytario.com/${token}`,
-        },
-      );
-    }
-  }
-
-  const isStaticHost =
-    typeof window !== 'undefined' &&
-    (window.location.hostname.endsWith('github.io') || window.location.protocol === 'file:');
 
   const targetParam = token || cleanUrl;
-  const configuredProxyUrl = getStoredProxyUrl();
 
   const playlistToken = extractPlaylistToken(url) || extractPlaylistToken(cleanUrl) || '';
 

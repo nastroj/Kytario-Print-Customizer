@@ -21,7 +21,7 @@
     "dev": "tsx server.ts",
     "start": "node server.ts",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "npm run build && tsx server.ts --port 4173",
     "clean": "rm -rf dist dev-dist",
     "lint": "tsc --noEmit",
     "lint:eslint": "eslint .",

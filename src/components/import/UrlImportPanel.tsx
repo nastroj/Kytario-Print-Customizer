@@ -107,9 +107,9 @@ export function UrlImportPanel({
                 GitHub Pages Static Hosting Notice
               </h4>
               <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-                Automatic import tried public CORS relays but could not fetch this songbook. If
-                relays are unavailable, configure the optional Cloudflare Worker proxy or use the
-                manual JSON steps below.
+                Automatic import tried public CORS relays but could not fetch this songbook. For
+                reliable URL imports on GitHub Pages, configure the Cloudflare Worker proxy or use
+                the manual JSON steps below.
               </p>
             </div>
           </div>
@@ -188,7 +188,7 @@ export function UrlImportPanel({
               aria-controls="proxy-config-panel"
               className="text-xs font-semibold text-amber-800 hover:text-amber-900 flex items-center justify-between w-full py-1 text-left cursor-pointer"
             >
-              <span>⚙️ Optional: Configure Cloudflare Worker Proxy</span>
+              <span>⚙️ Configure Cloudflare Worker Proxy</span>
               <span className="text-[11px] underline text-amber-700">
                 {showProxyConfig ? 'Hide' : 'Set Proxy URL'}
               </span>
@@ -199,7 +199,7 @@ export function UrlImportPanel({
                 className="mt-2 p-3 bg-white/95 rounded-lg border border-amber-200 text-xs space-y-2"
               >
                 <p className="text-zinc-600 leading-relaxed text-[11px]">
-                  To enable automated 1-click imports on GitHub Pages, enter your Cloudflare Worker
+                  To enable reliable 1-click imports on GitHub Pages, enter your Cloudflare Worker
                   URL (e.g.{' '}
                   <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-800 font-mono">
                     https://kytario-proxy.workers.dev

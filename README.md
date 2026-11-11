@@ -115,7 +115,15 @@ A modern, high-performance web application designed to transform Kytario songboo
 
    The application will be running at [http://localhost:3000](http://localhost:3000).
 
-4. **Run TypeScript check & production build:**
+4. **Preview the production build locally:**
+
+   ```bash
+   npm run preview
+   ```
+
+   This builds the app and serves it with the Express production server at [http://localhost:4173](http://localhost:4173), including the Kytario API proxy.
+
+5. **Run TypeScript check & production build:**
    ```bash
    npm run lint
    npm run build
@@ -129,7 +137,7 @@ The repository includes a continuous deployment workflow in `.github/workflows/d
 
 ### Kytario URL Imports on GitHub Pages
 
-GitHub Pages is static hosting, so it cannot run the Express proxy used by local development. The app tries public CORS relays for Kytario URL imports, including Jina Reader for large songbook responses. Public relays can be rate-limited or unavailable; for a more reliable option, deploy the included Cloudflare Worker from the repository root with `npx wrangler login` followed by `npx wrangler deploy`. Then add a repository Actions variable named `VITE_KYTARIO_PROXY_URL` with the deployed endpoint, for example `https://<worker>.<account>.workers.dev/api/proxy/kytario`, and rerun the Pages deployment. The Worker only fetches fixed public Kytario API routes; it does not accept arbitrary proxy URLs.
+GitHub Pages is static hosting, so it cannot run the Express proxy used by local development. Public CORS relays are best-effort and can be slow or unavailable. For reliable one-click URL imports, deploy the included `cloudflare-worker.js` and configure the GitHub Actions variable `VITE_KYTARIO_PROXY_URL` to the Worker endpoint, for example `https://<worker>.<account>.workers.dev/api/proxy/kytario`, then rerun the Pages deployment. The Worker resolves project URLs, fetches the canonical songbook data and title, and only allows the configured site origins. Without a hosted proxy, use the JSON paste/import option when browser CORS blocks direct access.
 
 The Worker allows the project's GitHub Pages origin and localhost by default. If you use a custom site domain, set its origin in the Worker environment variable `ALLOWED_ORIGINS` (comma-separated).
 
