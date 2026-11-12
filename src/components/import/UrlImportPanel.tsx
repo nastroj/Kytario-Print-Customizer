@@ -61,9 +61,10 @@ export function UrlImportPanel({
           type="text"
           inputMode="url"
           autoComplete="off"
+          autoCapitalize="none"
           spellCheck={false}
           value={url}
-          onChange={(e) => onUrlChange(e.target.value)}
+          onChange={(e) => onUrlChange(e.target.value.toLowerCase())}
           onBlur={onBlurNormalize}
           onKeyDown={handleKeyDown}
           placeholder="https://kytario.com/... or songbook code"
