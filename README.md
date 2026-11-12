@@ -1,21 +1,24 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.9.3  
+**Version:** 1.9.4  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.9.3 is live on GitHub Pages. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.9.4 is ready for sync and GitHub Pages deployment. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
 
 ---
 
-## 🌟 What's New in v1.9.3
+## 🌟 What's New in v1.9.4
 
-- **Single Source of Truth for Version Display**: The in-app version badge was previously hardcoded (`1.9.1`) and drifted out of sync with real releases. It is now injected at build time from `package.json` via Vite's `define`, so the displayed UI version can never drift again.
-- **Documentation Sync**: README and Release Notes updated to match the deployed 1.9.3 site on GitHub Pages.
+- **Compact Uniform Table of Contents**: Removed the redundant subtitle line and `(continued)` label, and made ToC pages 2+ use the same header size and clean headerless-line layout as page 1 in both preview and PDF export.
+- **Book Mode Default & Streamlined Controls**: Enabled double-sided Book Mode by default, simplified quick-jump and settings notices, and added a blurred blocking `"Updating preview..."` overlay plus accurate `"Almost ready..."` import progress.
+- **Full Offline PWA & Faster URL Imports**: Expanded Workbox precaching + offline songbook library support and parallelized Kytario API/relay imports to eliminate stalls.
 
-### Carried over from v1.9.1
+### Carried over from v1.9.3
+
+- **Single Source of Truth for Version Display**: In-app version badge is injected at build time from `package.json` via Vite's `define`, keeping the UI version automatically synced with releases.
 
 - **Accurate Page Heading Title Extraction**: Songbook titles are authoritatively extracted directly from the primary `<h1>` heading on `kytario.com/<slug>` and `<slug>/index-1` metadata, cleanly stripped of site prefixes. Songbooks whose names match their slug (such as *PRO RADOST* from `bodg`) are preserved without false-positive rejection.
 - **True Cover Page URLs & QR Code Links**: Imported Kytario songbooks strictly preserve the user-requested URL above cover QR codes (displayed with `https://` cleanly stripped, e.g. `kytario.com/kytarove-sedanky-brno`) rather than resolving to non-existent contributor profile paths.
@@ -147,7 +150,7 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 
    ```bash
    git add .
-   git commit -m "chore: release v1.9.3"
+   git commit -m "chore: release v1.9.4"
    git push origin main
    ```
 
@@ -187,6 +190,12 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 ---
 
 ## 📝 Release History
+
+### v1.9.4 (2026-11-12)
+
+- **Compact & Consistent ToC**: Removed the extra `"Table of Contents..."` subtitle line and `(continued)` suffix, and unified subsequent ToC page headers with page 1 in preview and PDF export.
+- **Book Mode Default & Streamlined UI**: Enabled double-sided Book Mode by default, removed redundant auto-save/Cover-jump/Manage-Song-Visibility clutter, and replaced `"Ready!"` premature stalls and pill collisions with `"Almost ready..."` readiness sync plus a centered blurred blocking `"Updating preview..."` overlay.
+- **Full Offline PWA & Faster URL Imports**: Improved Workbox precaching and offline songbook caching, parallelized Kytario URL/CORS relay lookups with tight timeouts, disabled production debug HUD, and fixed HMR WebSocket errors.
 
 ### v1.9.3 (2026-11-05)
 

@@ -110,7 +110,11 @@ export function ProgressBar({
           {isDeterminate && (
             <div className="flex items-center justify-between text-xs font-bold text-amber-600 tabular-nums">
               <span className="text-[11px] font-medium text-zinc-600">
-                {clampedProgress === 100 ? 'Complete' : 'Progress'}
+                {clampedProgress === 100
+                  ? 'Complete'
+                  : clampedProgress >= 92
+                    ? 'Almost ready'
+                    : 'Progress'}
               </span>
               <span>{clampedProgress}%</span>
             </div>
@@ -128,14 +132,16 @@ export function ProgressBar({
             </span>
             <span>
               {clampedProgress === 100
-                ? 'Layout complete!'
+                ? statusText || 'Ready!'
                 : statusText || 'Processing songbook data...'}
             </span>
           </div>
         </div>
 
         <p className="text-[11px] text-zinc-400 pt-0.5 leading-relaxed">
-          Please wait while the file is processed and formatted.
+          {clampedProgress !== null && clampedProgress >= 92
+            ? 'Finalizing songbook preview...'
+            : 'Please wait while the file is processed and formatted.'}
         </p>
       </div>
     </div>

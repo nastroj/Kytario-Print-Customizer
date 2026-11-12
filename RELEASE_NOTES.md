@@ -1,5 +1,18 @@
 # Release Notes
 
+## v1.9.4 - 2026-11-12
+
+### Compact Uniform Table of Contents, Full Offline PWA, Parallel URL Imports & Preview UX
+
+- **Compact & Consistent Table of Contents (ToC)**: Removed the secondary `"Table of Contents..."` line and `(continued)` suffix, and unified subsequent ToC page headers (matching page 1 font size and spacing, with the header underline removed) across both preview and PDF export.
+- **Book Mode Default & Cleaner Settings UI**: Enabled **Book Mode** (with outer page numbers) by default, removed the auto-save notice in settings, kept only the Table of Contents jump button in the quick-jump bar, and removed the redundant Manage Song Visibility button from the ToC modal.
+- **Full Offline PWA Access**: Enhanced PWA manifest, Workbox precaching, immediate service worker registration, and IndexedDB offline songbook caching so previously opened songbooks remain accessible offline.
+- **Fast Parallel Kytario URL Imports**: Replaced sequential multi-endpoint and CORS relay loops with bounded `Promise.any` parallel racing, project token re-resolution, and clean upstream timeout handling.
+- **Accurate Progress & Blurred Preview Update Lock**: Replaced premature `"Ready! Layout complete"` stalls with `"Almost ready..."` synced to preview mount readiness, and added a centered blurred blocking `"Updating preview..."` overlay so layout recalculations cannot be overlapped by toasts or interrupted.
+- **Runtime & Build Fixes**: Turned off Song Fit Debug HUD by default/in production, prevented unnecessary 404 PDF title warnings, and eliminated Vite HMR WebSocket errors when HMR is disabled.
+
+---
+
 ## v1.9.3 - 2026-11-05
 
 ### Single Source of Truth for Version Display

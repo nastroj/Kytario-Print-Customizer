@@ -35,6 +35,25 @@ export default defineConfig(({ command, mode }) => {
     },
     base,
     plugins: [
+      ...(disableHmr
+        ? [
+            {
+              name: 'disable-hmr-client-ws',
+              apply: 'serve' as const,
+              enforce: 'post' as const,
+              transform(code: string, id: string) {
+                if (id.replace(/\\/g, '/').endsWith('/vite/dist/client/client.mjs')) {
+                  return code
+                    .replace(
+                      'transport.connect(createHMRHandler(handleMessage));',
+                      '/* HMR WebSocket connection disabled via DISABLE_HMR=true */',
+                    )
+                    .replace('wsTransport.send(data);', '/* HMR disabled */');
+                }
+              },
+            },
+          ]
+        : []),
       react(),
       tailwindcss(),
       {
@@ -64,6 +83,9 @@ export default defineConfig(({ command, mode }) => {
           'pwa-512x512.png',
           'pwa-maskable-192x192.png',
           'pwa-maskable-512x512.png',
+          'fonts/Inter-Regular.ttf',
+          'fonts/Inter-Bold.ttf',
+          'fonts/Inter-Italic.ttf',
         ],
         manifest: {
           id: './',
@@ -71,12 +93,31 @@ export default defineConfig(({ command, mode }) => {
           short_name: 'Kytario',
           description:
             'Transform your Kytario songbook into print-ready PDF pages with automatic Table of Contents and clean formatting.',
+          lang: 'en',
+          dir: 'ltr',
           theme_color: '#18181b',
           background_color: '#18181b',
           display: 'standalone',
-          orientation: 'portrait',
+          display_override: ['standalone', 'minimal-ui'],
+          orientation: 'any',
+          categories: ['music', 'utilities', 'productivity'],
           start_url: './',
           scope: './',
+          shortcuts: [
+            {
+              name: 'Open Songbook',
+              short_name: 'Open',
+              description: 'Open or customize a songbook offline or online',
+              url: './',
+              icons: [
+                {
+                  src: 'pwa-192x192.png',
+                  sizes: '192x192',
+                  type: 'image/png',
+                },
+              ],
+            },
+          ],
           icons: [
             {
               src: 'pwa-192x192.png',
@@ -111,12 +152,34 @@ export default defineConfig(({ command, mode }) => {
           ],
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
-          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf,webmanifest}'],
+          maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          skipWaiting: true,
+          navigateFallback: 'index.html',
+          navigateFallbackDenylist: [/^\/api\//, /\/[^/?]+\.[^/]+$/],
           runtimeCaching: [
             {
+              urlPattern: ({ url }) =>
+                url.pathname.startsWith('/api/proxy/kytario') ||
+                (url.hostname.endsWith('.workers.dev') && url.pathname.includes('kytario')),
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'kytario-songbook-api-cache',
+                networkTimeoutSeconds: 6,
+                expiration: {
+                  maxEntries: 30,
+                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
+              handler: 'StaleWhileRevalidate',
               options: {
                 cacheName: 'google-fonts-cache',
                 expiration: {
@@ -133,6 +196,20 @@ export default defineConfig(({ command, mode }) => {
               handler: 'CacheFirst',
               options: {
                 cacheName: 'gstatic-fonts-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/fontsource\/fonts\/inter.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'cdn-inter-fonts-cache',
                 expiration: {
                   maxEntries: 10,
                   maxAgeSeconds: 60 * 60 * 24 * 365,

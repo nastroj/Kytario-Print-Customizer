@@ -64,4 +64,34 @@ describe('resolved songbook URL import metadata', () => {
     expect(data.url).toBe('https://kytario.com/resolved-book');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('races fallback relays in parallel when the local proxy times out or fails', async () => {
+    const stageUpdates: string[] = [];
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.startsWith('/api/proxy/kytario')) {
+        return new Response(JSON.stringify({ error: 'Gateway timeout' }), { status: 504 });
+      }
+      if (url.startsWith('https://api.codetabs.com/')) {
+        return new Response(
+          JSON.stringify({
+            title: 'Fallback Book',
+            songbookSongs: [{ song: { title: 'Song One', content: 'Lyrics' } }],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+      return new Response('Unavailable', { status: 503 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const data = await fetchSongbookFromKytario('https://kytario.com/cs/bodg', (stage) => {
+      stageUpdates.push(stage.title);
+    });
+
+    expect(data.title).toBe('Fallback Book');
+    expect(data.urlToken).toBe('bodg');
+    expect(stageUpdates.length).toBeGreaterThan(0);
+  });
 });
+

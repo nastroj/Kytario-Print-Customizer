@@ -985,7 +985,6 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
     );
     const colToc = hexToPdfRgb(settings.tocColor || settings.lyricsColor, '#18181b');
     const colTocArtist = hexToPdfRgb(settings.tocArtistColor || settings.artistColor, '#52525b');
-    const colTocPage = hexToPdfRgb(settings.tocPageColor, '#71717a');
     const colSubtle = hexToPdfRgb('#71717a');
     const colBadgeBg = hexToPdfRgb('#27272a');
     const colWhite = rgb(1, 1, 1);
@@ -1097,7 +1096,6 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         Number(settings.tocFontSize) || Number(settings.lyricsFontSize) * 0.95 || 12;
 
       const tocTitlePt = Math.round(safeTitleSize * 1.15) * ptPerPx;
-      const tocTitleSubPt = Math.round(safeTitleSize * 0.85) * ptPerPx;
       const tocItemPt = safeTocSize * ptPerPx;
 
       const rowLineHeight = 1.35;
@@ -1115,17 +1113,12 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         settings.indexSortOrder === 'alphabetical' && !!settings.tocAlphabeticalGrouping;
       const showDividers = hasLetterGrouping && settings.tocGroupDividers !== false;
 
-      const headerH1Pt = (Math.ceil(Math.round(safeTitleSize * 1.15) * 1.2) + 36) * ptPerPx;
-      const headerHSubPt = (Math.ceil(Math.round(safeTitleSize * 0.85) * 1.2) + 37) * ptPerPx;
+      const headerHPt = (Math.ceil(Math.round(safeTitleSize * 1.15) * 1.2) + 10) * ptPerPx;
       const bottomSafetyBufferPt = 2 * ptPerPx;
 
-      const availableHeightP1Pt = Math.max(
+      const availableHeightPt = Math.max(
         80 * ptPerPx,
-        tocPrintableHeight - headerH1Pt - bottomSafetyBufferPt,
-      );
-      const availableHeightSubPt = Math.max(
-        80 * ptPerPx,
-        tocPrintableHeight - headerHSubPt - bottomSafetyBufferPt,
+        tocPrintableHeight - headerHPt - bottomSafetyBufferPt,
       );
 
       const tocPagesData: Array<{
@@ -1146,7 +1139,7 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         }
 
         const isFirst = tocPageNum === 1;
-        const availH = isFirst ? availableHeightP1Pt : availableHeightSubPt;
+        const availH = availableHeightPt;
         const remaining = totalItems - offset;
 
         const maxPossible = Math.min(remaining, Math.ceil(availH / singleItemHeightPt) * tocCols);
@@ -1189,13 +1182,9 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         tocPageNum++;
       }
 
-      const tocPagesCount = tocPagesData.length;
-
       // Render TOC Pages
       for (let p = 0; p < tocPagesData.length; p++) {
         const tocPageInfo = tocPagesData[p];
-        const isFirst = tocPageInfo.isFirst;
-        const pageIndex = tocPageInfo.pageIndex;
         const currentTocPageIndex = tocStartPageIndex + p;
         const tocPageMargins = getPageMargins(settings, currentTocPageIndex);
         const pMarginPtLeft = tocPageMargins.left * mmToPt;
@@ -1208,54 +1197,18 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
         const page = doc.addPage([pageWidth, pageHeight]);
         let currentY = pageHeight - pMarginPtTop;
 
-        // Header Centered (matching preview)
-        if (isFirst) {
-          const titleUpper = bookTitle.toUpperCase();
-          const titleW = boldFont.widthOfTextAtSize(titleUpper, tocTitlePt);
-          page.drawText(titleUpper, {
-            x: pMarginPtLeft + (pPrintableWidth - Math.min(pPrintableWidth, titleW)) / 2,
-            y: currentY - tocTitlePt,
-            size: tocTitlePt,
-            font: boldFont,
-            color: colTitle,
-          });
+        // Header Centered (consistent layout across all TOC pages, matching preview)
+        const titleUpper = bookTitle.toUpperCase();
+        const titleW = boldFont.widthOfTextAtSize(titleUpper, tocTitlePt);
+        page.drawText(titleUpper, {
+          x: pMarginPtLeft + (pPrintableWidth - Math.min(pPrintableWidth, titleW)) / 2,
+          y: currentY - tocTitlePt,
+          size: tocTitlePt,
+          font: boldFont,
+          color: colTitle,
+        });
 
-          const subText = `Table of Contents${tocPagesCount > 1 ? ` • Page 1 of ${tocPagesCount}` : ''}`;
-          const subPt = 9 * ptPerPx;
-          const subW = regularFont.widthOfTextAtSize(subText, subPt);
-          page.drawText(subText, {
-            x: pMarginPtLeft + (pPrintableWidth - subW) / 2,
-            y: currentY - tocTitlePt - 12 * ptPerPx - subPt,
-            size: subPt,
-            font: regularFont,
-            color: colTocPage,
-          });
-
-          currentY -= headerH1Pt;
-        } else {
-          const titleUpper = `${bookTitle.toUpperCase()} (CONTINUED)`;
-          const titleW = boldFont.widthOfTextAtSize(titleUpper, tocTitleSubPt);
-          page.drawText(titleUpper, {
-            x: pMarginPtLeft + (pPrintableWidth - Math.min(pPrintableWidth, titleW)) / 2,
-            y: currentY - tocTitleSubPt,
-            size: tocTitleSubPt,
-            font: boldFont,
-            color: colTitle,
-          });
-
-          const subText = `Table of Contents • Page ${pageIndex} of ${tocPagesCount}`;
-          const subPt = 9 * ptPerPx;
-          const subW = regularFont.widthOfTextAtSize(subText, subPt);
-          page.drawText(subText, {
-            x: pMarginPtLeft + (pPrintableWidth - subW) / 2,
-            y: currentY - tocTitleSubPt - 10 * ptPerPx - subPt,
-            size: subPt,
-            font: regularFont,
-            color: colTocPage,
-          });
-
-          currentY -= headerHSubPt;
-        }
+        currentY -= headerHPt;
 
         // Distribute pageItems across tocCols with proper column balancing
         const columnsData = tocPageInfo.columnsData || balanceColumns(tocPageInfo.items, tocCols);

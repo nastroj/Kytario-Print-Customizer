@@ -33,8 +33,8 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   pageMarginRight: 5,
   pageMarginInner: 15,
   pageMarginOuter: 5,
-  bookMode: false,
-  pageNumberPosition: 'right',
+  bookMode: true,
+  pageNumberPosition: 'outer',
   columns: 2,
   titleColor: '#1c1917', // zinc-900
   artistColor: '#57534e', // zinc-500

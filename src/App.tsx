@@ -46,6 +46,8 @@ import {
   Archive,
   FileArchive,
   ListFilter,
+  History,
+  Trash2,
 } from 'lucide-react';
 import {
   safeParseSongbookJson,
@@ -53,7 +55,19 @@ import {
   normalizeSingleSong,
   formatCoverDisplayUrl,
 } from './utils';
-import { peekCachedSongbookFromLocalStorage, getCachedSongbookMeta } from './utils/storage';
+import {
+  peekCachedSongbookFromLocalStorage,
+  getCachedSongbookMeta,
+  loadCachedSongbookFromStorage,
+  saveCachedSongbookToStorage,
+  resetCachedSongbookMetaCache,
+  saveSongbookToOfflineLibrary,
+  listOfflineSongbooks,
+  loadOfflineSongbookById,
+  findOfflineSongbookByQuery,
+  removeOfflineSongbook,
+  type OfflineSongbookSummary,
+} from './utils/storage';
 import { isZipFile, parseKytarioZip, ZipParseResult } from './utils/zipParser';
 import { readFileAsText } from './utils/fileIO';
 import {
@@ -77,7 +91,6 @@ const BackgroundPdfProgressModal = lazy(() =>
 const SongSelectionModal = lazy(() =>
   import('./components/SongSelectionModal').then((m) => ({ default: m.SongSelectionModal })),
 );
-import { saveCachedSongbookToStorage, resetCachedSongbookMetaCache } from './utils/storage';
 import { ZipProjectSelectModal } from './components/ZipProjectSelectModal';
 import { ImportTabs, type ImportTabId } from './components/import/ImportTabs';
 import { UrlImportPanel } from './components/import/UrlImportPanel';
@@ -135,18 +148,29 @@ export default function App() {
   } | null>(null);
   const loadPromptDecisionRef = useRef(false);
 
+  const [offlineSongbooks, setOfflineSongbooks] = useState<OfflineSongbookSummary[]>([]);
   const [songbookData, setSongbookData] = useState<SongbookData | null>(null);
 
-  // Resolve the remembered songbook metadata and offer to load it back after a reload
+  // Resolve the remembered songbook metadata (including large songbooks in IndexedDB)
+  // and populate the offline library of previously opened songbooks on mount.
   useEffect(() => {
     let mounted = true;
-    if (!songbookData && pendingCachedSongbook) {
-      getCachedSongbookMeta().then((meta) => {
-        if (mounted && meta) {
-          setLastSongbookMeta(meta);
-        }
-      });
+    if (!songbookData) {
+      getCachedSongbookMeta()
+        .then((meta) => {
+          if (mounted && meta) {
+            setLastSongbookMeta(meta);
+          }
+        })
+        .catch(() => {});
     }
+    listOfflineSongbooks()
+      .then((list) => {
+        if (mounted) {
+          setOfflineSongbooks(list);
+        }
+      })
+      .catch(() => {});
     return () => {
       mounted = false;
     };
@@ -276,7 +300,6 @@ export default function App() {
     message: string;
     type: 'success' | 'error' | 'info';
   } | null>(null);
-  const [showAutoSaveIndicator, setShowAutoSaveIndicator] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clean up any stale legacy auto-save localStorage items
@@ -303,23 +326,21 @@ export default function App() {
 
   // Show the prompt as soon as we are on the import screen with a known cached songbook
   useEffect(() => {
-    if (
-      !songbookData &&
-      pendingCachedSongbook &&
-      lastSongbookMeta &&
-      !loadPromptDecisionRef.current
-    ) {
+    if (!songbookData && lastSongbookMeta && !loadPromptDecisionRef.current) {
       setShowLoadLastPrompt(true);
     }
-  }, [songbookData, pendingCachedSongbook, lastSongbookMeta]);
+  }, [songbookData, lastSongbookMeta]);
 
-  // Load the remembered songbook when the user confirms the prompt
-  const handleLoadLastSongbook = useCallback(() => {
+  // Load the remembered songbook when the user confirms the prompt (supports both localStorage and IndexedDB)
+  const handleLoadLastSongbook = useCallback(async () => {
     loadPromptDecisionRef.current = true;
     setShowLoadLastPrompt(false);
-    if (pendingCachedSongbook) {
-      setSongbookData(pendingCachedSongbook);
+    const cached = pendingCachedSongbook || (await loadCachedSongbookFromStorage());
+    if (cached) {
+      setSongbookData(cached);
       showToast('Loaded last used songbook', 'success');
+    } else {
+      showToast('Saved songbook could not be loaded from cache', 'error');
     }
   }, [pendingCachedSongbook, showToast]);
 
@@ -339,6 +360,38 @@ export default function App() {
     resetCachedSongbookMetaCache();
     showToast('Remembered songbook forgotten', 'info');
   }, [showToast]);
+
+  const handleOpenOfflineSongbook = useCallback(
+    async (id: string) => {
+      try {
+        const cached = await loadOfflineSongbookById(id);
+        if (cached) {
+          const normalized = normalizeSongbookData(cached);
+          loadPromptDecisionRef.current = true;
+          setShowLoadLastPrompt(false);
+          setSelectedSongIds(new Set());
+          setSongbookData(normalized);
+          showToast('Opened cached songbook for offline use', 'success');
+        } else {
+          showToast('Cached songbook could not be loaded', 'error');
+        }
+      } catch {
+        showToast('Failed to open cached songbook', 'error');
+      }
+    },
+    [showToast],
+  );
+
+  const handleRemoveOfflineSongbook = useCallback(
+    async (id: string) => {
+      try {
+        const next = await removeOfflineSongbook(id);
+        setOfflineSongbooks(next);
+        showToast('Removed songbook from offline cache', 'info');
+      } catch {}
+    },
+    [showToast],
+  );
 
   // Persist songbook changes to both IndexedDB and localStorage safely
   const isFirstSongbookPersistRef = useRef(true);
@@ -362,6 +415,11 @@ export default function App() {
         }
       })
       .catch(() => {});
+    if (songbookData) {
+      saveSongbookToOfflineLibrary(songbookData)
+        .then((list) => setOfflineSongbooks(list))
+        .catch(() => {});
+    }
     resetCachedSongbookMetaCache();
   }, [songbookData]);
 
@@ -604,7 +662,8 @@ export default function App() {
       clearTimeout(updateTimersRef.current.finishTimer);
     }
 
-    // 1. FIRST: Immediately display the message that updating is in progress!
+    // 1. FIRST: Clear any lingering toast and immediately display the blurred updating overlay
+    setToast(null);
     setIsUpdatingLayout(true);
 
     // 2. Allow browser to paint the updating status on screen before starting heavy layout update
@@ -617,12 +676,6 @@ export default function App() {
       const key = STORAGE_KEYS.SETTINGS;
       try {
         localStorage.setItem(key, JSON.stringify(safeSettings));
-
-        // Show automated auto-save indicator briefly
-        setShowAutoSaveIndicator(true);
-        setTimeout(() => {
-          setShowAutoSaveIndicator(false);
-        }, 2200);
       } catch (err) {
         console.warn('Auto-save settings error:', err);
       }
@@ -634,6 +687,15 @@ export default function App() {
       }, 650);
     }, 120);
   };
+
+  const pendingPreviewFinalizeRef = useRef<(() => void) | null>(null);
+  const handlePreviewReady = useCallback(() => {
+    const fn = pendingPreviewFinalizeRef.current;
+    if (fn) {
+      pendingPreviewFinalizeRef.current = null;
+      fn();
+    }
+  }, []);
 
   const animateSongbookLoad = useCallback(
     (
@@ -647,6 +709,9 @@ export default function App() {
       },
     ) => {
       setIsLoadingJson(true);
+      // Preload the lazy preview chunk in parallel while formatting steps animate
+      void import('./components/SongbookPreview');
+
       const songs = data.songs || data.items || [];
       if (songs.length === 0) {
         setIsLoadingJson(false);
@@ -696,15 +761,67 @@ export default function App() {
         if (currentSong < totalSongs) {
           requestAnimationFrame(() => setTimeout(stepProgress, 35));
         } else {
-          // Formatting is complete! Now transition to layout rendering at 95%
+          // Song formatting done — show "Almost ready..." while preview chunk & pages mount
           setLoadingStatus({
-            title: 'Preparing preview...',
-            subtitle: 'Rendering layouts & page breaks...',
+            title: 'Almost ready...',
+            subtitle: 'Preparing preview & page layouts...',
             progress: 95,
           });
 
-          // Small timeout allows browser to paint the 95% state before heavy layout calculation
           setTimeout(() => {
+            let didFinalize = false;
+            const safetyTimer = setTimeout(() => {
+              if (!didFinalize) {
+                pendingPreviewFinalizeRef.current = null;
+                finalize();
+              }
+            }, 2500);
+
+            const finalize = () => {
+              if (didFinalize) return;
+              didFinalize = true;
+              clearTimeout(safetyTimer);
+              setLoadingStatus({
+                title: 'Ready!',
+                subtitle: 'Opening songbook preview...',
+                progress: 100,
+              });
+
+              setTimeout(() => {
+                setIsLoadingJson(false);
+                const songCount = songs.length;
+                const songsWithContent = songs.filter(
+                  (s) => s.content && s.content.trim().length > 0,
+                ).length;
+                const bookTitle = data.title || options.sourceLabel || 'Songbook';
+
+                if (options.sourceType === 'url') {
+                  if (songsWithContent === 0 && songCount > 0) {
+                    showToast(
+                      `Imported ${songCount} titles, but lyrics were not found. Try a different URL?`,
+                      'info',
+                    );
+                  } else {
+                    showToast(
+                      `Successfully imported "${bookTitle}" from Kytario (${songsWithContent}/${songCount} songs with lyrics)!`,
+                    );
+                  }
+                } else {
+                  showToast(
+                    `Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`,
+                  );
+                }
+                setSelectedSongIds(new Set(songs.map((s) => s.id!)));
+              }, 160);
+            };
+
+            pendingPreviewFinalizeRef.current = finalize;
+            setLoadingStatus({
+              title: 'Almost ready...',
+              subtitle: 'Rendering pages & Table of Contents...',
+              progress: 97,
+            });
+
             setSongbookData(data);
             if (options.sourceType === 'url') {
               setDraftSettings((prev) => ({
@@ -723,47 +840,7 @@ export default function App() {
                 `Successfully parsed and recovered ${options.recoveredCount} songs from formatted/truncated JSON data.`,
               );
             }
-
-            // Next animation frame after songbookData mounts
-            requestAnimationFrame(() => {
-              setTimeout(() => {
-                // Layout is mounted, now advance to 100%!
-                setLoadingStatus({
-                  title: 'Ready!',
-                  subtitle: 'Layout complete',
-                  progress: 100,
-                });
-
-                // Give user 2000ms to clearly see the progress bar reach the 100% end
-                setTimeout(() => {
-                  setIsLoadingJson(false);
-                  const songCount = songs.length;
-                  const songsWithContent = songs.filter(
-                    (s) => s.content && s.content.trim().length > 0,
-                  ).length;
-                  const bookTitle = data.title || options.sourceLabel || 'Songbook';
-
-                  if (options.sourceType === 'url') {
-                    if (songsWithContent === 0 && songCount > 0) {
-                      showToast(
-                        `Imported ${songCount} titles, but lyrics were not found. Try a different URL?`,
-                        'info',
-                      );
-                    } else {
-                      showToast(
-                        `Successfully imported "${bookTitle}" from Kytario (${songsWithContent}/${songCount} songs with lyrics)!`,
-                      );
-                    }
-                  } else {
-                    showToast(
-                      `Successfully loaded "${bookTitle}" (${songCount} song${songCount === 1 ? '' : 's'})!`,
-                    );
-                  }
-                  setSelectedSongIds(new Set(songs.map((s) => s.id!)));
-                }, 800);
-              }, 100);
-            });
-          }, 80);
+          }, 60);
         }
       };
 
@@ -1054,7 +1131,9 @@ export default function App() {
 
     // Progressive Ticker during asynchronous fetching (8% -> 34%)
     let currentFetchProgress = 8;
+    let fetchTickerStopped = false;
     const fetchProgressInterval = setInterval(() => {
+      if (fetchTickerStopped) return;
       currentFetchProgress = Math.min(34, currentFetchProgress + 3);
       let stageTitle = 'Connecting to Kytario...';
       let stageSubtitle = targetUrl;
@@ -1077,9 +1156,44 @@ export default function App() {
       });
     }, 280);
 
-    try {
-      const rawData = await fetchSongbookFromKytario(targetUrl);
+    const stopFetchTicker = () => {
+      fetchTickerStopped = true;
       clearInterval(fetchProgressInterval);
+    };
+
+    // Offline check: serve immediately from the IndexedDB offline library if available
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      stopFetchTicker();
+      const cachedOffline = await findOfflineSongbookByQuery(targetUrl);
+      if (cachedOffline) {
+        const normalized = normalizeSongbookData(cachedOffline);
+        setKytarioFetchDetails(null);
+        animateSongbookLoad(normalized, {
+          startProgress: 42,
+          sourceType: 'url',
+          sourceLabel: cleanUrl,
+        });
+        showToast('Offline Mode: loaded cached songbook', 'info');
+        return;
+      }
+      setErrorMessage(
+        'You are currently offline and this songbook is not in your local cache. Open a previously cached songbook below or upload a local JSON/ZIP file.',
+      );
+      setIsLoadingJson(false);
+      return;
+    }
+
+    try {
+      const rawData = await fetchSongbookFromKytario(targetUrl, (stage) => {
+        stopFetchTicker();
+        currentFetchProgress = Math.max(currentFetchProgress, 34);
+        setLoadingStatus({
+          title: stage.title,
+          subtitle: stage.subtitle,
+          progress: currentFetchProgress,
+        });
+      });
+      stopFetchTicker();
 
       // Keep the token resolved by the proxy (e.g. project -> songbook) over the
       // token from the original link, which may refer to a different route.
@@ -1129,7 +1243,19 @@ export default function App() {
         }, 150);
       }, 280);
     } catch (err: any) {
-      clearInterval(fetchProgressInterval);
+      stopFetchTicker();
+      const cachedOffline = await findOfflineSongbookByQuery(targetUrl);
+      if (cachedOffline) {
+        const normalized = normalizeSongbookData(cachedOffline);
+        setKytarioFetchDetails(null);
+        animateSongbookLoad(normalized, {
+          startProgress: 42,
+          sourceType: 'url',
+          sourceLabel: cleanUrl,
+        });
+        showToast('Network unavailable — opened cached offline copy', 'info');
+        return;
+      }
       console.warn('Kytario import:', err?.message || err);
       setErrorMessage(err.message || 'Failed to import from Kytario.');
       if (err.details) {
@@ -1309,7 +1435,63 @@ export default function App() {
               />
             )}
           </div>
+
+          {offlineSongbooks.length > 0 && (
+            <div className="pt-4 border-t border-black/10 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-700 flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5 text-zinc-500" aria-hidden="true" />
+                  <span>Saved Offline Songbooks</span>
+                </h2>
+                <span className="text-[11px] text-zinc-500">
+                  {offlineSongbooks.length} cached
+                </span>
+              </div>
+              <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                {offlineSongbooks.map((entry) => (
+                  <li
+                    key={entry.id}
+                    className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-zinc-50 border border-black/5 hover:border-black/15 transition-colors"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleOpenOfflineSongbook(entry.id)}
+                      className="flex-1 min-w-0 text-left cursor-pointer group"
+                    >
+                      <div className="text-xs font-semibold text-zinc-900 truncate group-hover:text-[#b40b24] transition-colors">
+                        {entry.title}
+                      </div>
+                      <div className="text-[11px] text-zinc-500 truncate">
+                        {entry.songCount} {entry.songCount === 1 ? 'song' : 'songs'}
+                        {entry.shortUrl ? ` • ${entry.shortUrl}` : ''}
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenOfflineSongbook(entry.id)}
+                        className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-zinc-900 hover:bg-zinc-800 text-white transition-colors cursor-pointer"
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveOfflineSongbook(entry.id)}
+                        title={`Remove "${entry.title}" from offline cache`}
+                        aria-label={`Remove "${entry.title}" from offline cache`}
+                        className="p-1.5 rounded-md text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
+
+        <OfflineIndicator />
       </div>
     );
   }
@@ -1398,20 +1580,21 @@ export default function App() {
         <main id="main-preview" tabIndex={-1} className="flex flex-col min-h-0">
           <Suspense fallback={<PreviewChunkFallback settings={settings} />}>
             <SongbookPreview
-            data={previewData}
-            settings={settings}
-            isUpdatingLayout={isUpdatingLayout || selectedSongIds !== deferredSelectedSongIds}
-            onDownloadStatusChange={setIsDownloadingPdf}
-            onOpenSettings={handleOpenSettings}
-            zoomMode={zoomMode}
-            setZoomMode={setZoomMode}
-            customZoom={customZoom}
-            setCustomZoom={setCustomZoom}
-            onScaleChange={setActiveScale}
-            isSongNavOpen={isSongNavOpen}
-            setIsSongNavOpen={setIsSongNavOpen}
-            onOpenManageSongs={() => setIsSongSelectionOpen(true)}
-          />
+              data={previewData}
+              settings={settings}
+              isUpdatingLayout={isUpdatingLayout || selectedSongIds !== deferredSelectedSongIds}
+              onDownloadStatusChange={setIsDownloadingPdf}
+              onOpenSettings={handleOpenSettings}
+              zoomMode={zoomMode}
+              setZoomMode={setZoomMode}
+              customZoom={customZoom}
+              setCustomZoom={setCustomZoom}
+              onScaleChange={setActiveScale}
+              isSongNavOpen={isSongNavOpen}
+              setIsSongNavOpen={setIsSongNavOpen}
+              onOpenManageSongs={() => setIsSongSelectionOpen(true)}
+              onPreviewReady={handlePreviewReady}
+            />
         </Suspense>
 
         {/* Project Selection Modal for Multi-Project ZIP Archives */}
@@ -1434,9 +1617,25 @@ export default function App() {
               songs={songbookData?.songs || []}
               selectedSongIds={selectedSongIds}
               onApply={(newSelectedIds) => {
-                updateSelectedSongIds(newSelectedIds);
-                showToast(`Updating preview with ${newSelectedIds.size} visible songs...`, 'info');
+                setToast(null);
                 setIsSongSelectionOpen(false);
+                if (updateTimersRef.current.applyTimer) {
+                  clearTimeout(updateTimersRef.current.applyTimer);
+                }
+                if (updateTimersRef.current.finishTimer) {
+                  clearTimeout(updateTimersRef.current.finishTimer);
+                }
+                setIsUpdatingLayout(true);
+                updateTimersRef.current.applyTimer = setTimeout(() => {
+                  updateSelectedSongIds(newSelectedIds);
+                  updateTimersRef.current.finishTimer = setTimeout(() => {
+                    setIsUpdatingLayout(false);
+                    showToast(
+                      `Showing ${newSelectedIds.size} visible song${newSelectedIds.size === 1 ? '' : 's'}`,
+                      'success',
+                    );
+                  }, 450);
+                }, 80);
               }}
               onCancel={() => setIsSongSelectionOpen(false)}
             />
@@ -1656,22 +1855,6 @@ export default function App() {
             </div>
           )}
         </div>
-
-        {/* Auto-save Brief Notification */}
-        {showAutoSaveIndicator && (
-          <div
-            className="fixed top-4 right-4 z-[99] print:hidden animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-none select-none"
-            role="status"
-          >
-            <div className="bg-zinc-950/95 text-white border border-zinc-700/50 rounded-full py-2 px-4 shadow-2xl flex items-center gap-2.5 text-xs font-semibold">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              <span>Changes auto-saved</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

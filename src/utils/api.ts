@@ -592,205 +592,235 @@ export function extractEmbeddedJsonFromHtml(html: string, playlistToken?: string
   return null;
 }
 
-async function fetchViaPublicProxies(token: string, rawUrl?: string): Promise<any> {
-  const candidateUrls: string[] = [];
-
-  if (rawUrl && /^https?:\/\//i.test(rawUrl.trim())) {
-    const cleanRaw = rawUrl.trim().split('#')[0];
-    candidateUrls.push(cleanRaw);
-    if (cleanRaw.toLowerCase() !== cleanRaw) {
-      candidateUrls.push(cleanRaw.toLowerCase());
-    }
-    const playlistMatch = cleanRaw.match(/[?&]playlist=([^&]+)/i);
-    if (playlistMatch) {
-      const playlistId = playlistMatch[1];
-      const baseWithoutQuery = cleanRaw.split('?')[0];
-      candidateUrls.push(`https://kytario.com/playlists/${playlistId}`);
-      candidateUrls.push(`https://kytario.com/api/playlists/${playlistId}`);
-      candidateUrls.push(`${baseWithoutQuery}/playlists/${playlistId}`);
-    }
+function parseRelayResponseText(text: string, playlistToken?: string): any | null {
+  if (!text) return null;
+  try {
+    const data = JSON.parse(text);
+    if (hasSongsPayload(data)) return data;
+  } catch {
+    const embedded = extractEmbeddedJsonFromHtml(text, playlistToken);
+    if (embedded && hasSongsPayload(embedded)) return embedded;
   }
-
-  const candidateTokens = Array.from(
-    new Set([token, token.toLowerCase(), token.toUpperCase()].filter(Boolean)),
-  );
-
-  for (const tok of candidateTokens) {
-    candidateUrls.push(`https://kytario.com/api/songbooks/${tok}/sections`);
-    candidateUrls.push(`https://kytario.com/cs/${tok}`);
-    candidateUrls.push(`https://kytario.com/sk/${tok}`);
-    candidateUrls.push(`https://kytario.com/en/${tok}`);
-    candidateUrls.push(`https://kytario.com/${tok}`);
-    candidateUrls.push(`https://kytario.com/zpevnik/${tok}`);
-    candidateUrls.push(`https://kytario.com/api/v1/songbooks/${tok}/sections`);
-    candidateUrls.push(`https://kytario.com/api/songbooks/${tok}`);
-  }
-
-  const uniqueEndpoints = Array.from(new Set(candidateUrls));
-
-  for (const targetUrl of uniqueEndpoints) {
-    // 1. Direct fetch (e.g. if CORS is permitted or user has a CORS browser extension)
-    try {
-      const res = await fetch(targetUrl, { signal: AbortSignal.timeout(2500) });
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          if (hasSongsPayload(data)) return data;
-        } catch {
-          const embedded = extractEmbeddedJsonFromHtml(text);
-          if (embedded) return embedded;
-        }
-      }
-    } catch {
-      // Direct CORS blocked, continue
-    }
-
-    // 2. CorsProxy.io (Fast, reliable public CORS proxy)
-    try {
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          if (hasSongsPayload(data)) return data;
-        } catch {
-          const embedded = extractEmbeddedJsonFromHtml(text);
-          if (embedded) return embedded;
-        }
-      }
-    } catch {
-      // Continue
-    }
-
-    // 3. allorigins get proxy (JSON wrapper)
-    try {
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
-      if (res.ok) {
-        const wrapper = await res.json();
-        if (wrapper && wrapper.contents) {
-          try {
-            const data = JSON.parse(wrapper.contents);
-            if (hasSongsPayload(data)) return data;
-          } catch {
-            const embedded = extractEmbeddedJsonFromHtml(wrapper.contents);
-            if (embedded) return embedded;
-          }
-        }
-      }
-    } catch {
-      // Continue
-    }
-
-    // 4. Jina Reader proxy
-    try {
-      const proxyUrl = `https://r.jina.ai/${targetUrl}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4500) });
-      if (res.ok) {
-        const text = await res.text();
-        const jsonStart = text.search(/[\[{]/);
-        if (jsonStart >= 0) {
-          try {
-            const data = JSON.parse(text.slice(jsonStart));
-            if (hasSongsPayload(data)) return data;
-          } catch {
-            const embedded = extractEmbeddedJsonFromHtml(text);
-            if (embedded) return embedded;
-          }
-        }
-      }
-    } catch {
-      // Continue
-    }
-
-    // 5. CodeTabs proxy
-    try {
-      const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          if (hasSongsPayload(data)) return data;
-        } catch {
-          const embedded = extractEmbeddedJsonFromHtml(text);
-          if (embedded) return embedded;
-        }
-      }
-    } catch {
-      // Continue
-    }
-  }
-
   return null;
 }
 
+async function racePublicRelaysForUrl(
+  targetUrl: string,
+  parentSignal: AbortSignal,
+  timeoutMs: number,
+  playlistToken?: string,
+): Promise<any> {
+  if (parentSignal.aborted) throw new Error('Aborted');
+  const ctrl = new AbortController();
+  const onParentAbort = () => ctrl.abort();
+  parentSignal.addEventListener('abort', onParentAbort, { once: true });
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+
+  const relays: Array<() => Promise<any>> = [
+    // 1. Direct fetch (succeeds if CORS is open or extension enabled)
+    async () => {
+      const res = await fetch(targetUrl, { signal: ctrl.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const parsed = parseRelayResponseText(await res.text(), playlistToken);
+      if (!parsed) throw new Error('No songs payload');
+      return parsed;
+    },
+    // 2. AllOrigins JSON wrapper
+    async () => {
+      const res = await fetch(
+        `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
+        { signal: ctrl.signal },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const wrapper = await res.json();
+      if (!wrapper?.contents) throw new Error('Empty contents');
+      const parsed = parseRelayResponseText(wrapper.contents, playlistToken);
+      if (!parsed) throw new Error('No songs payload');
+      return parsed;
+    },
+    // 4. CodeTabs proxy
+    async () => {
+      const res = await fetch(
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+        { signal: ctrl.signal },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const parsed = parseRelayResponseText(await res.text(), playlistToken);
+      if (!parsed) throw new Error('No songs payload');
+      return parsed;
+    },
+    // 5. Jina Reader proxy
+    async () => {
+      const res = await fetch(`https://r.jina.ai/${targetUrl}`, { signal: ctrl.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const jsonStart = text.search(/[\[{]/);
+      if (jsonStart >= 0) {
+        const parsedSlice = parseRelayResponseText(text.slice(jsonStart), playlistToken);
+        if (parsedSlice) return parsedSlice;
+      }
+      const parsedFull = parseRelayResponseText(text, playlistToken);
+      if (!parsedFull) throw new Error('No songs payload');
+      return parsedFull;
+    },
+  ];
+
+  try {
+    const winner = await Promise.any(relays.map((fn) => fn()));
+    ctrl.abort();
+    return winner;
+  } finally {
+    clearTimeout(timer);
+    parentSignal.removeEventListener('abort', onParentAbort);
+  }
+}
+
+async function fetchViaPublicProxies(
+  token: string,
+  rawUrl?: string,
+  playlistToken?: string,
+): Promise<any> {
+  const overallCtrl = new AbortController();
+  const overallTimer = setTimeout(() => overallCtrl.abort(), 11000);
+
+  try {
+    const candidateTokens = Array.from(
+      new Set([token, token.toLowerCase(), token.toUpperCase()].filter(Boolean)),
+    );
+
+    const primaryUrls: string[] = [];
+    if (playlistToken) {
+      if (rawUrl && /^https?:\/\//i.test(rawUrl.trim())) {
+        primaryUrls.push(rawUrl.trim().split('#')[0]);
+      }
+      if (token) {
+        primaryUrls.push(
+          `https://kytario.com/${token}/index-1?playlist=${encodeURIComponent(playlistToken)}`,
+        );
+      }
+      primaryUrls.push(`https://kytario.com/playlists/${encodeURIComponent(playlistToken)}`);
+    } else {
+      for (const tok of candidateTokens) {
+        primaryUrls.push(`https://kytario.com/api/songbooks/${tok}/sections`);
+      }
+    }
+
+    const uniquePrimary = Array.from(new Set(primaryUrls));
+    if (uniquePrimary.length > 0) {
+      try {
+        return await Promise.any(
+          uniquePrimary.map((u) =>
+            racePublicRelaysForUrl(u, overallCtrl.signal, 5500, playlistToken),
+          ),
+        );
+      } catch {
+        // Fall through to concise secondary tier if primary tier failed
+      }
+    }
+
+    if (overallCtrl.signal.aborted) return null;
+
+    const secondaryUrls: string[] = [];
+    if (rawUrl && /^https?:\/\//i.test(rawUrl.trim())) {
+      secondaryUrls.push(rawUrl.trim().split('#')[0]);
+    }
+    if (token) {
+      secondaryUrls.push(`https://kytario.com/${token}`);
+      secondaryUrls.push(`https://kytario.com/api/v1/songbooks/${token}/sections`);
+    }
+
+    const uniqueSecondary = Array.from(
+      new Set(secondaryUrls.filter((u) => !uniquePrimary.includes(u))),
+    );
+    if (uniqueSecondary.length > 0) {
+      try {
+        return await Promise.any(
+          uniqueSecondary.map((u) =>
+            racePublicRelaysForUrl(u, overallCtrl.signal, 4500, playlistToken),
+          ),
+        );
+      } catch {
+        return null;
+      }
+    }
+
+    return null;
+  } finally {
+    clearTimeout(overallTimer);
+  }
+}
+
 async function enrichTitleInClient(data: any, token: string) {
-  if (!data) return;
+  if (!data || !token) return;
+
+  const existingTitle = String(data.title || data.songbookTitle || data.name || '').trim();
+  if (
+    existingTitle &&
+    existingTitle.toLowerCase() !== 'songbook' &&
+    existingTitle.toLowerCase() !== token.trim().toLowerCase()
+  ) {
+    return;
+  }
 
   const candidateTokens = Array.from(
     new Set([token, token.toLowerCase(), token.toUpperCase()].filter(Boolean)),
-  );
+  ).slice(0, 2);
 
-  // The PDF endpoint exposes the songbook's canonical title directly.
-  for (const tok of candidateTokens) {
-    try {
-      const pdfUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(tok)}/pdf`;
-      const res = await fetch(pdfUrl, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
-      if (res.ok) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 2500);
+
+  try {
+    const titleLookups: Array<Promise<string>> = [
+      ...candidateTokens.map(async (tok) => {
+        const pdfUrl = `https://kytario.com/api/songbooks/${encodeURIComponent(tok)}/pdf`;
+        const res = await fetch(pdfUrl, { method: 'HEAD', signal: ctrl.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const disposition = res.headers.get('content-disposition');
         const match =
           disposition?.match(/filename\*=UTF-8''([^;]+)/i) ||
           disposition?.match(/filename="([^"]+)"/i);
-        if (match?.[1]) {
-          const clean = sanitizeExtractedHeading(
-            decodeURIComponent(match[1]).replace(/\.pdf$/i, ''),
-            tok,
-          );
-          if (clean) {
-            data.title = clean;
-            data.name = clean;
-            data.songbookTitle = clean;
-            return;
+        if (!match?.[1]) throw new Error('No filename');
+        const clean = sanitizeExtractedHeading(
+          decodeURIComponent(match[1]).replace(/\.pdf$/i, ''),
+          tok,
+        );
+        if (!clean) throw new Error('Generic title');
+        return clean;
+      }),
+      ...candidateTokens.flatMap((tok) => [
+        `https://kytario.com/${encodeURIComponent(tok)}`,
+        `https://kytario.com/${encodeURIComponent(tok)}/index-1`,
+      ]).flatMap((pageUrl) => [
+        (async () => {
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
+          const response = await fetch(proxyUrl, { signal: ctrl.signal });
+          if (!response.ok) throw new Error('HTTP error');
+          const wrapper = await response.json();
+          if (typeof wrapper?.contents !== 'string') throw new Error('Empty HTML');
+          if (
+            typeof wrapper.status?.url === 'string' &&
+            !isPageForKytarioToken(wrapper.status.url, token)
+          ) {
+            throw new Error('Redirected away');
           }
-        }
-      }
-    } catch {
-      // Fall back to the exact public songbook pages below.
-    }
-  }
+          const heading = extractProjectHeadingFromHtml(wrapper.contents, token);
+          if (!heading) throw new Error('No heading');
+          return heading;
+        })(),
+      ]),
+    ];
 
-  const urls = candidateTokens.flatMap((tok) => [
-    `https://kytario.com/${encodeURIComponent(tok)}`,
-    `https://kytario.com/${encodeURIComponent(tok)}/index-1`,
-  ]);
-  const pages = await Promise.all(
-    urls.map(async (pageUrl) => {
-      try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
-        const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(4000) });
-        if (!response.ok) return null;
-        const wrapper = await response.json();
-        if (typeof wrapper?.contents !== 'string') return null;
-        if (
-          typeof wrapper.status?.url === 'string' &&
-          !isPageForKytarioToken(wrapper.status.url, token)
-        ) {
-          return null;
-        }
-        return extractProjectHeadingFromHtml(wrapper.contents, token);
-      } catch {
-        return null;
-      }
-    }),
-  );
-  const title = pages.find(Boolean);
-  if (title) {
-    data.title = title;
-    data.name = title;
-    data.songbookTitle = title;
+    const resolvedTitle = await Promise.any(titleLookups);
+    if (resolvedTitle) {
+      data.title = resolvedTitle;
+      data.name = resolvedTitle;
+      data.songbookTitle = resolvedTitle;
+    }
+  } catch {
+    // Ignore title enrichment timeouts / failures so import completes immediately
+  } finally {
+    ctrl.abort();
+    clearTimeout(timer);
   }
 }
 
@@ -987,7 +1017,15 @@ export function setStoredProxyUrl(url: string): void {
   }
 }
 
-export async function fetchSongbookFromKytario(url: string): Promise<any> {
+export interface KytarioFetchStage {
+  title: string;
+  subtitle: string;
+}
+
+export async function fetchSongbookFromKytario(
+  url: string,
+  onStageChange?: (stage: KytarioFetchStage) => void,
+): Promise<any> {
   let cleanUrl = cleanKytarioUrl(url);
   let token = extractKytarioSlug(cleanUrl);
   const configuredProxyUrl = getStoredProxyUrl();
@@ -1009,22 +1047,16 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
         `https://kytario.com/cs/projekty/${token}`,
         `https://kytario.com/projects/${token}`,
       ];
-      let projectContents = '';
-      for (const pageUrl of pageUrls) {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
-        try {
-          const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(6000) });
-          if (res.ok) {
-            const wrapper = await res.json();
-            if (wrapper && wrapper.contents) {
-              projectContents = wrapper.contents;
-              break;
-            }
-          }
-        } catch {
-          // Try next project page variant
-        }
-      }
+      const projectContents = await Promise.any(
+        pageUrls.map(async (pageUrl) => {
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
+          const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4500) });
+          if (!res.ok) throw new Error('HTTP error');
+          const wrapper = await res.json();
+          if (!wrapper?.contents) throw new Error('Empty');
+          return String(wrapper.contents);
+        }),
+      ).catch(() => '');
       if (projectContents) {
         const songbooks = extractSongbookTokensFromProjectHtml(projectContents);
         if (songbooks.length > 0) {
@@ -1056,9 +1088,15 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
         proxyUrl = `${proxyBase.replace(/\/+$/, '')}/${encodeURIComponent(targetParam)}?url=${encodeURIComponent(url)}&token=${encodeURIComponent(token || '')}${playlistToken ? `&playlist=${encodeURIComponent(playlistToken)}` : ''}`;
       }
 
-      const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(25000) });
+      const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(14000) });
       if (response.ok) {
-        const data = await response.json();
+        const rawText = await response.text();
+        let data: any = null;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          throw new Error('Proxy returned non-JSON response');
+        }
         if (data && hasSongsPayload(data)) {
           const resolvedToken =
             data.urlToken ||
@@ -1102,18 +1140,26 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
       }
     } catch (err: any) {
       if (err instanceof KytarioFetchError) throw err;
-      console.warn(
-        'Configured Kytario proxy not available, attempting client-side fallback strategies:',
+      console.info(
+        'Configured Kytario proxy unavailable, switching to browser fallback relays:',
         err?.message,
       );
     }
   }
 
-  // Next, try client-side direct access and public CORS proxies
+  // Next, try client-side direct access and public CORS proxies in parallel
   if (token || cleanUrl) {
     try {
-      const clientData = await fetchViaPublicProxies(token, cleanUrl);
+      onStageChange?.({
+        title: 'Trying direct & relay mirrors...',
+        subtitle: 'Connecting via browser CORS relays...',
+      });
+      const clientData = await fetchViaPublicProxies(token, cleanUrl, playlistToken);
       if (clientData) {
+        onStageChange?.({
+          title: 'Reading webpage metadata...',
+          subtitle: 'Finalizing songbook name & details...',
+        });
         await enrichTitleInClient(clientData, token);
         const resolvedToken =
           clientData.urlToken ||
@@ -1140,7 +1186,7 @@ export async function fetchSongbookFromKytario(url: string): Promise<any> {
         return clientData;
       }
     } catch (clientErr: any) {
-      console.warn('Client-side proxy fetch encountered error:', clientErr?.message);
+      console.info('Client-side relay fallback finished without payload:', clientErr?.message);
     }
   }
 

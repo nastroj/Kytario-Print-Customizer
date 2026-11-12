@@ -48,6 +48,7 @@ interface SongbookPreviewProps {
   isSongNavOpen?: boolean;
   setIsSongNavOpen?: (open: boolean | ((prev: boolean) => boolean)) => void;
   onOpenManageSongs?: () => void;
+  onPreviewReady?: () => void;
 }
 
 const ZOOM_STEPS = [0.25, 0.35, 0.5, 0.65, 0.75, 0.9, 1.0, 1.15, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0];
@@ -394,8 +395,8 @@ const SongPagesList = memo(function SongPagesList({
               }}
             >
               {/* Page Header */}
-              {tocPage.isFirstPage ? (
-                <div className="text-center shrink-0" style={{ marginBottom: '12px' }}>
+              <div className="text-center shrink-0" style={{ marginBottom: '10px' }}>
+                {tocPage.isFirstPage ? (
                   <h1
                     className="font-bold uppercase tracking-tight toc-title-header truncate px-2"
                     style={{
@@ -406,64 +407,19 @@ const SongPagesList = memo(function SongPagesList({
                   >
                     {title}
                   </h1>
-                  <p
-                    className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
-                    style={{
-                      marginTop: '2px',
-                      lineHeight: '16px',
-                      color: getDisplayColor(settings.tocPageColor || '#71717a'),
-                    }}
-                  >
-                    <span>
-                      Table of Contents
-                      {tocPages.length > 1 ? ` • Page 1 of ${tocPages.length}` : ''}
-                    </span>
-                    <span
-                      className="print:hidden normal-case font-normal text-[11px]"
-                      style={{ opacity: 0.8 }}
-                    >
-                      • tap to jump
-                    </span>
-                  </p>
-                </div>
-              ) : (
-                <div
-                  className="text-center border-b border-black/5 shrink-0"
-                  style={{ marginBottom: '10px', paddingBottom: '4px' }}
-                >
+                ) : (
                   <h2
                     className="font-bold uppercase tracking-tight toc-title-header truncate px-2"
                     style={{
                       color: getDisplayColor(settings.titleColor),
-                      fontSize: `${Math.round(safeTitleSize * 0.85)}px`,
+                      fontSize: `${Math.round(safeTitleSize * 1.15)}px`,
                       lineHeight: 1.2,
                     }}
                   >
-                    {title}{' '}
-                    <span className="text-zinc-400 font-normal text-xs normal-case">
-                      (continued)
-                    </span>
+                    {title}
                   </h2>
-                  <p
-                    className="text-xs uppercase tracking-wider font-medium flex items-center justify-center gap-1.5 select-none"
-                    style={{
-                      marginTop: '2px',
-                      lineHeight: '16px',
-                      color: getDisplayColor(settings.tocPageColor || '#71717a'),
-                    }}
-                  >
-                    <span>
-                      Table of Contents • Page {tocPage.pageIndex} of {tocPages.length}
-                    </span>
-                    <span
-                      className="print:hidden normal-case font-normal text-[11px]"
-                      style={{ opacity: 0.8 }}
-                    >
-                      • tap to jump
-                    </span>
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Columns of Song Titles (CSS Grid for balanced, unclipped columns) */}
               <div
@@ -1109,7 +1065,17 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   isSongNavOpen: propsIsSongNavOpen,
   setIsSongNavOpen: propsSetSongNavOpen,
   onOpenManageSongs,
+  onPreviewReady,
 }) => {
+  const onPreviewReadyRef = useRef(onPreviewReady);
+  onPreviewReadyRef.current = onPreviewReady;
+
+  useEffect(() => {
+    const rafId = requestAnimationFrame(() => {
+      onPreviewReadyRef.current?.();
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [data]);
   const songs = useMemo(() => {
     if (!data) return [];
     return data.songs || data.items || data.songbookSongs?.map((i: any) => i.song) || [];
@@ -1578,22 +1544,15 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
       settings.tocGroupDividers !== false;
     const dividerTotalHeight = 7; // 1px border + 3px marginTop + 3px marginBottom
 
-    // Page 1 Header exact height
-    const headerHeightP1 = Math.ceil(Math.round(safeTitleSize * 1.15) * 1.2) + 36;
-
-    // Subsequent Pages Header exact height
-    const headerHeightSubsequent = Math.ceil(Math.round(safeTitleSize * 0.85) * 1.2) + 37;
+    // Unified ToC header exact height across all pages (title + 10px bottom margin)
+    const headerHeight = Math.ceil(Math.round(safeTitleSize * 1.15) * 1.2) + 10;
 
     // Minimal safety buffer (2px) to handle sub-pixel rounding without artificially inflating the margin
     const bottomSafetyBuffer = 2;
 
-    const availableContentHeightP1 = Math.max(
+    const availableContentHeight = Math.max(
       80,
-      basePxHeight - paddingTotalY - headerHeightP1 - bottomSafetyBuffer,
-    );
-    const availableContentHeightSubsequent = Math.max(
-      80,
-      basePxHeight - paddingTotalY - headerHeightSubsequent - bottomSafetyBuffer,
+      basePxHeight - paddingTotalY - headerHeight - bottomSafetyBuffer,
     );
 
     const pages: TocPage[] = [];
@@ -1603,7 +1562,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
     while (offset < totalItems) {
       const isFirst = pageNum === 1;
-      const availH = isFirst ? availableContentHeightP1 : availableContentHeightSubsequent;
+      const availH = availableContentHeight;
       const remaining = totalItems - offset;
 
       // Start testing from theoretical max down to 1
@@ -2050,14 +2009,26 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative print:h-auto print:min-h-0 print:overflow-visible print:block print:static">
-      {/* Floating Status Pill when Songbook is Updating (Prominent Black Oval) */}
+      {/* Blurred & Locked Centered Overlay when Preview Layout is Updating (above all toasts/toolbars) */}
       {isUpdatingLayout && (
         <div
-          id="preview-updating-status-pill"
-          className="absolute top-4 left-1/2 -translate-x-1/2 z-50 print:hidden flex items-center gap-3 bg-zinc-950/95 text-white px-6 py-2.5 rounded-full shadow-2xl border border-zinc-700/80 backdrop-blur-md animate-in fade-in slide-in-from-top-2 text-sm font-semibold select-none pointer-events-none"
+          id="preview-updating-overlay"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          className="fixed inset-0 z-[150] bg-zinc-900/25 backdrop-blur-sm flex items-center justify-center p-4 print:hidden select-none pointer-events-auto animate-in fade-in duration-150"
         >
-          <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
-          <span>Updating preview...</span>
+          <div className="bg-white/95 rounded-2xl shadow-2xl border border-black/10 px-6 py-4 flex items-center gap-3.5 backdrop-blur-md">
+            <Loader2 className="w-5 h-5 text-amber-500 animate-spin shrink-0" />
+            <div className="flex flex-col text-left">
+              <span className="text-sm font-bold text-zinc-900 leading-tight">
+                Updating preview...
+              </span>
+              <span className="text-xs text-zinc-500 mt-0.5 leading-tight">
+                Recalculating page layouts
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2084,7 +2055,7 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
         <div
           ref={printableRef}
           id="songbook-printable-area"
-          className={`songbook-print-root ${isPrinting ? 'is-printing-mode' : ''} animate-in fade-in duration-200 min-w-fit flex flex-col ${shouldCenter ? 'items-center' : 'items-start pl-4 sm:pl-8'} print:block print:h-auto print:min-h-0 print:w-full print:static print:overflow-visible print:m-0 print:p-0 ${isUpdatingLayout ? 'opacity-80' : 'opacity-100'}`}
+          className={`songbook-print-root ${isPrinting ? 'is-printing-mode' : ''} animate-in fade-in duration-200 min-w-fit flex flex-col ${shouldCenter ? 'items-center' : 'items-start pl-4 sm:pl-8'} print:block print:h-auto print:min-h-0 print:w-full print:static print:overflow-visible print:m-0 print:p-0`}
         >
           <SongPagesList
             songs={songs}

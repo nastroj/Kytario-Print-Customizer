@@ -56,9 +56,8 @@ export const SongbookSkeleton: React.FC<SongbookSkeletonProps> = ({
           }}
         >
           {/* Header Skeleton */}
-          <div className="mb-6 text-center animate-pulse flex flex-col items-center">
-            <div className="h-7 w-64 bg-zinc-300/80 rounded-lg mb-2.5" />
-            <div className="h-3 w-36 bg-zinc-200/80 rounded-full" />
+          <div className="mb-4 text-center animate-pulse flex flex-col items-center">
+            <div className="h-7 w-64 bg-zinc-300/80 rounded-lg" />
           </div>
 
           {/* Table of Contents Columns Skeleton */}

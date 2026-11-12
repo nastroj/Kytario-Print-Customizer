@@ -302,3 +302,189 @@ export function getCachedSongbookMeta(): Promise<CachedSongbookMeta | null> {
 export function resetCachedSongbookMetaCache(): void {
   cachedSongbookMetaPromise = null;
 }
+
+const OFFLINE_LIBRARY_INDEX_KEY = 'offlineSongbooksIndex';
+const OFFLINE_SONGBOOK_KEY_PREFIX = 'offlineSongbook:';
+const MAX_OFFLINE_SONGBOOKS = 15;
+
+export interface OfflineSongbookSummary {
+  id: string;
+  title: string;
+  songCount: number;
+  lastOpenedAt: number;
+  urlToken?: string;
+  url?: string;
+  shortUrl?: string;
+}
+
+function getSongbookStorageId(songbook: any): string {
+  const token =
+    typeof songbook?.urlToken === 'string' && songbook.urlToken.trim()
+      ? songbook.urlToken.trim().toLowerCase()
+      : typeof songbook?.slug === 'string' && songbook.slug.trim()
+        ? songbook.slug.trim().toLowerCase()
+        : '';
+  if (token) {
+    const urlStr = typeof songbook?.url === 'string' ? songbook.url : '';
+    const playlistMatch = urlStr.match(/[?&]playlist=([^&#]+)/i);
+    if (playlistMatch?.[1]) {
+      return `kytario:${token}:pl:${decodeURIComponent(playlistMatch[1]).toLowerCase()}`;
+    }
+    return `kytario:${token}`;
+  }
+
+  const shortUrl =
+    typeof songbook?.shortUrl === 'string' && songbook.shortUrl.trim()
+      ? songbook.shortUrl.trim().toLowerCase()
+      : '';
+  if (shortUrl) return `url:${shortUrl}`;
+
+  const rawTitle =
+    typeof songbook?.title === 'string' && songbook.title.trim()
+      ? songbook.title.trim()
+      : typeof songbook?.name === 'string' && songbook.name.trim()
+        ? songbook.name.trim()
+        : 'untitled-songbook';
+  const normalizedTitle = rawTitle
+    .toLowerCase()
+    .replace(/[^a-z0-9čďěňřšťůúýž]+/gi, '-')
+    .replace(/^-+|-+$/g, '');
+  return `local:${normalizedTitle || 'songbook'}`;
+}
+
+function buildOfflineSummary(songbook: any, id: string): OfflineSongbookSummary {
+  const songs = songbook?.songs || songbook?.items || [];
+  const title =
+    typeof songbook?.title === 'string' && songbook.title.trim()
+      ? songbook.title.trim()
+      : typeof songbook?.name === 'string' && songbook.name.trim()
+        ? songbook.name.trim()
+        : 'Untitled Songbook';
+  return {
+    id,
+    title,
+    songCount: Array.isArray(songs) ? songs.length : 0,
+    lastOpenedAt: Date.now(),
+    urlToken: typeof songbook?.urlToken === 'string' ? songbook.urlToken : undefined,
+    url: typeof songbook?.url === 'string' ? songbook.url : undefined,
+    shortUrl: typeof songbook?.shortUrl === 'string' ? songbook.shortUrl : undefined,
+  };
+}
+
+/**
+ * Save a songbook into the persistent IndexedDB offline library so all
+ * previously opened songbooks remain accessible without network connectivity.
+ */
+export async function saveSongbookToOfflineLibrary(
+  songbook: any,
+): Promise<OfflineSongbookSummary[]> {
+  if (!songbook || !(songbook.songs || songbook.items || songbook.sections)) {
+    return listOfflineSongbooks();
+  }
+
+  const id = getSongbookStorageId(songbook);
+  const summary = buildOfflineSummary(songbook, id);
+  const payloadOk = await idbSet(`${OFFLINE_SONGBOOK_KEY_PREFIX}${id}`, songbook);
+  if (!payloadOk) {
+    return listOfflineSongbooks();
+  }
+
+  const existing = (await idbGet<OfflineSongbookSummary[]>(OFFLINE_LIBRARY_INDEX_KEY)) || [];
+  const filtered = existing.filter((entry) => entry && entry.id !== id);
+  const updated = [summary, ...filtered];
+
+  // Evict oldest entries beyond MAX_OFFLINE_SONGBOOKS
+  const evicted = updated.slice(MAX_OFFLINE_SONGBOOKS);
+  const kept = updated.slice(0, MAX_OFFLINE_SONGBOOKS);
+
+  await idbSet(OFFLINE_LIBRARY_INDEX_KEY, kept);
+  for (const oldItem of evicted) {
+    if (oldItem?.id) {
+      await idbDelete(`${OFFLINE_SONGBOOK_KEY_PREFIX}${oldItem.id}`);
+    }
+  }
+
+  return kept;
+}
+
+/**
+ * List all previously opened songbooks stored offline in IndexedDB.
+ * Migrates the legacy single `cachedSongbook` entry if the library index is empty.
+ */
+export async function listOfflineSongbooks(): Promise<OfflineSongbookSummary[]> {
+  const existing = await idbGet<OfflineSongbookSummary[]>(OFFLINE_LIBRARY_INDEX_KEY);
+  if (Array.isArray(existing) && existing.length > 0) {
+    return [...existing].sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0));
+  }
+
+  // Seed library from legacy single cached songbook if present
+  const legacy = await loadCachedSongbookFromStorage();
+  if (legacy) {
+    return saveSongbookToOfflineLibrary(legacy);
+  }
+
+  return [];
+}
+
+/**
+ * Load a specific previously opened songbook payload from IndexedDB by its summary ID.
+ */
+export async function loadOfflineSongbookById(id: string): Promise<any | null> {
+  if (!id) return null;
+  const data = await idbGet<any>(`${OFFLINE_SONGBOOK_KEY_PREFIX}${id}`);
+  if (data && (data.songs || data.items || data.sections)) {
+    return data;
+  }
+  return null;
+}
+
+/**
+ * Find a previously opened songbook in offline storage matching a Kytario URL or slug.
+ */
+export async function findOfflineSongbookByQuery(query: string): Promise<any | null> {
+  const trimmed = (query || '').trim().toLowerCase();
+  if (!trimmed) return null;
+
+  const normalizedQuery = trimmed
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, '')
+    .replace(/\/index(?:-\d+)?\/?(?=[?#]|$)/i, '')
+    .replace(/\/+$/, '');
+
+  const list = await listOfflineSongbooks();
+  const match = list.find((entry) => {
+    const token = entry.urlToken?.toLowerCase();
+    const shortUrl = entry.shortUrl?.toLowerCase().replace(/\/+$/, '');
+    const fullUrl = entry.url
+      ?.toLowerCase()
+      .replace(/^https?:\/\//i, '')
+      .replace(/^www\./i, '')
+      .replace(/\/+$/, '');
+    if (token && (normalizedQuery === token || normalizedQuery.endsWith(`/${token}`))) {
+      return true;
+    }
+    if (shortUrl && normalizedQuery === shortUrl) {
+      return true;
+    }
+    if (fullUrl && normalizedQuery === fullUrl) {
+      return true;
+    }
+    return false;
+  });
+
+  if (!match) return null;
+  return loadOfflineSongbookById(match.id);
+}
+
+/**
+ * Remove a songbook from the IndexedDB offline library.
+ */
+export async function removeOfflineSongbook(id: string): Promise<OfflineSongbookSummary[]> {
+  if (!id) return listOfflineSongbooks();
+  await idbDelete(`${OFFLINE_SONGBOOK_KEY_PREFIX}${id}`);
+  const existing = (await idbGet<OfflineSongbookSummary[]>(OFFLINE_LIBRARY_INDEX_KEY)) || [];
+  const next = existing.filter((entry) => entry && entry.id !== id);
+  await idbSet(OFFLINE_LIBRARY_INDEX_KEY, next);
+  return next;
+}
+
