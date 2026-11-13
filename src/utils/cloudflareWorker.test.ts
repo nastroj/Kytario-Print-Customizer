@@ -134,4 +134,39 @@ describe('Kytario Cloudflare Worker', () => {
     expect(data.title).toBe('PRO RADOST - Večerní');
     expect(data.songs).toHaveLength(1);
   });
+
+  it('extracts title from locale-redirected HTML metadata when HEAD /pdf fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith('/api/songbooks/bodg/sections')) {
+          return new Response(JSON.stringify({ songbookSongs: [{ song: { name: 'Song' } }] }));
+        }
+        if (url.endsWith('/api/songbooks/bodg/pdf') && init?.method === 'HEAD') {
+          return new Response('Forbidden', { status: 403 });
+        }
+        if (url === 'https://kytario.com/cs/bodg') {
+          const res = new Response(
+            '<html><head><title>Zpěvník PRO RADOST | Kytario</title><meta name="twitter:title" content="Zpěvník PRO RADOST | Kytario"/></head><body></body></html>',
+            { status: 200 },
+          );
+          Object.defineProperty(res, 'url', { value: 'https://kytario.com/cs/bodg' });
+          return res;
+        }
+        return new Response('Not found', { status: 404 });
+      }),
+    );
+
+    const request = new Request(
+      'https://worker.example/api/proxy/kytario/bodg?url=https%3A%2F%2Fkytario.com%2Fcs%2Fbodg&token=bodg',
+      { headers: { Origin: 'https://nastroj.github.io' } },
+    );
+    const response = await kytarioWorker.fetch(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.title).toBe('PRO RADOST');
+    expect(response.headers.get('Cache-Control')).not.toBe('no-store');
+  });
 });
