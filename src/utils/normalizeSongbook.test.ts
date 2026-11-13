@@ -25,6 +25,22 @@ describe('songbook metadata normalization', () => {
     expect(data.shortUrl).toBe('kytario.com/resolved-book');
   });
 
+  it('does not duplicate API songs when a cached songbook is normalized again', () => {
+    const firstLoad = normalizeSongbookData({
+      title: 'Cached book',
+      songbookSongs: [
+        { song: { id: 1, title: 'First song', content: 'First lyrics' } },
+        { song: { id: 2, title: 'Second song', content: 'Second lyrics' } },
+      ],
+    });
+
+    const reopened = normalizeSongbookData(firstLoad);
+
+    expect(firstLoad.songs).toHaveLength(2);
+    expect(reopened.songs).toHaveLength(2);
+    expect(reopened.songs?.map((song) => song.title)).toEqual(['First song', 'Second song']);
+  });
+
   it('prefers the requested book heading over song metadata in the page', () => {
     const html = `
       <meta property="og:title" content="Unrelated song | Kytario">

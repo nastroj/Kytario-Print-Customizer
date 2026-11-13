@@ -75,7 +75,13 @@ export function normalizeSongbookData(raw: RawSongbookLike, rawJsonText?: string
   const existingSlug = rawRec && typeof rawRec.slug === 'string' && rawRec.slug.trim() ? rawRec.slug.trim() : '';
   const existingUrlToken = rawRec && typeof rawRec.urlToken === 'string' && rawRec.urlToken.trim() ? rawRec.urlToken.trim() : '';
 
-  const songs = extractSongsFromAny(raw);
+  // Normalized songbooks retain some original API fields for metadata. If
+  // `songs` is already present, it is the canonical list; traversing the raw
+  // aliases as well (for example `songbookSongs`) would duplicate entries.
+  const songs =
+    rawRec && Array.isArray(rawRec.songs) && rawRec.songs.length > 0
+      ? extractSongsFromAny(rawRec.songs)
+      : extractSongsFromAny(raw);
   const urlInfo = extractSongbookUrlAndSlug(raw, rawJsonText);
   const urlToken =
     existingUrlToken ||
