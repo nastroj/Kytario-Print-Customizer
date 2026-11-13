@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: kytario-print-customizer
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DISABLE_HMR
+        value: 'true'

@@ -17,6 +17,9 @@
     "url": "https://github.com/nastroj/Kytario-Print-Customizer.git"
   },
   "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node server.ts",

@@ -140,7 +140,7 @@ The repository includes a continuous deployment workflow in `.github/workflows/d
 
 ### Kytario URL Imports on GitHub Pages
 
-GitHub Pages is static hosting, so it cannot run the Express proxy used by local development. Public CORS relays are best-effort and can be slow or unavailable. For reliable one-click URL imports, deploy the included `cloudflare-worker.js` and configure the GitHub Actions variable `VITE_KYTARIO_PROXY_URL` to the Worker endpoint, for example `https://<worker>.<account>.workers.dev/api/proxy/kytario`, then rerun the Pages deployment. The Worker resolves project URLs, fetches the canonical songbook data and title, and only allows the configured site origins. Without a hosted proxy, use the JSON paste/import option when browser CORS blocks direct access.
+GitHub Pages is static hosting, so it cannot run the Express proxy used by local development. Public CORS relays are best-effort and can be slow or unavailable. For reliable one-click URL imports (including `?playlist=` and `/playlists/` links), deploy the included `cloudflare-worker.js` and configure the GitHub Actions variable `VITE_KYTARIO_PROXY_URL` to the Worker endpoint, for example `https://<worker>.<account>.workers.dev/api/proxy/kytario`, then rerun the Pages deployment. The Worker resolves project URLs and playlists, fetches the canonical songbook data and title, and only allows the configured site origins. Without a hosted proxy, use the JSON paste/import option when browser CORS blocks direct access.
 
 The Worker allows the project's GitHub Pages origin and localhost by default. If you use a custom site domain, set its origin in the Worker environment variable `ALLOWED_ORIGINS` (comma-separated).
 
@@ -173,6 +173,23 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
         - Value: `https://kytario-proxy.<your-subdomain>.workers.dev`
      6. Re-run or trigger the **Deploy to GitHub Pages** workflow.
    - Alternatively, you can paste the proxy URL directly into the app UI under **Optional: Configure Cloudflare Worker Proxy** without needing to re-deploy!
+
+---
+
+## ☁️ Render Full-Stack Deployment (No Cloudflare Worker Needed)
+
+Because this project includes `server.ts` (Express serving both the built app and `/api/proxy/kytario`), you can deploy the entire app to [Render](https://render.com) using the included [`render.yaml`](render.yaml) Blueprint:
+
+1. Push your repository to GitHub (`render.yaml` and `engines.node >= 22.18.0` in `package.json` are ready out of the box).
+2. In the [Render Dashboard](https://dashboard.render.com), click **New +** > **Blueprint** (or **Web Service**), connect your GitHub repository, and deploy.
+3. If configuring a **Web Service** manually instead of using the Blueprint:
+   - **Runtime:** `Node`
+   - **Build Command:** `npm ci --include=dev && npm run build`
+   - **Start Command:** `npm start`
+   - **Health Check Path:** `/health`
+   - **Environment Variables:** `NODE_ENV=production`, `DISABLE_HMR=true`
+
+> **Note:** Render's free tier spins down after ~15 minutes of inactivity (causing a 30–50s wake-up delay on the first request), after which URL imports, songbook titles, and playlists run at full server-side speed.
 
 ---
 
