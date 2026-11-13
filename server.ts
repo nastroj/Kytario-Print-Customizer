@@ -172,6 +172,11 @@ async function createServer() {
       'print',
       'songs',
       'song',
+      'skladba',
+      'project',
+      'projects',
+      'projekty',
+      'projekt',
       'edit',
       'view',
       'share',
@@ -196,6 +201,9 @@ async function createServer() {
       'projects',
       'projekty',
       'projekt',
+      'song',
+      'songs',
+      'skladba',
       'shared',
     ]);
 
@@ -561,9 +569,170 @@ async function createServer() {
     return null;
   }
 
-  function extractSongbookTokensFromProjectHtml(html: string): { token: string; name: string }[] {
+  const NON_SONGBOOK_ROUTE_SEGMENTS = new Set([
+    'cs',
+    'sk',
+    'en',
+    'de',
+    'pl',
+    'api',
+    '_next',
+    'static',
+    'assets',
+    'images',
+    'img',
+    'fonts',
+    'icons',
+    'favicon',
+    'manifest',
+    'robots',
+    'sitemap',
+    'songbook',
+    'songbooks',
+    'zpevnik',
+    'zpevniky',
+    'pisnicka',
+    'pisnicky',
+    'song',
+    'songs',
+    'skladba',
+    'skladby',
+    'project',
+    'projects',
+    'projekt',
+    'projekty',
+    'playlist',
+    'playlists',
+    'playlisty',
+    'login',
+    'logout',
+    'register',
+    'signup',
+    'signin',
+    'auth',
+    'account',
+    'profile',
+    'user',
+    'users',
+    'settings',
+    'about',
+    'o-nas',
+    'contact',
+    'kontakt',
+    'faq',
+    'help',
+    'napoveda',
+    'pricing',
+    'cenik',
+    'terms',
+    'privacy',
+    'gdpr',
+    'podminky',
+    'cookies',
+    'blog',
+    'search',
+    'hledat',
+    'download',
+    'export',
+    'print',
+    'share',
+    'shared',
+    'create',
+    'new',
+    'edit',
+    'admin',
+    'dashboard',
+    'feedback',
+    'support',
+    'podpora',
+    'features',
+    'funkce',
+    'changelog',
+    'novinky',
+    'tutorial',
+    'guide',
+    'navod',
+    'kategorie',
+    'categories',
+    'explore',
+    'prozkoumat',
+    'discover',
+    'objevit',
+    'library',
+    'knihovna',
+    'my-songbooks',
+    'moje-zpevniky',
+    'home',
+    'domu',
+  ]);
+
+  const EXPLICIT_SONGBOOK_PATH_PREFIXES = new Set([
+    'songbook',
+    'songbooks',
+    'zpevnik',
+    'zpevniky',
+  ]);
+
+  const GENERIC_LINK_LABELS = new Set([
+    'open',
+    'view',
+    'detail',
+    'details',
+    'more',
+    'otevrit',
+    'otevřít',
+    'zobrazit',
+    'vice',
+    'více',
+    'songbook',
+    'zpěvník',
+    'zpevnik',
+  ]);
+
+  function extractLinkDisplayName(attrs: string, innerHtml: string): string {
+    const headingMatch = innerHtml.match(
+      /<(?:h[1-6]|strong)\b[^>]*>([\s\S]*?)<\/(?:h[1-6]|strong)>/i,
+    );
+    const rawInner = (headingMatch ? headingMatch[1] : innerHtml)
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    let text = decodeHtmlEntities(rawInner);
+    if (!text) {
+      const attrMatch = attrs.match(/(?:aria-label|title)=["']([^"']+)["']/i);
+      if (attrMatch?.[1]) text = decodeHtmlEntities(attrMatch[1]).replace(/\s+/g, ' ').trim();
+    }
+    if (!text || text.length > 140 || GENERIC_LINK_LABELS.has(text.toLowerCase())) {
+      return '';
+    }
+    return text;
+  }
+
+  function extractSongbookTokensFromProjectHtml(
+    html: string,
+    projectSlug = '',
+  ): { token: string; name: string; url: string }[] {
     if (typeof html !== 'string') return [];
-    const results: { token: string; name: string }[] = [];
+
+    const byToken = new Map<string, { token: string; name: string; url: string }>();
+    const upsert = (token: string, name: string, url: string) => {
+      const cleanTok = String(token || '').trim();
+      if (!cleanTok || !/^[a-zA-Z0-9_-]{2,}$/.test(cleanTok)) return;
+      if (projectSlug && cleanTok.toLowerCase() === projectSlug.trim().toLowerCase()) return;
+      const key = cleanTok.toLowerCase();
+      const cleanName = String(name || '').trim();
+      const canonicalUrl = url || `https://kytario.com/${encodeURIComponent(cleanTok)}`;
+      const existing = byToken.get(key);
+      if (!existing) {
+        byToken.set(key, { token: cleanTok, name: cleanName, url: canonicalUrl });
+      } else if (!existing.name && cleanName) {
+        byToken.set(key, {
+          token: existing.token,
+          name: cleanName,
+          url: existing.url || canonicalUrl,
+        });
+      }
+    };
 
     let idx = html.indexOf('"songbooks":[');
     let isEscaped = false;
@@ -592,10 +761,12 @@ async function createServer() {
         if (Array.isArray(arr)) {
           for (const item of arr) {
             if (item && item.urlToken) {
-              results.push({
-                token: String(item.urlToken),
-                name: String(item.name || item.title || 'Songbook'),
-              });
+              const tok = String(item.urlToken);
+              upsert(
+                tok,
+                String(item.name || item.title || ''),
+                `https://kytario.com/${encodeURIComponent(tok)}`,
+              );
             }
           }
         }
@@ -603,37 +774,124 @@ async function createServer() {
         const matches = slice.matchAll(/"urlToken"\s*:\s*"([^"]+)"/g);
         for (const m of matches) {
           if (m[1]) {
-            results.push({ token: m[1], name: 'Songbook' });
+            upsert(m[1], '', `https://kytario.com/${encodeURIComponent(m[1])}`);
           }
         }
       }
     }
 
-    // Fallback: collect songbook tokens referenced by links in the HTML. Generic
-    // "Songbook" names are only used as a last resort so that any real name found
-    // elsewhere (e.g. in the embedded JSON payload) wins during de-duplication.
-    const linkRegex =
-      /\/(?:songbooks?|zpevnik|zpevniky|pisnicky|projekty|projects|project|shared)\/([a-zA-Z0-9_\-]+)/gi;
-    let m;
-    while ((m = linkRegex.exec(html)) !== null) {
-      const tok = m[1];
-      if (tok && tok !== 'cs' && tok !== 'en' && tok !== 'sk' && tok !== 'de') {
-        results.push({ token: tok, name: '' });
+    // Parse <a href="..."> songbook links inside project body content (ignoring header/nav/footer chrome)
+    const contentHtml = html.replace(
+      /<(script|style|header|nav|footer)\b[^>]*>[\s\S]*?<\/\1>/gi,
+      ' ',
+    );
+
+    for (const match of contentHtml.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+      const attrs = match[1] || '';
+      const innerHtml = match[2] || '';
+      const hrefMatch = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+      const href = (hrefMatch?.[1] || hrefMatch?.[2] || '').trim();
+      if (!href || href.startsWith('#') || /^(?:mailto:|tel:|javascript:)/i.test(href)) {
+        continue;
       }
+
+      let parsed: URL;
+      try {
+        parsed = new URL(href, 'https://kytario.com');
+      } catch {
+        continue;
+      }
+
+      const host = parsed.hostname.toLowerCase();
+      if (host !== 'kytario.com' && host !== 'www.kytario.com') continue;
+      if (/\.[a-z0-9]{2,5}$/i.test(parsed.pathname)) continue;
+
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      if (segments.length > 0 && /^index(?:-\d+)?$/i.test(segments[segments.length - 1])) {
+        segments.pop();
+      }
+      if (segments.length > 0 && ['cs', 'sk', 'en', 'de', 'pl'].includes(segments[0].toLowerCase())) {
+        segments.shift();
+      }
+
+      let candidateToken = '';
+      if (
+        segments.length === 2 &&
+        EXPLICIT_SONGBOOK_PATH_PREFIXES.has(segments[0].toLowerCase())
+      ) {
+        candidateToken = segments[1];
+      } else if (
+        segments.length === 1 &&
+        !NON_SONGBOOK_ROUTE_SEGMENTS.has(segments[0].toLowerCase())
+      ) {
+        candidateToken = segments[0];
+      }
+
+      if (!candidateToken || NON_SONGBOOK_ROUTE_SEGMENTS.has(candidateToken.toLowerCase())) {
+        continue;
+      }
+
+      const displayName = extractLinkDisplayName(attrs, innerHtml);
+      upsert(candidateToken, displayName, `https://kytario.com${parsed.pathname}${parsed.search}`);
     }
 
-    const byToken = new Map<string, string>();
-    for (const r of results) {
-      const existing = byToken.get(r.token);
-      if (existing === undefined || (!existing && r.name)) {
-        byToken.set(r.token, r.name);
-      }
-    }
-
-    return Array.from(byToken.entries()).map(([token, name]) => ({
-      token,
-      name: name || 'Songbook',
+    return Array.from(byToken.values()).map((entry) => ({
+      ...entry,
+      name: entry.name || entry.token,
     }));
+  }
+
+  async function fetchProjectSongbooksList(
+    projectSlug: string,
+    explicitUrl: string | undefined,
+    parentSignal: AbortSignal,
+  ): Promise<{
+    songbooks: { token: string; name: string; url: string }[];
+    projectTitle: string;
+    projectUrl: string;
+  } | null> {
+    if (!projectSlug || parentSignal.aborted) return null;
+    const projCtrl = new AbortController();
+    const onParentAbort = () => projCtrl.abort();
+    parentSignal.addEventListener('abort', onParentAbort, { once: true });
+    try {
+      const projectWebpages = Array.from(
+        new Set([
+          ...(explicitUrl && /^https?:\/\//i.test(explicitUrl) ? [explicitUrl.split('#')[0]] : []),
+          `https://kytario.com/projects/${encodeURIComponent(projectSlug)}`,
+          `https://kytario.com/cs/projekty/${encodeURIComponent(projectSlug)}`,
+          `https://kytario.com/sk/projekty/${encodeURIComponent(projectSlug)}`,
+          `https://kytario.com/en/projects/${encodeURIComponent(projectSlug)}`,
+        ]),
+      );
+      return await Promise.any(
+        projectWebpages.map(async (pUrl) => {
+          const pres = await axios.get(pUrl, {
+            timeout: 4500,
+            signal: projCtrl.signal,
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            },
+          });
+          if (typeof pres.data !== 'string') throw new Error('Non-HTML');
+          const projectSongbooks = extractSongbookTokensFromProjectHtml(pres.data, projectSlug);
+          if (projectSongbooks.length === 0) throw new Error('No songbooks');
+          const projectTitle = extractTitleFromHtml(pres.data, projectSlug) || projectSlug;
+          projCtrl.abort();
+          return {
+            songbooks: projectSongbooks,
+            projectTitle,
+            projectUrl: pres.request?.res?.responseUrl || pUrl,
+          };
+        }),
+      );
+    } catch {
+      return null;
+    } finally {
+      parentSignal.removeEventListener('abort', onParentAbort);
+    }
   }
 
   async function fetchFirstTitle(
@@ -1069,50 +1327,37 @@ async function createServer() {
         }
       }
 
-      // 1. Resolve project to its underlying first songbook if it is an explicit project page route
-      const isProjectUrl = /(?:^|\/)(?:cs|en|sk|de)?\/?(?:projekty|projects)\/([^\/\?#]+)/i.test(
+      // 1. Resolve project to its songbooks if it is an explicit project page route
+      const isProjectUrl = /(?:^|\/)(?:cs|en|sk|de|pl)?\/?(?:projekty|projects)\/([^\/\?#]+)/i.test(
         rawInput,
       );
       let projectSongbookName: string | null = null;
       if (isProjectUrl && token && !routeController.signal.aborted) {
-        const projCtrl = new AbortController();
-        const onRouteAbort = () => projCtrl.abort();
-        routeController.signal.addEventListener('abort', onRouteAbort, { once: true });
-        try {
-          console.log(`[Proxy] Resolving project token/URL "${token}" to find songbooks...`);
-          const projectWebpages = Array.from(
-            new Set([
-              ...(rawInput && /^https?:\/\//i.test(rawInput) ? [rawInput.split('#')[0]] : []),
-              `https://kytario.com/cs/projekty/${token}`,
-              `https://kytario.com/projects/${token}`,
-              `https://kytario.com/sk/projekty/${token}`,
-              `https://kytario.com/en/projects/${token}`,
-            ]),
-          );
-          const resolvedProject = await Promise.any(
-            projectWebpages.map(async (pUrl) => {
-              const pres = await axios.get(pUrl, {
-                timeout: 4500,
-                signal: projCtrl.signal,
+        console.log(`[Proxy] Resolving project token/URL "${token}" to find songbooks...`);
+        const projectInfo = await fetchProjectSongbooksList(
+          token,
+          rawInput,
+          routeController.signal,
+        );
+        if (projectInfo) {
+          if (projectInfo.songbooks.length > 1) {
+            if (!res.headersSent) {
+              return res.json({
+                requiresSelection: true,
+                projectSlug: token,
+                projectTitle: projectInfo.projectTitle,
+                projectUrl: projectInfo.projectUrl,
+                songbooks: projectInfo.songbooks,
               });
-              if (typeof pres.data !== 'string') throw new Error('Non-HTML');
-              const projectSongbooks = extractSongbookTokensFromProjectHtml(pres.data);
-              if (projectSongbooks.length === 0) throw new Error('No songbooks');
-              projCtrl.abort();
-              return projectSongbooks[0];
-            }),
-          );
-          if (resolvedProject) {
-            console.log(
-              `[Proxy] Successfully resolved project "${token}" to songbook "${resolvedProject.token}" (${resolvedProject.name})`,
-            );
-            token = resolvedProject.token;
-            projectSongbookName = resolvedProject.name || null;
+            }
+            return;
           }
-        } catch (e: any) {
-          console.log('[Proxy] Project resolution fallback skipped:', e?.message || 'Timeout');
-        } finally {
-          routeController.signal.removeEventListener('abort', onRouteAbort);
+          const only = projectInfo.songbooks[0];
+          console.log(
+            `[Proxy] Successfully resolved project "${token}" to songbook "${only.token}" (${only.name})`,
+          );
+          token = only.token;
+          projectSongbookName = only.name || null;
         }
       }
 
@@ -1173,6 +1418,48 @@ async function createServer() {
           result = secondaryResult;
         } else if (secondaryResult?.lastError) {
           result = secondaryResult;
+        }
+      }
+
+      // If kytario.com/<token> does not exist, try kytario.com/projects/<token>
+      if (!result?.data && !isProjectUrl && !playlistToken && token && !routeController.signal.aborted) {
+        const fallbackProject = await fetchProjectSongbooksList(
+          token,
+          undefined,
+          routeController.signal,
+        );
+        if (fallbackProject) {
+          if (fallbackProject.songbooks.length > 1) {
+            if (!res.headersSent) {
+              return res.json({
+                requiresSelection: true,
+                projectSlug: token,
+                projectTitle: fallbackProject.projectTitle,
+                projectUrl: fallbackProject.projectUrl,
+                songbooks: fallbackProject.songbooks,
+              });
+            }
+            return;
+          }
+          const only = fallbackProject.songbooks[0];
+          token = only.token;
+          projectSongbookName = only.name || null;
+          const [resolvedPayload, resolvedWebTitle] = await Promise.all([
+            raceSongbookEndpoints(
+              [`https://kytario.com/api/songbooks/${only.token}/sections`],
+              routeController.signal,
+              4500,
+            ),
+            fetchKytarioWebpageTitle(only.token, only.url, routeController.signal).catch(() => null),
+          ]);
+          if (resolvedPayload?.data) {
+            result = resolvedPayload;
+            if (resolvedWebTitle) {
+              result.data.title = resolvedWebTitle;
+              result.data.name = resolvedWebTitle;
+              result.data.songbookTitle = resolvedWebTitle;
+            }
+          }
         }
       }
 

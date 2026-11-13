@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchSongbookFromKytario, extractTitleFromHtml } from './api';
+import {
+  fetchSongbookFromKytario,
+  extractTitleFromHtml,
+  extractSongbookTokensFromProjectHtml,
+  isProjectSongbookSelection,
+} from './api';
 import { normalizeSongbookData } from './normalizeSongbook';
 
 afterEach(() => {
@@ -109,5 +114,51 @@ describe('resolved songbook URL import metadata', () => {
     expect(data.urlToken).toBe('bodg');
     expect(stageUpdates.length).toBeGreaterThan(0);
   });
-});
 
+  it('extracts songbook anchor links from project HTML while ignoring site navigation', () => {
+    const html = `
+      <html>
+        <header><nav><a href="/login">Login</a><a href="/cs/projekty">Projekty</a></nav></header>
+        <main>
+          <a href="/cs/bodg"><h3>PRO RADOST</h3></a>
+          <a href="/songbooks/druhy/index-1">Druhý zpěvník</a>
+          <a href="/cs/projekty/muj-projekt">Self</a>
+        </main>
+        <footer><a href="/privacy">Privacy</a></footer>
+      </html>
+    `;
+
+    const songbooks = extractSongbookTokensFromProjectHtml(html, 'muj-projekt');
+    expect(songbooks).toEqual([
+      { token: 'bodg', name: 'PRO RADOST', url: 'https://kytario.com/cs/bodg' },
+      { token: 'druhy', name: 'Druhý zpěvník', url: 'https://kytario.com/songbooks/druhy/index-1' },
+    ]);
+  });
+
+  it('passes through multi-songbook selection responses from the proxy', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              requiresSelection: true,
+              projectSlug: 'my-band',
+              projectTitle: 'My Band',
+              songbooks: [
+                { token: 'bodg', name: 'PRO RADOST', url: 'https://kytario.com/bodg' },
+                { token: 'tabor', name: 'Táborák', url: 'https://kytario.com/tabor' },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const result = await fetchSongbookFromKytario('my-band');
+    expect(isProjectSongbookSelection(result)).toBe(true);
+    if (isProjectSongbookSelection(result)) {
+      expect(result.songbooks).toHaveLength(2);
+    }
+  });
+});

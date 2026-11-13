@@ -1,16 +1,23 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.9.4  
+**Version:** 1.9.5  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.9.4 is ready for sync and GitHub Pages deployment. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.9.5 is ready for sync and GitHub Pages deployment. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
 
 ---
 
-## 🌟 What's New in v1.9.4
+## 🌟 What's New in v1.9.5
+
+- **Project Page Songbook Discovery & Chooser Modal**: When `kytario.com/<token>` does not exist or a `/projects/<token>` URL is imported, scans the project page's songbook links (even without embedded JSON) and opens a selection dialog when multiple songbooks are found.
+- **Playlist Support (`?playlist=` & `/playlists/<token>`)**: Full playlist extraction, ordering, capo, transposition merging, and combined titles across the Cloudflare Worker, Express proxy, and client relays.
+- **Extended Locale & Route Title Extraction + Diagnostics**: Accepts locale-redirected routes (`/songbook(s)/`, `/zpevnik(y)/`, `/pisnicka|pisnicky/`, `/projects/`, `/cs/projekty/`, `/song/`, `/cs/skladba/`), prevents caching fallback `"Songbook"` titles, and adds `?debug=1` / `X-Kytario-Title-*` diagnostics.
+- **Complete "Forget" Cache Eviction & Render Blueprint**: Clicking **Forget** removes the songbook from localStorage, IndexedDB, and the offline library; added `render.yaml` for 1-click full-stack Render deployment.
+
+### Carried over from v1.9.4
 
 - **Compact Uniform Table of Contents**: Removed the redundant subtitle line and `(continued)` label, and made ToC pages 2+ use the same header size and clean headerless-line layout as page 1 in both preview and PDF export.
 - **Book Mode Default & Streamlined Controls**: Enabled double-sided Book Mode by default, simplified quick-jump and settings notices, and added a blurred blocking `"Updating preview..."` overlay plus accurate `"Almost ready..."` import progress.
@@ -150,7 +157,7 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 
    ```bash
    git add .
-   git commit -m "chore: release v1.9.4"
+   git commit -m "chore: release v1.9.5"
    git push origin main
    ```
 
@@ -207,6 +214,13 @@ Because this project includes `server.ts` (Express serving both the built app an
 ---
 
 ## 📝 Release History
+
+### v1.9.5 (2026-11-13)
+
+- **Project Fallback Discovery & Songbook Picker**: Tries `kytario.com/<token>` first and falls back to `kytario.com/projects/<token>` (plus localized `/projekty/` routes), parses songbook anchor links directly from project HTML without requiring embedded JSON, and prompts with a chooser modal when a project lists multiple songbooks.
+- **Playlist Support**: Added `?playlist=` and `/playlists/<token>` resolution with song ordering, capo/transposition overrides, and combined titles in `cloudflare-worker.js`, `server.ts`, and client fallback relays.
+- **Extended Route Prefix & Title Extraction Fixes**: Updated `isPageForKytarioToken` and slug parsing for `/songbook(s)/`, `/zpevnik(y)/`, `/pisnicka|pisnicky/`, `/projects/`, `/cs/projekty/`, `/song/`, and `/cs/skladba/`, added Next.js HTML metadata title fallbacks and `no-store` caching on fallback titles, plus `X-Kytario-Title-Source` / `X-Kytario-Title-Debug` / `?debug=1` diagnostics.
+- **Cache Eviction & Deployment**: Fixed **Forget** to delete cached songbooks from localStorage, IndexedDB, and the offline library; added `render.yaml` and Vite React deduplication for `qrcode`.
 
 ### v1.9.4 (2026-11-12)
 

@@ -61,6 +61,7 @@ import {
   loadCachedSongbookFromStorage,
   saveCachedSongbookToStorage,
   resetCachedSongbookMetaCache,
+  forgetCachedSongbook,
   saveSongbookToOfflineLibrary,
   listOfflineSongbooks,
   loadOfflineSongbookById,
@@ -76,6 +77,9 @@ import {
   extractKytarioSlug,
   extractPlaylistToken,
   KytarioErrorDetails,
+  ProjectSongbookChoice,
+  ProjectSongbookSelectionResult,
+  isProjectSongbookSelection,
   getStoredProxyUrl,
   setStoredProxyUrl,
 } from './utils/api';
@@ -92,6 +96,7 @@ const SongSelectionModal = lazy(() =>
   import('./components/SongSelectionModal').then((m) => ({ default: m.SongSelectionModal })),
 );
 import { ZipProjectSelectModal } from './components/ZipProjectSelectModal';
+import { ProjectSongbookSelectModal } from './components/ProjectSongbookSelectModal';
 import { ImportTabs, type ImportTabId } from './components/import/ImportTabs';
 import { UrlImportPanel } from './components/import/UrlImportPanel';
 import { PasteImportPanel } from './components/import/PasteImportPanel';
@@ -147,6 +152,7 @@ export default function App() {
     songCount: number;
   } | null>(null);
   const loadPromptDecisionRef = useRef(false);
+  const forgotCacheOnMountRef = useRef(false);
 
   const [offlineSongbooks, setOfflineSongbooks] = useState<OfflineSongbookSummary[]>([]);
   const [songbookData, setSongbookData] = useState<SongbookData | null>(null);
@@ -158,7 +164,7 @@ export default function App() {
     if (!songbookData) {
       getCachedSongbookMeta()
         .then((meta) => {
-          if (mounted && meta) {
+          if (mounted && !forgotCacheOnMountRef.current && meta) {
             setLastSongbookMeta(meta);
           }
         })
@@ -166,7 +172,7 @@ export default function App() {
     }
     listOfflineSongbooks()
       .then((list) => {
-        if (mounted) {
+        if (mounted && !forgotCacheOnMountRef.current) {
           setOfflineSongbooks(list);
         }
       })
@@ -189,6 +195,8 @@ export default function App() {
     result: ZipParseResult;
     fileName: string;
   } | null>(null);
+  const [pendingProjectSelection, setPendingProjectSelection] =
+    useState<ProjectSongbookSelectionResult | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSongNavOpen, setIsSongNavOpen] = useState(false);
   const [isSongSelectionOpen, setIsSongSelectionOpen] = useState(false);
@@ -350,16 +358,21 @@ export default function App() {
     setShowLoadLastPrompt(false);
   }, []);
 
-  // Forget the remembered songbook entirely (clear cache + metadata)
-  const handleForgetLastSongbook = useCallback(() => {
+  // Forget the remembered songbook entirely (clear localStorage, IndexedDB, PDF, and offline library caches)
+  const handleForgetLastSongbook = useCallback(async () => {
     loadPromptDecisionRef.current = true;
+    forgotCacheOnMountRef.current = true;
+    const cachedSnapshot = pendingCachedSongbook;
+    const metaSnapshot = lastSongbookMeta;
     setShowLoadLastPrompt(false);
     setPendingCachedSongbook(null);
     setLastSongbookMeta(null);
-    saveCachedSongbookToStorage(null).catch(() => {});
-    resetCachedSongbookMetaCache();
-    showToast('Remembered songbook forgotten', 'info');
-  }, [showToast]);
+    try {
+      const nextOffline = await forgetCachedSongbook(cachedSnapshot, metaSnapshot);
+      setOfflineSongbooks(nextOffline);
+    } catch {}
+    showToast('Remembered songbook deleted from cache', 'info');
+  }, [lastSongbookMeta, pendingCachedSongbook, showToast]);
 
   const handleOpenOfflineSongbook = useCallback(
     async (id: string) => {
@@ -1101,16 +1114,19 @@ export default function App() {
     }, 50);
   };
 
-  const handleKytarioUrlSubmit = async () => {
-    const cleanUrl = cleanKytarioUrl(kytarioUrl);
+  const handleKytarioUrlSubmit = async (overrideUrl?: string | unknown) => {
+    const rawInputUrl = typeof overrideUrl === 'string' ? overrideUrl : kytarioUrl;
+    const cleanUrl = cleanKytarioUrl(rawInputUrl);
     if (!cleanUrl) {
       setErrorMessage('Please enter a Kytario URL first.');
       setKytarioFetchDetails(null);
       return;
     }
 
-    const hasPlaylist = /[?&]playlist=/i.test(kytarioUrl);
-    if (!hasPlaylist && cleanUrl !== kytarioUrl) {
+    const hasPlaylist = /[?&]playlist=/i.test(rawInputUrl);
+    if (typeof overrideUrl === 'string') {
+      setKytarioUrl(hasPlaylist ? rawInputUrl : cleanUrl);
+    } else if (!hasPlaylist && cleanUrl !== kytarioUrl) {
       setKytarioUrl(cleanUrl);
     }
 
@@ -1120,7 +1136,7 @@ export default function App() {
     setWarningMessage(null);
     setIsLoadingJson(true);
 
-    const targetUrl = kytarioUrl.trim() || cleanUrl;
+    const targetUrl = rawInputUrl.trim() || cleanUrl;
 
     // Initial Stage 1: Connecting
     setLoadingStatus({
@@ -1194,6 +1210,12 @@ export default function App() {
         });
       });
       stopFetchTicker();
+
+      if (isProjectSongbookSelection(rawData)) {
+        setIsLoadingJson(false);
+        setPendingProjectSelection(rawData);
+        return;
+      }
 
       // Keep the token resolved by the proxy (e.g. project -> songbook) over the
       // token from the original link, which may refer to a different route.
@@ -1320,6 +1342,23 @@ export default function App() {
           onSelectProject={(slug, onlyPublic) => handleSelectZipProject(slug, onlyPublic)}
           onCancel={() => {
             setPendingZipResult(null);
+            setIsLoadingJson(false);
+          }}
+        />
+
+        {/* Songbook Selection Modal for Multi-Songbook Kytario Projects */}
+        <ProjectSongbookSelectModal
+          isOpen={pendingProjectSelection !== null}
+          projectTitle={pendingProjectSelection?.projectTitle || ''}
+          projectSlug={pendingProjectSelection?.projectSlug || ''}
+          songbooks={pendingProjectSelection?.songbooks || []}
+          onSelectSongbook={(songbook: ProjectSongbookChoice) => {
+            const nextUrl = songbook.url || `https://kytario.com/${songbook.token}`;
+            setPendingProjectSelection(null);
+            void handleKytarioUrlSubmit(nextUrl);
+          }}
+          onCancel={() => {
+            setPendingProjectSelection(null);
             setIsLoadingJson(false);
           }}
         />

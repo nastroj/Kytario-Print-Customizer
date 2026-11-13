@@ -1,5 +1,18 @@
 # Release Notes
 
+## v1.9.5 - 2026-11-13
+
+### Project Songbook Discovery, Playlist Support, Extended Route Title Extraction & Cache Fixes
+
+- **Project Page Songbook Discovery & Chooser Modal**: When `kytario.com/<token>` does not exist (or when opening `/projects/<token>` / `/cs/projekty/<token>`), looks up the project page, extracts songbook anchor links directly from HTML content (without requiring embedded JSON), imports single-songbook projects automatically, and opens a songbook selection modal when multiple songbooks are found.
+- **Playlist Support (`?playlist=` & `/playlists/<token>`)**: Added full playlist extraction and song merging (preserving playlist order, capo, transposition, and combined songbook/playlist title) in the Cloudflare Worker, Express proxy, and client fallback relays.
+- **Title Extraction & Locale Route Hardening**: Extended `isPageForKytarioToken` and slug parsing to support `/songbook(s)/`, `/zpevnik(y)/`, `/pisnicka|pisnicky/`, `/projects/`, `/cs/projekty/`, `/song/`, and `/cs/skladba/` after locale segments (`cs`, `sk`, `en`, `de`, `pl`); added browser `User-Agent` headers, full HTML metadata fallback (`<h1>`, `og:title`, `twitter:title`, `<title>`, JSON-LD), and `no-store` Cache-Control on unresolved fallback titles.
+- **Title Fetch Diagnostics**: Added `X-Kytario-Title-Source` and `X-Kytario-Title-Debug` CORS-exposed headers, `?debug=1` probe breakdown in the Cloudflare Worker, and `[Kytario Title Debug]` DevTools console logging on fallback titles.
+- **Complete "Forget" Cache Cleanup**: Updated the "Forget" action on the remembered-songbook prompt to clear `localStorage`, IndexedDB cached songbook/PDF entries, and the corresponding IndexedDB offline library record.
+- **Deployment & Build Stability**: Added `render.yaml` Blueprint with `engines.node >= 22.18.0` for Render deployment and deduplicated React in Vite (`resolve.dedupe` & `optimizeDeps.include`).
+
+---
+
 ## v1.9.4 - 2026-11-12
 
 ### Compact Uniform Table of Contents, Full Offline PWA, Parallel URL Imports & Preview UX

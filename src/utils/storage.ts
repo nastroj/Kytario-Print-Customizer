@@ -317,7 +317,7 @@ export interface OfflineSongbookSummary {
   shortUrl?: string;
 }
 
-function getSongbookStorageId(songbook: any): string {
+export function getSongbookStorageId(songbook: any): string {
   const token =
     typeof songbook?.urlToken === 'string' && songbook.urlToken.trim()
       ? songbook.urlToken.trim().toLowerCase()
@@ -483,8 +483,57 @@ export async function removeOfflineSongbook(id: string): Promise<OfflineSongbook
   if (!id) return listOfflineSongbooks();
   await idbDelete(`${OFFLINE_SONGBOOK_KEY_PREFIX}${id}`);
   const existing = (await idbGet<OfflineSongbookSummary[]>(OFFLINE_LIBRARY_INDEX_KEY)) || [];
-  const next = existing.filter((entry) => entry && entry.id !== id);
+  const next = existing
+    .filter((entry) => entry && entry.id !== id)
+    .sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0));
   await idbSet(OFFLINE_LIBRARY_INDEX_KEY, next);
   return next;
+}
+
+/**
+ * Fully forgets the remembered last songbook from all local caches:
+ * - localStorage (`kytario-cached-songbook`)
+ * - IndexedDB (`cachedSongbook` and `cachedPdf`)
+ * - IndexedDB offline songbook library (`offlineSongbooksIndex` + `offlineSongbook:<id>`)
+ */
+export async function forgetCachedSongbook(
+  cachedSongbook?: any,
+  fallbackMeta?: { title: string; songCount: number } | null,
+): Promise<OfflineSongbookSummary[]> {
+  const target = cachedSongbook || (await loadCachedSongbookFromStorage());
+  await saveCachedSongbookToStorage(null);
+  await saveGeneratedPdfToStorage(null);
+  resetCachedSongbookMetaCache();
+
+  const existing = (await idbGet<OfflineSongbookSummary[]>(OFFLINE_LIBRARY_INDEX_KEY)) || [];
+  if (target) {
+    const id = getSongbookStorageId(target);
+    await idbDelete(`${OFFLINE_SONGBOOK_KEY_PREFIX}${id}`);
+    const next = existing
+      .filter((entry) => entry && entry.id !== id)
+      .sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0));
+    await idbSet(OFFLINE_LIBRARY_INDEX_KEY, next);
+    return next;
+  }
+
+  if (fallbackMeta) {
+    const sorted = [...existing].sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0));
+    const matchIdx = sorted.findIndex(
+      (entry) =>
+        entry &&
+        entry.title === fallbackMeta.title &&
+        entry.songCount === fallbackMeta.songCount,
+    );
+    if (matchIdx >= 0) {
+      const [removed] = sorted.splice(matchIdx, 1);
+      if (removed?.id) {
+        await idbDelete(`${OFFLINE_SONGBOOK_KEY_PREFIX}${removed.id}`);
+      }
+      await idbSet(OFFLINE_LIBRARY_INDEX_KEY, sorted);
+      return sorted;
+    }
+  }
+
+  return [...existing].sort((a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0));
 }
 

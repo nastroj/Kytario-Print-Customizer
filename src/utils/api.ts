@@ -8,6 +8,29 @@ export interface KytarioErrorDetails {
   webUrl: string;
 }
 
+export interface ProjectSongbookChoice {
+  token: string;
+  name: string;
+  url: string;
+}
+
+export interface ProjectSongbookSelectionResult {
+  requiresSelection: true;
+  projectSlug: string;
+  projectTitle?: string;
+  projectUrl?: string;
+  songbooks: ProjectSongbookChoice[];
+}
+
+export function isProjectSongbookSelection(data: any): data is ProjectSongbookSelectionResult {
+  return Boolean(
+    data &&
+      data.requiresSelection === true &&
+      Array.isArray(data.songbooks) &&
+      data.songbooks.length > 0,
+  );
+}
+
 export class KytarioFetchError extends Error {
   details?: KytarioErrorDetails;
   constructor(message: string, details?: KytarioErrorDetails) {
@@ -141,6 +164,11 @@ export function extractKytarioSlug(input: string): string {
     'print',
     'songs',
     'song',
+    'skladba',
+    'project',
+    'projects',
+    'projekty',
+    'projekt',
     'edit',
     'view',
     'share',
@@ -165,6 +193,9 @@ export function extractKytarioSlug(input: string): string {
     'projects',
     'projekty',
     'projekt',
+    'song',
+    'songs',
+    'skladba',
     'shared',
   ]);
 
@@ -767,7 +798,7 @@ async function enrichTitleInClient(data: any, token: string) {
   ).slice(0, 2);
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 2500);
+  const timer = setTimeout(() => ctrl.abort(), 4000);
 
   try {
     const titleLookups: Array<Promise<string>> = [
@@ -780,7 +811,7 @@ async function enrichTitleInClient(data: any, token: string) {
           disposition?.match(/filename\*=UTF-8''([^;]+)/i) ||
           disposition?.match(/filename="([^"]+)"/i);
         if (!match?.[1]) throw new Error('No filename');
-        const clean = sanitizeExtractedHeading(
+        const clean = sanitizeExtractedTitle(
           decodeURIComponent(match[1]).replace(/\.pdf$/i, ''),
           tok,
         );
@@ -789,6 +820,7 @@ async function enrichTitleInClient(data: any, token: string) {
       }),
       ...candidateTokens.flatMap((tok) => [
         `https://kytario.com/${encodeURIComponent(tok)}`,
+        `https://kytario.com/cs/${encodeURIComponent(tok)}`,
         `https://kytario.com/${encodeURIComponent(tok)}/index-1`,
       ]).flatMap((pageUrl) => [
         (async () => {
@@ -803,9 +835,18 @@ async function enrichTitleInClient(data: any, token: string) {
           ) {
             throw new Error('Redirected away');
           }
-          const heading = extractProjectHeadingFromHtml(wrapper.contents, token);
-          if (!heading) throw new Error('No heading');
-          return heading;
+          const extracted = extractTitleFromHtml(wrapper.contents, token);
+          if (!extracted) throw new Error('No title');
+          return extracted;
+        })(),
+        (async () => {
+          const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(pageUrl)}`;
+          const response = await fetch(proxyUrl, { signal: ctrl.signal });
+          if (!response.ok) throw new Error('HTTP error');
+          const html = await response.text();
+          const extracted = extractTitleFromHtml(html, token);
+          if (!extracted) throw new Error('No title');
+          return extracted;
         })(),
       ]),
     ];
@@ -832,7 +873,26 @@ function isPageForKytarioToken(pageUrl: string, token: string): boolean {
     }
 
     const segments = parsedUrl.pathname.split('/').filter(Boolean);
-    if (['cs', 'sk', 'en'].includes(segments[0]?.toLowerCase())) segments.shift();
+    if (['cs', 'sk', 'en', 'de', 'pl'].includes(segments[0]?.toLowerCase())) segments.shift();
+    if (
+      [
+        'songbook',
+        'songbooks',
+        'zpevnik',
+        'zpevniky',
+        'pisnicka',
+        'pisnicky',
+        'project',
+        'projects',
+        'projekty',
+        'projekt',
+        'song',
+        'songs',
+        'skladba',
+      ].includes(segments[0]?.toLowerCase())
+    ) {
+      segments.shift();
+    }
     return (
       segments[0]?.toLowerCase() === token.toLowerCase() &&
       (segments.length === 1 || /^index(?:-\d+)?$/i.test(segments[1]))
@@ -842,11 +902,170 @@ function isPageForKytarioToken(pageUrl: string, token: string): boolean {
   }
 }
 
+const NON_SONGBOOK_ROUTE_SEGMENTS = new Set([
+  'cs',
+  'sk',
+  'en',
+  'de',
+  'pl',
+  'api',
+  '_next',
+  'static',
+  'assets',
+  'images',
+  'img',
+  'fonts',
+  'icons',
+  'favicon',
+  'manifest',
+  'robots',
+  'sitemap',
+  'songbook',
+  'songbooks',
+  'zpevnik',
+  'zpevniky',
+  'pisnicka',
+  'pisnicky',
+  'song',
+  'songs',
+  'skladba',
+  'skladby',
+  'project',
+  'projects',
+  'projekt',
+  'projekty',
+  'playlist',
+  'playlists',
+  'playlisty',
+  'login',
+  'logout',
+  'register',
+  'signup',
+  'signin',
+  'auth',
+  'account',
+  'profile',
+  'user',
+  'users',
+  'settings',
+  'about',
+  'o-nas',
+  'contact',
+  'kontakt',
+  'faq',
+  'help',
+  'napoveda',
+  'pricing',
+  'cenik',
+  'terms',
+  'privacy',
+  'gdpr',
+  'podminky',
+  'cookies',
+  'blog',
+  'search',
+  'hledat',
+  'download',
+  'export',
+  'print',
+  'share',
+  'shared',
+  'create',
+  'new',
+  'edit',
+  'admin',
+  'dashboard',
+  'feedback',
+  'support',
+  'podpora',
+  'features',
+  'funkce',
+  'changelog',
+  'novinky',
+  'tutorial',
+  'guide',
+  'navod',
+  'kategorie',
+  'categories',
+  'explore',
+  'prozkoumat',
+  'discover',
+  'objevit',
+  'library',
+  'knihovna',
+  'my-songbooks',
+  'moje-zpevniky',
+  'home',
+  'domu',
+]);
+
+const EXPLICIT_SONGBOOK_PATH_PREFIXES = new Set([
+  'songbook',
+  'songbooks',
+  'zpevnik',
+  'zpevniky',
+]);
+
+const GENERIC_LINK_LABELS = new Set([
+  'open',
+  'view',
+  'detail',
+  'details',
+  'more',
+  'otevrit',
+  'otevřít',
+  'zobrazit',
+  'vice',
+  'více',
+  'songbook',
+  'zpěvník',
+  'zpevnik',
+]);
+
+function extractLinkDisplayName(attrs: string, innerHtml: string): string {
+  const headingMatch = innerHtml.match(
+    /<(?:h[1-6]|strong)\b[^>]*>([\s\S]*?)<\/(?:h[1-6]|strong)>/i,
+  );
+  const rawInner = (headingMatch ? headingMatch[1] : innerHtml)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  let text = decodeHtmlEntities(rawInner);
+  if (!text) {
+    const attrMatch = attrs.match(/(?:aria-label|title)=["']([^"']+)["']/i);
+    if (attrMatch?.[1]) text = decodeHtmlEntities(attrMatch[1]).replace(/\s+/g, ' ').trim();
+  }
+  if (!text || text.length > 140 || GENERIC_LINK_LABELS.has(text.toLowerCase())) {
+    return '';
+  }
+  return text;
+}
+
 export function extractSongbookTokensFromProjectHtml(
   html: string,
-): { token: string; name: string }[] {
+  projectSlug = '',
+): ProjectSongbookChoice[] {
   if (typeof html !== 'string') return [];
-  const results: { token: string; name: string }[] = [];
+
+  const byToken = new Map<string, ProjectSongbookChoice>();
+  const upsert = (token: string, name: string, url: string) => {
+    const cleanTok = String(token || '').trim();
+    if (!cleanTok || !/^[a-zA-Z0-9_-]{2,}$/.test(cleanTok)) return;
+    if (projectSlug && cleanTok.toLowerCase() === projectSlug.trim().toLowerCase()) return;
+    const key = cleanTok.toLowerCase();
+    const cleanName = String(name || '').trim();
+    const canonicalUrl = url || `https://kytario.com/${encodeURIComponent(cleanTok)}`;
+    const existing = byToken.get(key);
+    if (!existing) {
+      byToken.set(key, { token: cleanTok, name: cleanName, url: canonicalUrl });
+    } else if (!existing.name && cleanName) {
+      byToken.set(key, {
+        token: existing.token,
+        name: cleanName,
+        url: existing.url || canonicalUrl,
+      });
+    }
+  };
 
   let idx = html.indexOf('"songbooks":[');
   let isEscaped = false;
@@ -875,10 +1094,12 @@ export function extractSongbookTokensFromProjectHtml(
       if (Array.isArray(arr)) {
         for (const item of arr) {
           if (item && item.urlToken) {
-            results.push({
-              token: String(item.urlToken),
-              name: String(item.name || item.title || 'Songbook'),
-            });
+            const tok = String(item.urlToken);
+            upsert(
+              tok,
+              String(item.name || item.title || ''),
+              `https://kytario.com/${encodeURIComponent(tok)}`,
+            );
           }
         }
       }
@@ -886,24 +1107,134 @@ export function extractSongbookTokensFromProjectHtml(
       const matches = slice.matchAll(/"urlToken"\s*:\s*"([^"]+)"/g);
       for (const m of matches) {
         if (m[1]) {
-          results.push({ token: m[1], name: 'Songbook' });
+          upsert(m[1], '', `https://kytario.com/${encodeURIComponent(m[1])}`);
         }
       }
     }
   }
 
-  const byToken = new Map<string, string>();
-  for (const r of results) {
-    const existing = byToken.get(r.token);
-    if (existing === undefined || (!existing && r.name)) {
-      byToken.set(r.token, r.name);
+  // Extract songbook anchor links from project page content (ignoring header/nav/footer chrome)
+  const contentHtml = html.replace(
+    /<(script|style|header|nav|footer)\b[^>]*>[\s\S]*?<\/\1>/gi,
+    ' ',
+  );
+
+  for (const match of contentHtml.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+    const attrs = match[1] || '';
+    const innerHtml = match[2] || '';
+    const hrefMatch = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    const href = (hrefMatch?.[1] || hrefMatch?.[2] || '').trim();
+    if (!href || href.startsWith('#') || /^(?:mailto:|tel:|javascript:)/i.test(href)) {
+      continue;
     }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(href, 'https://kytario.com');
+    } catch {
+      continue;
+    }
+
+    const host = parsed.hostname.toLowerCase();
+    if (host !== 'kytario.com' && host !== 'www.kytario.com') continue;
+    if (/\.[a-z0-9]{2,5}$/i.test(parsed.pathname)) continue;
+
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    if (segments.length > 0 && /^index(?:-\d+)?$/i.test(segments[segments.length - 1])) {
+      segments.pop();
+    }
+    if (segments.length > 0 && ['cs', 'sk', 'en', 'de', 'pl'].includes(segments[0].toLowerCase())) {
+      segments.shift();
+    }
+
+    let candidateToken = '';
+    if (
+      segments.length === 2 &&
+      EXPLICIT_SONGBOOK_PATH_PREFIXES.has(segments[0].toLowerCase())
+    ) {
+      candidateToken = segments[1];
+    } else if (
+      segments.length === 1 &&
+      !NON_SONGBOOK_ROUTE_SEGMENTS.has(segments[0].toLowerCase())
+    ) {
+      candidateToken = segments[0];
+    }
+
+    if (!candidateToken || NON_SONGBOOK_ROUTE_SEGMENTS.has(candidateToken.toLowerCase())) {
+      continue;
+    }
+
+    const displayName = extractLinkDisplayName(attrs, innerHtml);
+    upsert(candidateToken, displayName, `https://kytario.com${parsed.pathname}${parsed.search}`);
   }
 
-  return Array.from(byToken.entries()).map(([token, name]) => ({
-    token,
-    name: name || 'Songbook',
+  return Array.from(byToken.values()).map((entry) => ({
+    ...entry,
+    name: entry.name || entry.token,
   }));
+}
+
+async function fetchProjectSongbooksViaRelays(
+  projectSlug: string,
+  explicitUrl?: string,
+): Promise<{
+  songbooks: ProjectSongbookChoice[];
+  projectTitle: string;
+  projectUrl: string;
+} | null> {
+  if (!projectSlug) return null;
+  const pageUrls = Array.from(
+    new Set([
+      ...(explicitUrl && /^https?:\/\//i.test(explicitUrl) ? [explicitUrl.split('#')[0]] : []),
+      `https://kytario.com/projects/${encodeURIComponent(projectSlug)}`,
+      `https://kytario.com/cs/projekty/${encodeURIComponent(projectSlug)}`,
+      `https://kytario.com/sk/projekty/${encodeURIComponent(projectSlug)}`,
+    ]),
+  );
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5000);
+  try {
+    return await Promise.any(
+      pageUrls.flatMap((pageUrl) => [
+        (async () => {
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
+          const res = await fetch(proxyUrl, { signal: ctrl.signal });
+          if (!res.ok) throw new Error('HTTP error');
+          const wrapper = await res.json();
+          const html = typeof wrapper?.contents === 'string' ? wrapper.contents : '';
+          if (!html) throw new Error('Empty');
+          const songbooks = extractSongbookTokensFromProjectHtml(html, projectSlug);
+          if (songbooks.length === 0) throw new Error('No songbooks');
+          ctrl.abort();
+          return {
+            songbooks,
+            projectTitle: extractTitleFromHtml(html, projectSlug) || projectSlug,
+            projectUrl: wrapper?.status?.url || pageUrl,
+          };
+        })(),
+        (async () => {
+          const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(pageUrl)}`;
+          const res = await fetch(proxyUrl, { signal: ctrl.signal });
+          if (!res.ok) throw new Error('HTTP error');
+          const html = await res.text();
+          if (!html) throw new Error('Empty');
+          const songbooks = extractSongbookTokensFromProjectHtml(html, projectSlug);
+          if (songbooks.length === 0) throw new Error('No songbooks');
+          ctrl.abort();
+          return {
+            songbooks,
+            projectTitle: extractTitleFromHtml(html, projectSlug) || projectSlug,
+            projectUrl: pageUrl,
+          };
+        })(),
+      ]),
+    );
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -1038,34 +1369,26 @@ export async function fetchSongbookFromKytario(
   }
 
   // If it's an explicit project URL/token, let the client resolve it if possible (static host fallback)
-  const isProjectUrl = /(?:^|\/)(?:cs|en|sk|de)?\/?(?:projekty|projects)\/([^\/\?#]+)/i.test(
+  const isProjectUrl = /(?:^|\/)(?:cs|en|sk|de|pl)?\/?(?:projekty|projects)\/([^\/\?#]+)/i.test(
     cleanUrl,
   );
   if (isProjectUrl && token && isStaticHost && !configuredProxyUrl) {
     try {
-      const pageUrls = [
-        `https://kytario.com/cs/projekty/${token}`,
-        `https://kytario.com/projects/${token}`,
-      ];
-      const projectContents = await Promise.any(
-        pageUrls.map(async (pageUrl) => {
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pageUrl)}`;
-          const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4500) });
-          if (!res.ok) throw new Error('HTTP error');
-          const wrapper = await res.json();
-          if (!wrapper?.contents) throw new Error('Empty');
-          return String(wrapper.contents);
-        }),
-      ).catch(() => '');
-      if (projectContents) {
-        const songbooks = extractSongbookTokensFromProjectHtml(projectContents);
-        if (songbooks.length > 0) {
-          console.log(
-            `[Client] Resolved project "${token}" to songbook: "${songbooks[0].token}"`,
-          );
-          token = songbooks[0].token;
-          cleanUrl = `https://kytario.com/cs/${token}`;
-        }
+      const projectInfo = await fetchProjectSongbooksViaRelays(token, cleanUrl);
+      if (projectInfo && projectInfo.songbooks.length > 1) {
+        return {
+          requiresSelection: true,
+          projectSlug: token,
+          projectTitle: projectInfo.projectTitle,
+          projectUrl: projectInfo.projectUrl,
+          songbooks: projectInfo.songbooks,
+        };
+      }
+      if (projectInfo && projectInfo.songbooks.length === 1) {
+        const only = projectInfo.songbooks[0];
+        console.log(`[Client] Resolved project "${token}" to songbook: "${only.token}"`);
+        token = only.token;
+        cleanUrl = only.url || `https://kytario.com/cs/${token}`;
       }
     } catch (e: any) {
       console.warn('[Client] Project resolution fallback error:', e?.message);
@@ -1097,6 +1420,9 @@ export async function fetchSongbookFromKytario(
         } catch {
           throw new Error('Proxy returned non-JSON response');
         }
+        if (isProjectSongbookSelection(data)) {
+          return data;
+        }
         if (data && hasSongsPayload(data)) {
           const resolvedToken =
             data.urlToken ||
@@ -1104,6 +1430,32 @@ export async function fetchSongbookFromKytario(
             extractKytarioSlug(data.url || '') ||
             extractKytarioSlug(data.slug || '') ||
             token;
+
+          const receivedTitle = String(data.title || data.songbookTitle || data.name || '').trim();
+          const isFallbackTitle =
+            !receivedTitle ||
+            receivedTitle.toLowerCase() === 'songbook' ||
+            (resolvedToken && receivedTitle.toLowerCase() === resolvedToken.toLowerCase());
+
+          if (isFallbackTitle) {
+            const titleSource = response.headers.get('X-Kytario-Title-Source');
+            const titleDebug = response.headers.get('X-Kytario-Title-Debug');
+            console.warn('[Kytario Title Debug] Proxy returned fallback title', {
+              proxyUrl,
+              resolvedToken,
+              receivedTitle,
+              titleSource,
+              titleDebug,
+            });
+            if (resolvedToken) {
+              onStageChange?.({
+                title: 'Reading webpage metadata...',
+                subtitle: 'Retrying songbook name lookup...',
+              });
+              await enrichTitleInClient(data, resolvedToken);
+            }
+          }
+
           const canonicalUrl = resolvedToken
             ? `https://kytario.com/${resolvedToken}${
                 playlistToken ? `?playlist=${encodeURIComponent(playlistToken)}` : ''
@@ -1154,7 +1506,32 @@ export async function fetchSongbookFromKytario(
         title: 'Trying direct & relay mirrors...',
         subtitle: 'Connecting via browser CORS relays...',
       });
-      const clientData = await fetchViaPublicProxies(token, cleanUrl, playlistToken);
+      let clientData = await fetchViaPublicProxies(token, cleanUrl, playlistToken);
+
+      // If kytario.com/<token> wasn't found via public relays, check kytario.com/projects/<token>
+      if (!clientData && token && !isProjectUrl && !playlistToken) {
+        onStageChange?.({
+          title: 'Checking Kytario project...',
+          subtitle: `Looking up kytario.com/projects/${token}...`,
+        });
+        const fallbackProject = await fetchProjectSongbooksViaRelays(token);
+        if (fallbackProject && fallbackProject.songbooks.length > 1) {
+          return {
+            requiresSelection: true,
+            projectSlug: token,
+            projectTitle: fallbackProject.projectTitle,
+            projectUrl: fallbackProject.projectUrl,
+            songbooks: fallbackProject.songbooks,
+          };
+        }
+        if (fallbackProject && fallbackProject.songbooks.length === 1) {
+          const only = fallbackProject.songbooks[0];
+          token = only.token;
+          cleanUrl = only.url || `https://kytario.com/${only.token}`;
+          clientData = await fetchViaPublicProxies(only.token, cleanUrl, playlistToken);
+        }
+      }
+
       if (clientData) {
         onStageChange?.({
           title: 'Reading webpage metadata...',
