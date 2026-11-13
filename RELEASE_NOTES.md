@@ -1,5 +1,15 @@
 # Release Notes
 
+## v1.9.6 - 2026-11-13
+
+### Windows 11–Style Color Picker & Periodic Draft Auto-Save
+
+- **Touch-Friendly Windows 11–Style Color Picker**: Replaced the native browser `<input type="color">` dialog with a custom color picker modal tailored for Android touchscreens and desktop control. Includes a 2D saturation/brightness spectrum pad with pointer capture (`touch-action: none`), full-width hue slider, Old/New split preview (tap Old to revert), editable `#HEX` input with one-tap copy, switchable `RGB` / `HSV` numeric inputs, 16 curated print-safe swatches, 8 recent colors persisted in `localStorage`, and a one-tap **Default** reset action.
+- **Expanded Android Tap Targets**: Updated typography color rows and accent color cards (`Markers`, `Verse Line`, `Refrain Line`, `Separator`, `ToC Authors`, `ToC Page Nums`) so tapping either the label or swatch opens the color picker for that element.
+- **Periodic Draft Settings Auto-Save & Crash Recovery**: Automatically saves unapplied print settings drafts to `localStorage` (`kytario-draft-settings-v2`) every 5 seconds—and immediately on tab hide, `pagehide`, or `beforeunload`—restoring unsaved changes with a recovery banner after an unexpected tab crash or reload and clearing the draft snapshot upon Apply, Save, Discard, or Reset.
+
+---
+
 ## v1.9.5 - 2026-11-13
 
 ### Project Songbook Discovery, Playlist Support, Extended Route Title Extraction & Cache Fixes

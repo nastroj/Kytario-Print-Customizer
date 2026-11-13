@@ -1,16 +1,21 @@
 # Kytario Print Customizer 🎸
 
-**Version:** 1.9.5  
+**Version:** 1.9.6  
 **License:** MIT  
 **Live Application:** [GitHub Pages](https://nastroj.github.io/Kytario-Print-Customizer/)
 
 A modern, high-performance web application designed to transform Kytario songbooks into clean, beautifully formatted, print-ready PDF collections. Features intelligent auto-scaling, customizable multi-column layouts, automatic Table of Contents generation, custom front and back covers, and background vector PDF compilation.
 
-> **Release Status:** Version 1.9.5 is ready for sync and GitHub Pages deployment. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
+> **Release Status:** Version 1.9.6 is ready for sync and GitHub Pages deployment. Pushing to the `main` branch automatically triggers the `.github/workflows/deploy.yml` workflow to build and publish the production site.
 
 ---
 
-## 🌟 What's New in v1.9.5
+## 🌟 What's New in v1.9.6
+
+- **Windows 11–Style Color Picker (Android & Desktop)**: Replaced the basic native color picker with a touch-friendly modal featuring a 2D saturation/brightness spectrum, hue rainbow bar, Old/New split preview, `#HEX` + switchable `RGB` / `HSV` numeric fields, print-safe presets, recent colors, and one-tap **Default** reset.
+- **Periodic Draft Auto-Save & Crash Recovery**: Automatically persists unapplied print settings drafts to `localStorage` every 5 seconds (and on tab hide / `pagehide` / `beforeunload`), restoring pending customizations with a recovery banner after unexpected crashes and clearing drafts on Apply, Save, Discard, or Reset.
+
+### Carried over from v1.9.5
 
 - **Project Page Songbook Discovery & Chooser Modal**: When `kytario.com/<token>` does not exist or a `/projects/<token>` URL is imported, scans the project page's songbook links (even without embedded JSON) and opens a selection dialog when multiple songbooks are found.
 - **Playlist Support (`?playlist=` & `/playlists/<token>`)**: Full playlist extraction, ordering, capo, transposition merging, and combined titles across the Cloudflare Worker, Express proxy, and client relays.
@@ -157,7 +162,7 @@ The Worker allows the project's GitHub Pages origin and localhost by default. If
 
    ```bash
    git add .
-   git commit -m "chore: release v1.9.5"
+   git commit -m "chore: release v1.9.6"
    git push origin main
    ```
 
@@ -214,6 +219,11 @@ Because this project includes `server.ts` (Express serving both the built app an
 ---
 
 ## 📝 Release History
+
+### v1.9.6 (2026-11-13)
+
+- **Windows 11–Style Color Picker**: Replaced the native `<input type="color">` picker with a touch-optimized modal featuring a 2D saturation/brightness spectrum, hue slider, Old/New split preview, `#HEX` + `RGB`/`HSV` inputs, curated print swatches, recent colors, and a **Default** reset button.
+- **Periodic Print Settings Draft Auto-Save**: Auto-saves unapplied draft settings to `localStorage` every 5 seconds and on tab hide/`pagehide`/`beforeunload`, restoring unsaved edits after an unexpected tab crash and cleaning up on Apply, Save, Discard, or Reset.
 
 ### v1.9.5 (2026-11-13)
 

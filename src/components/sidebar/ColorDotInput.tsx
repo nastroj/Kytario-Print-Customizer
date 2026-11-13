@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { ColorPickerModal } from './ColorPickerModal';
+import { normalizeHex } from '../../utils/colorUtils';
 
 export interface ColorDotInputProps {
   id: string;
   value: string;
   onChange: (color: string) => void;
   label?: string;
+  pickerTitle?: string;
+  defaultColor?: string;
   title?: string;
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
@@ -16,75 +20,47 @@ export const ColorDotInput = React.memo(function ColorDotInput({
   value,
   onChange,
   label,
+  pickerTitle,
+  defaultColor,
   title = 'Click to change color',
   disabled = false,
   size = 'md',
   className = '',
 }: ColorDotInputProps) {
   const [localColor, setLocalColor] = useState(value);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   useEffect(() => {
     setLocalColor(value);
   }, [value]);
 
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
-
-  const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const nextColor = e.target.value;
-    setLocalColor(nextColor);
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    debounceTimerRef.current = setTimeout(() => {
-      onChange(nextColor);
-    }, 120);
-  };
-
-  const handleBlur = () => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    if (localColor !== value) {
-      onChange(localColor);
-    }
-  };
-
   const sizeClasses = {
-    sm: 'w-6 h-6',
+    sm: 'w-7 h-7',
     md: 'w-8 h-8',
     lg: 'w-10 h-10',
   }[size];
 
+  const resolvedTitle = pickerTitle || label || title;
+  const displayHex = (normalizeHex(localColor) ?? localColor).toUpperCase();
+
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <div
-        className={`relative ${sizeClasses} rounded-full border border-black/15 shrink-0 hover:scale-110 active:scale-95 transition-transform overflow-hidden shadow-2xs ${
+      <button
+        type="button"
+        id={id}
+        disabled={disabled}
+        onClick={() => {
+          if (!disabled) setIsPickerOpen(true);
+        }}
+        className={`relative ${sizeClasses} rounded-full border border-black/15 shrink-0 hover:scale-110 active:scale-95 transition-transform shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-1 ${
           disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
         }`}
         style={{ backgroundColor: localColor }}
-        title={title}
-      >
-        <input
-          type="color"
-          id={id}
-          value={localColor}
-          disabled={disabled}
-          onChange={handleColorChange}
-          onBlur={handleBlur}
-          className="absolute opacity-0 inset-0 w-full h-full cursor-pointer disabled:cursor-not-allowed"
-          title={title}
-          aria-label={label || title}
-        />
-      </div>
+        title={`${title} (${displayHex})`}
+        aria-label={`${resolvedTitle}: ${displayHex}`}
+        aria-haspopup="dialog"
+        aria-expanded={isPickerOpen}
+      />
       {label && (
         <label
           htmlFor={id}
@@ -96,6 +72,20 @@ export const ColorDotInput = React.memo(function ColorDotInput({
           {label}
         </label>
       )}
+      <ColorPickerModal
+        isOpen={isPickerOpen}
+        title={resolvedTitle}
+        value={localColor}
+        defaultColor={defaultColor}
+        onConfirm={(nextHex) => {
+          setLocalColor(nextHex);
+          setIsPickerOpen(false);
+          if (nextHex !== value) {
+            onChange(nextHex);
+          }
+        }}
+        onCancel={() => setIsPickerOpen(false)}
+      />
     </div>
   );
 });

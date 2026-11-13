@@ -9,6 +9,8 @@ import type { PrintSettings } from '../types';
 export const STORAGE_KEYS = {
   /** Current, versioned print settings blob. */
   SETTINGS: 'kytario-print-settings-v2',
+  /** Auto-saved unapplied print settings draft for crash recovery. */
+  DRAFT_SETTINGS: 'kytario-draft-settings-v2',
   /** Cached songbook JSON (localStorage mirror of IndexedDB). */
   CACHED_SONGBBOOK: 'kytario-cached-songbook',
   /** Legacy keys — removed on startup during storage cleanup. */

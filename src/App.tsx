@@ -85,6 +85,14 @@ import {
 } from './utils/api';
 import { APP_CONFIG } from './config';
 import { DEFAULT_PRINT_SETTINGS, STORAGE_KEYS } from './config/constants';
+import {
+  DRAFT_AUTO_SAVE_INTERVAL_MS,
+  arePrintSettingsEqual,
+  clearDraftSettingsFromStorage,
+  loadDraftSettingsFromStorage,
+  sanitizePrintSettings,
+  saveDraftSettingsToStorage,
+} from './utils/draftSettingsStorage';
 import { useBackgroundPdfGenerator } from './hooks/useBackgroundPdfGenerator';
 // Modal-only components: loaded on demand so they stay out of the initial chunk.
 const BackgroundPdfProgressModal = lazy(() =>
@@ -109,30 +117,12 @@ const defaultSettings: PrintSettings = DEFAULT_PRINT_SETTINGS;
 
 /** Migrate & sanitize persisted settings; falls back to defaults on any error. */
 function getInitialSettings(): PrintSettings {
-  const baseDefaults = defaultSettings;
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    if (!saved) return baseDefaults;
-    const parsed = JSON.parse(saved);
-    if (
-      (parsed.lyricsFontSize === 14 || parsed.lyricsFontSize === 11) &&
-      (parsed.chordsFontSize === 14 || parsed.chordsFontSize === 11)
-    ) {
-      parsed.lyricsFontSize = 12;
-      parsed.chordsFontSize = 12;
-    }
-    if (typeof parsed.maxFontSizePx !== 'number') {
-      parsed.maxFontSizePx = 16;
-    }
-    if (typeof parsed.maxLineHeight !== 'number') {
-      parsed.maxLineHeight = 1.6;
-    }
-    if (typeof parsed.sectionMarginCap !== 'number') {
-      parsed.sectionMarginCap = 28;
-    }
-    return { ...baseDefaults, ...parsed, columns: 2 };
-  } catch (e) {
-    return baseDefaults;
+    if (!saved) return defaultSettings;
+    return sanitizePrintSettings(JSON.parse(saved));
+  } catch {
+    return defaultSettings;
   }
 }
 
@@ -336,6 +326,8 @@ export default function App() {
   useEffect(() => {
     if (!songbookData && lastSongbookMeta && !loadPromptDecisionRef.current) {
       setShowLoadLastPrompt(true);
+      // Preload the lazy preview chunk so clicking "Yes, Load" opens immediately
+      void import('./components/SongbookPreview');
     }
   }, [songbookData, lastSongbookMeta]);
 
@@ -343,14 +335,19 @@ export default function App() {
   const handleLoadLastSongbook = useCallback(async () => {
     loadPromptDecisionRef.current = true;
     setShowLoadLastPrompt(false);
-    const cached = pendingCachedSongbook || (await loadCachedSongbookFromStorage());
+    let cached = pendingCachedSongbook || (await loadCachedSongbookFromStorage());
+    if (!cached && offlineSongbooks.length > 0) {
+      cached = await loadOfflineSongbookById(offlineSongbooks[0].id);
+    }
     if (cached) {
-      setSongbookData(cached);
+      const normalized = normalizeSongbookData(cached);
+      setSelectedSongIds(new Set());
+      setSongbookData(normalized);
       showToast('Loaded last used songbook', 'success');
     } else {
       showToast('Saved songbook could not be loaded from cache', 'error');
     }
-  }, [pendingCachedSongbook, showToast]);
+  }, [pendingCachedSongbook, offlineSongbooks, showToast]);
 
   // Keep the prompt open on the import screen without loading the old songbook
   const handleDismissLoadLastPrompt = useCallback(() => {
@@ -406,33 +403,35 @@ export default function App() {
     [showToast],
   );
 
-  // Persist songbook changes to both IndexedDB and localStorage safely
-  const isFirstSongbookPersistRef = useRef(true);
+  // Persist songbook changes to both IndexedDB and localStorage safely.
+  // Only clear the remembered songbook cache when transitioning from a loaded
+  // songbook back to `null` (reset), never during initial mount / StrictMode re-runs.
+  const hasLoadedSongbookRef = useRef(false);
   useEffect(() => {
-    // Skip the very first run when nothing is loaded yet, so the remembered
-    // songbook cache is not wiped before the user answers the load prompt.
-    if (isFirstSongbookPersistRef.current && !songbookData) {
-      isFirstSongbookPersistRef.current = false;
+    if (songbookData === null) {
+      if (!hasLoadedSongbookRef.current) {
+        return;
+      }
+      hasLoadedSongbookRef.current = false;
+      saveCachedSongbookToStorage(null).catch(() => {});
+      resetCachedSongbookMetaCache();
       return;
     }
-    isFirstSongbookPersistRef.current = false;
 
-    const isReplacingSongbook = songbookData !== null;
+    hasLoadedSongbookRef.current = true;
     saveCachedSongbookToStorage(songbookData)
       .then((ok) => {
         // If the new songbook could not be persisted at all (e.g. QuotaExceeded),
         // make sure the stale previous songbook cache is dropped so the next
         // reload never resurrects the wrong data.
-        if (!ok && isReplacingSongbook) {
+        if (!ok) {
           saveCachedSongbookToStorage(null).catch(() => {});
         }
       })
       .catch(() => {});
-    if (songbookData) {
-      saveSongbookToOfflineLibrary(songbookData)
-        .then((list) => setOfflineSongbooks(list))
-        .catch(() => {});
-    }
+    saveSongbookToOfflineLibrary(songbookData)
+      .then((list) => setOfflineSongbooks(list))
+      .catch(() => {});
     resetCachedSongbookMetaCache();
   }, [songbookData]);
 
@@ -446,7 +445,85 @@ export default function App() {
   });
 
   const [settings, setSettings] = useState<PrintSettings>(getInitialSettings);
-  const [draftSettings, setDraftSettings] = useState<PrintSettings>(getInitialSettings);
+  const recoveredDraftInfoRef = useRef<ReturnType<typeof loadDraftSettingsFromStorage> | undefined>(
+    undefined,
+  );
+  if (recoveredDraftInfoRef.current === undefined) {
+    recoveredDraftInfoRef.current = loadDraftSettingsFromStorage(settings);
+  }
+  const [draftSettings, setDraftSettings] = useState<PrintSettings>(
+    () => recoveredDraftInfoRef.current?.draft ?? settings,
+  );
+
+  // Surface a recovery notice if an unapplied settings draft was restored after a crash/reload
+  useEffect(() => {
+    const recovered = recoveredDraftInfoRef.current;
+    if (!recovered) return;
+    const savedLabel =
+      recovered.savedAt > 0
+        ? new Date(recovered.savedAt).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : null;
+    setRecoveryNotice(
+      savedLabel
+        ? `Recovered unsaved print settings draft (auto-saved at ${savedLabel}). Open Settings to review or apply changes.`
+        : 'Recovered unsaved print settings draft from your previous session. Open Settings to review or apply changes.',
+    );
+  }, []);
+
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const draftSettingsRef = useRef(draftSettings);
+  draftSettingsRef.current = draftSettings;
+  const lastPersistedDraftJsonRef = useRef<string | null>(
+    recoveredDraftInfoRef.current ? JSON.stringify(recoveredDraftInfoRef.current.draft) : null,
+  );
+
+  // Periodic auto-save of unapplied print settings draft (every 5s + on tab hide/unload)
+  const flushDraftAutoSave = useCallback(() => {
+    const currentDraft = draftSettingsRef.current;
+    const currentApplied = settingsRef.current;
+
+    if (arePrintSettingsEqual(currentDraft, currentApplied)) {
+      if (lastPersistedDraftJsonRef.current !== null) {
+        clearDraftSettingsFromStorage();
+        lastPersistedDraftJsonRef.current = null;
+      }
+      return;
+    }
+
+    const serialized = JSON.stringify(currentDraft);
+    if (serialized === lastPersistedDraftJsonRef.current) {
+      return;
+    }
+
+    if (saveDraftSettingsToStorage(currentDraft)) {
+      lastPersistedDraftJsonRef.current = serialized;
+    }
+  }, []);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(flushDraftAutoSave, DRAFT_AUTO_SAVE_INTERVAL_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushDraftAutoSave();
+      }
+    };
+
+    window.addEventListener('pagehide', flushDraftAutoSave);
+    window.addEventListener('beforeunload', flushDraftAutoSave);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('pagehide', flushDraftAutoSave);
+      window.removeEventListener('beforeunload', flushDraftAutoSave);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [flushDraftAutoSave]);
 
   const unappliedChanges = useMemo(() => {
     return getChangedSettingsList(draftSettings, settings);
@@ -456,6 +533,9 @@ export default function App() {
 
   const handleDiscardDraftSettings = useCallback(() => {
     setDraftSettings(settings);
+    clearDraftSettingsFromStorage();
+    lastPersistedDraftJsonRef.current = null;
+    setRecoveryNotice(null);
     showToast('Pending settings changes discarded', 'info');
   }, [settings, showToast]);
 
@@ -474,8 +554,11 @@ export default function App() {
 
     try {
       localStorage.setItem(key, JSON.stringify(settingsToSave));
+      clearDraftSettingsFromStorage();
+      lastPersistedDraftJsonRef.current = null;
       setSettings(settingsToSave);
       setDraftSettings(settingsToSave);
+      setRecoveryNotice(null);
       showToast('Settings saved locally!', 'success');
     } catch (e) {
       showToast('Failed to save settings to local storage', 'error');
@@ -487,9 +570,12 @@ export default function App() {
     try {
       localStorage.removeItem(key);
     } catch (e) {}
+    clearDraftSettingsFromStorage();
+    lastPersistedDraftJsonRef.current = null;
 
     setSettings(defaultSettings);
     setDraftSettings(defaultSettings);
+    setRecoveryNotice(null);
     showToast('Settings reset to defaults', 'info');
   }, [showToast]);
 
@@ -614,6 +700,15 @@ export default function App() {
         return;
       }
 
+      // Ignore clicks inside portaled modal dialogs (e.g. Color Picker) so they don't close the Settings drawer
+      if (
+        target.closest('[data-color-picker-modal="true"]') ||
+        target.closest('[role="dialog"]') ||
+        target.closest('[role="alertdialog"]')
+      ) {
+        return;
+      }
+
       // Close Song Navigation drawer if click was outside the popover and its toggle button
       if (isSongNavOpen) {
         const isInsideSongNav =
@@ -644,6 +739,9 @@ export default function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (document.querySelector('[data-color-picker-modal="true"]')) {
+          return;
+        }
         if (isSongNavOpen) setIsSongNavOpen(false);
         if (isMobileSidebarOpen) setIsMobileSidebarOpen(false);
         if (isConfirmResetOpen) setIsConfirmResetOpen(false);
@@ -685,13 +783,16 @@ export default function App() {
       setSettings(safeSettings);
       setDraftSettings(safeSettings);
 
-      // Automatically save settings to local storage on update/apply
+      // Automatically save settings to local storage on update/apply and clear draft snapshot
       const key = STORAGE_KEYS.SETTINGS;
       try {
         localStorage.setItem(key, JSON.stringify(safeSettings));
       } catch (err) {
         console.warn('Auto-save settings error:', err);
       }
+      clearDraftSettingsFromStorage();
+      lastPersistedDraftJsonRef.current = null;
+      setRecoveryNotice(null);
 
       // 4. Keep the updating status active until layout rendering completes, then dismiss
       updateTimersRef.current.finishTimer = setTimeout(() => {

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Type, Italic, ChevronDown, ChevronRight } from 'lucide-react';
 import { PrintSettings } from '../../types';
+import { DEFAULT_PRINT_SETTINGS } from '../../config/constants';
 import { ColorDotInput } from './ColorDotInput';
 import { Stepper } from './Stepper';
 import { scrollSectionIntoView } from '../../utils/scrollHelper';
@@ -17,6 +18,7 @@ interface TypographyRowItemProps {
   label: string;
   colorTitle: string;
   color: string;
+  defaultColor?: string;
   onColorChange: (color: string) => void;
   italic: boolean;
   italicTitle: string;
@@ -35,6 +37,7 @@ const TypographyRowItem = React.memo(function TypographyRowItem({
   label,
   colorTitle,
   color,
+  defaultColor,
   onColorChange,
   italic,
   italicTitle,
@@ -52,8 +55,10 @@ const TypographyRowItem = React.memo(function TypographyRowItem({
       <ColorDotInput
         id={`color-${id}`}
         value={color}
+        defaultColor={defaultColor}
         onChange={onColorChange}
         label={label}
+        pickerTitle={label}
         title={colorTitle}
         size="sm"
         className="min-w-0"
@@ -92,6 +97,7 @@ interface AccentColorCardProps {
   id: string;
   label: string;
   color: string;
+  defaultColor?: string;
   title: string;
   onChange: (color: string) => void;
 }
@@ -100,13 +106,27 @@ const AccentColorCard = React.memo(function AccentColorCard({
   id,
   label,
   color,
+  defaultColor,
   title,
   onChange,
 }: AccentColorCardProps) {
   return (
-    <div className="p-2 bg-zinc-50 rounded-lg border border-black/5 flex items-center justify-between">
-      <span className="text-xs font-semibold text-zinc-800">{label}</span>
-      <ColorDotInput id={id} value={color} onChange={onChange} title={title} />
+    <div className="p-2 bg-zinc-50 rounded-lg border border-black/5 flex items-center justify-between gap-2">
+      <label
+        htmlFor={id}
+        className="text-xs font-semibold text-zinc-800 cursor-pointer select-none truncate flex-1 py-0.5"
+        title={title}
+      >
+        {label}
+      </label>
+      <ColorDotInput
+        id={id}
+        value={color}
+        defaultColor={defaultColor}
+        pickerTitle={label}
+        onChange={onChange}
+        title={title}
+      />
     </div>
   );
 });
@@ -203,6 +223,7 @@ export const TypographySection = React.memo(function TypographySection({
                 label="Song Title"
                 colorTitle="Change title color"
                 color={draftSettings.titleColor}
+                defaultColor={DEFAULT_PRINT_SETTINGS.titleColor}
                 onColorChange={(c) => onSettingChange('titleColor', c)}
                 italic={draftSettings.titleItalic || false}
                 italicTitle="Toggle italic style for song titles"
@@ -222,6 +243,7 @@ export const TypographySection = React.memo(function TypographySection({
                 label="Artist / Author"
                 colorTitle="Change artist color"
                 color={draftSettings.artistColor}
+                defaultColor={DEFAULT_PRINT_SETTINGS.artistColor}
                 onColorChange={(c) => onSettingChange('artistColor', c)}
                 italic={draftSettings.artistItalic || false}
                 italicTitle="Toggle italic style for artist names"
@@ -241,6 +263,7 @@ export const TypographySection = React.memo(function TypographySection({
                 label="Lyrics Text"
                 colorTitle="Change lyrics color"
                 color={draftSettings.lyricsColor}
+                defaultColor={DEFAULT_PRINT_SETTINGS.lyricsColor}
                 onColorChange={(c) => onSettingChange('lyricsColor', c)}
                 italic={draftSettings.lyricsItalic || false}
                 italicTitle="Toggle italic style for lyrics"
@@ -260,6 +283,7 @@ export const TypographySection = React.memo(function TypographySection({
                 label="Chords"
                 colorTitle="Change chords color"
                 color={draftSettings.chordsColor}
+                defaultColor={DEFAULT_PRINT_SETTINGS.chordsColor}
                 onColorChange={(c) => onSettingChange('chordsColor', c)}
                 italic={draftSettings.chordsItalic || false}
                 italicTitle="Toggle italic style for chords"
@@ -283,6 +307,7 @@ export const TypographySection = React.memo(function TypographySection({
                       label="ToC Items"
                       colorTitle="Change Table of Contents item color"
                       color={draftSettings.tocColor || '#18181b'}
+                      defaultColor={DEFAULT_PRINT_SETTINGS.tocColor}
                       onColorChange={(c) => onSettingChange('tocColor', c)}
                       italic={draftSettings.tocItalic || false}
                       italicTitle="Toggle italic style for Table of Contents items"
@@ -300,6 +325,7 @@ export const TypographySection = React.memo(function TypographySection({
                         id={`tocArtistColor-${idSuffix}`}
                         label="ToC Authors"
                         color={draftSettings.tocArtistColor || '#52525b'}
+                        defaultColor={DEFAULT_PRINT_SETTINGS.tocArtistColor}
                         title="Author/artist name color in Table of Contents"
                         onChange={(c) => onSettingChange('tocArtistColor', c)}
                       />
@@ -307,6 +333,7 @@ export const TypographySection = React.memo(function TypographySection({
                         id={`tocPageColor-${idSuffix}`}
                         label="ToC Page Nums"
                         color={draftSettings.tocPageColor || '#71717a'}
+                        defaultColor={DEFAULT_PRINT_SETTINGS.tocPageColor}
                         title="Page number and subtext color in Table of Contents"
                         onChange={(c) => onSettingChange('tocPageColor', c)}
                       />
@@ -321,6 +348,7 @@ export const TypographySection = React.memo(function TypographySection({
                     id={`markerColor-${idSuffix}`}
                     label="Markers"
                     color={draftSettings.markerColor}
+                    defaultColor={DEFAULT_PRINT_SETTINGS.markerColor}
                     title="Section markers (Verse 1, Chorus...)"
                     onChange={(c) => onSettingChange('markerColor', c)}
                   />
@@ -329,6 +357,7 @@ export const TypographySection = React.memo(function TypographySection({
                     id={`sectionLineColor-${idSuffix}`}
                     label="Verse Line"
                     color={draftSettings.sectionLineColor || '#71717a'}
+                    defaultColor={DEFAULT_PRINT_SETTINGS.sectionLineColor}
                     title="Vertical line along verses"
                     onChange={(c) => onSettingChange('sectionLineColor', c)}
                   />
@@ -337,6 +366,7 @@ export const TypographySection = React.memo(function TypographySection({
                     id={`refrainLineColor-${idSuffix}`}
                     label="Refrain Line"
                     color={draftSettings.refrainLineColor || '#18181b'}
+                    defaultColor={DEFAULT_PRINT_SETTINGS.refrainLineColor}
                     title="Vertical line along refrains / chorus"
                     onChange={(c) => onSettingChange('refrainLineColor', c)}
                   />
@@ -345,6 +375,7 @@ export const TypographySection = React.memo(function TypographySection({
                     id={`sectionSeparatorColor-${idSuffix}`}
                     label="Separator"
                     color={draftSettings.sectionSeparatorColor || '#e4e4e7'}
+                    defaultColor={DEFAULT_PRINT_SETTINGS.sectionSeparatorColor}
                     title="Horizontal line between sections"
                     onChange={(c) => onSettingChange('sectionSeparatorColor', c)}
                   />

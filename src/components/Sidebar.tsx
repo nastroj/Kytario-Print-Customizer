@@ -473,6 +473,9 @@ export const Sidebar = memo(function Sidebar({
     if (!isMobileOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (document.querySelector('[data-color-picker-modal="true"]')) {
+          return;
+        }
         if (onMobileClose) onMobileClose();
       }
     };
