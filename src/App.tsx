@@ -1801,31 +1801,32 @@ export default function App() {
 
         {/* Floating Bottom Menu - Unified Toolbar in Exact Requested Order */}
         <div
-          className="fixed left-1/2 -translate-x-1/2 z-40 w-full max-w-[calc(100vw-1rem)] flex items-center justify-center print:hidden select-none pointer-events-none px-2"
+          className="fixed left-1/2 -translate-x-1/2 z-40 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-1rem)] flex items-center justify-center print:hidden select-none pointer-events-none px-1 sm:px-2"
           style={{ bottom: 'max(0.75rem, calc(0.5rem + env(safe-area-inset-bottom, 0px)))' }}
         >
-          <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-zinc-200/80 shadow-2xl rounded-2xl p-1.5 flex flex-wrap items-center justify-center gap-1 shrink-0">
+          <div className="pointer-events-auto max-w-full bg-white/95 backdrop-blur-md border border-zinc-200/80 shadow-2xl rounded-2xl p-1 sm:p-1.5 flex flex-wrap items-center justify-center gap-0.5 sm:gap-1">
             {/* 1. Zoom Out (-) */}
             <button
               onClick={handleZoomOut}
               disabled={customZoom <= 0.25}
-              className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
+              className="w-6.5 sm:w-8 h-9 sm:h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
               title="Zoom Out"
+              aria-label="Zoom Out"
             >
-              <Minus className="w-4 h-4" />
+              <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             {/* 2. Reset Zoom */}
             <button
               onClick={handleResetZoom}
-              className="flex flex-col items-center justify-center px-1.5 sm:px-2 min-w-[2.75rem] sm:min-w-[3.25rem] h-9 sm:h-10 rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer shrink-0"
+              className="flex flex-col items-center justify-center px-1 sm:px-2 min-w-[2.15rem] sm:min-w-[3.25rem] h-9 sm:h-10 rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors cursor-pointer shrink-0"
               title="Reset Zoom to 100%"
             >
-              <span className="text-xs font-mono font-bold tracking-tight leading-tight">
+              <span className="text-[11px] sm:text-xs font-mono font-bold tracking-tight leading-tight">
                 {Math.round(activeScale * 100)}%
               </span>
-              <span className="text-[8px] font-bold text-zinc-400 flex items-center gap-0.5 leading-none mt-0.5">
-                <RotateCcw className="w-2.5 h-2.5" />
+              <span className="text-[7.5px] sm:text-[8px] font-bold text-zinc-400 flex items-center gap-0.5 leading-none mt-0.5">
+                <RotateCcw className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
                 reset
               </span>
             </button>
@@ -1835,38 +1836,41 @@ export default function App() {
               onClick={() =>
                 setZoomMode((prev) => (prev === 'fit-width' ? 'fit-page' : 'fit-width'))
               }
-              className={`flex flex-col items-center justify-center w-9 sm:w-10 h-9 sm:h-10 rounded-xl transition-colors cursor-pointer shrink-0 ${
+              className={`flex flex-col items-center justify-center w-7.5 sm:w-10 h-9 sm:h-10 rounded-xl transition-colors cursor-pointer shrink-0 ${
                 zoomMode === 'fit-width' || zoomMode === 'fit-page'
                   ? 'text-zinc-950 font-bold bg-zinc-200'
                   : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200'
               }`}
               title={zoomMode === 'fit-width' ? 'Switch to Fit Page' : 'Switch to Fit Width'}
             >
-              <Maximize2 className="w-4 h-4" />
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">Fit</span>
+              <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[8.5px] sm:text-[10px] font-bold mt-0.5 tracking-tight">
+                Fit
+              </span>
             </button>
 
             {/* 4. Zoom In (+) */}
             <button
               onClick={handleZoomIn}
               disabled={customZoom >= 3.0}
-              className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
+              className="w-6.5 sm:w-8 h-9 sm:h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 active:bg-zinc-200 text-zinc-700 hover:text-zinc-950 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer shrink-0"
               title="Zoom In"
+              aria-label="Zoom In"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             {/* Divider */}
-            <div className="w-px h-6 bg-zinc-200/80 mx-1 shrink-0" />
+            <div className="w-px h-6 bg-zinc-200/80 mx-0.5 sm:mx-1 shrink-0" />
 
             {/* 5. Import Songbook */}
             <button
               onClick={() => setIsConfirmResetOpen(true)}
-              className="flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors cursor-pointer shrink-0"
+              className="flex flex-col items-center justify-center px-1.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors cursor-pointer shrink-0"
               title="Import Songbook (load different JSON)"
             >
-              <FolderOpen className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">
+              <FolderOpen className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
+              <span className="text-[8.5px] sm:text-[10px] font-bold mt-0.5 tracking-tight">
                 Import
               </span>
             </button>
@@ -1875,19 +1879,19 @@ export default function App() {
             <button
               id="floating-settings-btn"
               onClick={handleOpenMobileSidebar}
-              className="flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors relative cursor-pointer shrink-0"
+              className="flex flex-col items-center justify-center px-1.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors relative cursor-pointer shrink-0"
               title={
                 hasUnappliedSettings
                   ? `Settings (${unappliedChanges.length} unapplied changes pending)`
                   : 'Open Settings'
               }
             >
-              <SlidersHorizontal className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">
+              <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
+              <span className="text-[8.5px] sm:text-[10px] font-bold mt-0.5 tracking-tight">
                 Settings
               </span>
               {hasUnappliedSettings && (
-                <span className="absolute top-0.5 right-1.5 flex h-2 w-2">
+                <span className="absolute top-0.5 right-1 sm:right-1.5 flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
                 </span>
@@ -1898,33 +1902,35 @@ export default function App() {
             <button
               id="floating-nav-btn"
               onClick={() => setIsSongNavOpen((prev) => !prev)}
-              className={`flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl transition-colors cursor-pointer shrink-0 ${
+              className={`flex flex-col items-center justify-center px-1.5 sm:px-3 h-9 sm:h-10 rounded-xl transition-colors cursor-pointer shrink-0 ${
                 isSongNavOpen
                   ? 'text-zinc-950 font-bold bg-zinc-200'
                   : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200'
               }`}
               title="Table of Contents & Jump to Song"
             >
-              <BookOpen className="w-4 h-4" />
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">ToC</span>
+              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[8.5px] sm:text-[10px] font-bold mt-0.5 tracking-tight">
+                ToC
+              </span>
             </button>
 
             {/* 8. Songs (Manage Songs Visibility) */}
             <button
               id="floating-manage-songs-btn"
               onClick={() => setIsSongSelectionOpen(true)}
-              className="flex flex-col items-center justify-center px-2.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors relative cursor-pointer shrink-0"
+              className="flex flex-col items-center justify-center px-1.5 sm:px-3 h-9 sm:h-10 rounded-xl text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 transition-colors relative cursor-pointer shrink-0"
               title={`Manage songs (${selectedSongIds.size} of ${songCount} visible)`}
             >
               <div className="relative">
-                <ListFilter className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                <ListFilter className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
                 {selectedSongIds.size < songCount && (
                   <span className="absolute -top-1 -right-2 text-[8px] font-bold bg-amber-500 text-white px-1 rounded-full leading-none py-0.5">
                     {selectedSongIds.size}
                   </span>
                 )}
               </div>
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight">
+              <span className="text-[8.5px] sm:text-[10px] font-bold mt-0.5 tracking-tight">
                 Songs
               </span>
             </button>
@@ -1933,7 +1939,7 @@ export default function App() {
             <button
               onClick={() => handleDownloadPdf()}
               disabled={isDownloadingPdf || isGeneratingWorkerPdf}
-              className={`flex flex-col items-center justify-center px-2.5 sm:px-3.5 h-9 sm:h-10 rounded-xl transition-all cursor-pointer shrink-0 relative ${
+              className={`flex flex-col items-center justify-center px-2 sm:px-3.5 h-9 sm:h-10 rounded-xl transition-all cursor-pointer shrink-0 relative ${
                 isPdfReady
                   ? 'text-emerald-800 font-bold bg-emerald-100 hover:bg-emerald-200'
                   : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200'
@@ -1945,10 +1951,10 @@ export default function App() {
               }
             >
               {isDownloadingPdf || isGeneratingWorkerPdf ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
               ) : (
                 <div className="relative">
-                  <FileDown className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                  <FileDown className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
                   {isPdfReady && (
                     <span className="absolute -top-0.5 -right-0.5 flex h-1.5 w-1.5">
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
@@ -1956,8 +1962,9 @@ export default function App() {
                   )}
                 </div>
               )}
-              <span className="text-[9px] sm:text-[10px] font-bold mt-0.5 tracking-tight whitespace-nowrap">
-                {isPdfReady ? 'Save PDF' : 'Export PDF'}
+              <span className="text-[8.5px] sm:text-[10px] font-bold mt-0.5 tracking-tight whitespace-nowrap">
+                <span className="sm:hidden">{isPdfReady ? 'Save' : 'PDF'}</span>
+                <span className="hidden sm:inline">{isPdfReady ? 'Save PDF' : 'Export PDF'}</span>
               </span>
             </button>
           </div>
