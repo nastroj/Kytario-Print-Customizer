@@ -77,7 +77,7 @@ function cleanTitle(rawTitle) {
     .replace(/\s*(?:\||-|–|—)\s*Kytario.*$/i, '')
     .replace(/\s*(?:\||-|–|—)\s*(?:Digitální zpěvník|Digital Songbook).*$/i, '')
     .replace(
-      /\s*[\(\[](?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[\)\]]/i,
+      /\s*[([](?:Songbook|Zpěvník|Zpevnik|Digitální zpěvník|Digital Songbook)[)\]]/i,
       '',
     )
     .trim();
@@ -140,8 +140,8 @@ function extractJsonArrayAfterMarker(html, markers) {
   let json = html.slice(arrayStart, arrayEnd);
   if (marker.startsWith('\\')) {
     json = json
-      .replace(/\\\\\"/g, '"')
-      .replace(/\\\"/g, '"')
+      .replace(/\\\\"/g, '"')
+      .replace(/\\"/g, '"')
       .replace(/\\\\/g, '\\');
   }
   try {
