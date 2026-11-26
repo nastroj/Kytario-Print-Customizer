@@ -445,19 +445,17 @@ export default function App() {
   });
 
   const [settings, setSettings] = useState<PrintSettings>(getInitialSettings);
-  const recoveredDraftInfoRef = useRef<ReturnType<typeof loadDraftSettingsFromStorage> | undefined>(
-    undefined,
+  // Load any unapplied draft from a previous session once, on mount.
+  const [recoveredDraftInfo] = useState<ReturnType<typeof loadDraftSettingsFromStorage>>(() =>
+    loadDraftSettingsFromStorage(settings),
   );
-  if (recoveredDraftInfoRef.current === undefined) {
-    recoveredDraftInfoRef.current = loadDraftSettingsFromStorage(settings);
-  }
   const [draftSettings, setDraftSettings] = useState<PrintSettings>(
-    () => recoveredDraftInfoRef.current?.draft ?? settings,
+    () => recoveredDraftInfo?.draft ?? settings,
   );
 
   // Surface a recovery notice if an unapplied settings draft was restored after a crash/reload
   useEffect(() => {
-    const recovered = recoveredDraftInfoRef.current;
+    const recovered = recoveredDraftInfo;
     if (!recovered) return;
     const savedLabel =
       recovered.savedAt > 0
@@ -474,11 +472,13 @@ export default function App() {
   }, []);
 
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
   const draftSettingsRef = useRef(draftSettings);
-  draftSettingsRef.current = draftSettings;
+  useEffect(() => {
+    settingsRef.current = settings;
+    draftSettingsRef.current = draftSettings;
+  }, [settings, draftSettings]);
   const lastPersistedDraftJsonRef = useRef<string | null>(
-    recoveredDraftInfoRef.current ? JSON.stringify(recoveredDraftInfoRef.current.draft) : null,
+    recoveredDraftInfo ? JSON.stringify(recoveredDraftInfo.draft) : null,
   );
 
   // Periodic auto-save of unapplied print settings draft (every 5s + on tab hide/unload)
