@@ -1068,7 +1068,9 @@ const SongbookPreviewComponent: React.FC<SongbookPreviewProps> = ({
   onPreviewReady,
 }) => {
   const onPreviewReadyRef = useRef(onPreviewReady);
-  onPreviewReadyRef.current = onPreviewReady;
+  useEffect(() => {
+    onPreviewReadyRef.current = onPreviewReady;
+  }, [onPreviewReady]);
 
   useEffect(() => {
     const rafId = requestAnimationFrame(() => {
